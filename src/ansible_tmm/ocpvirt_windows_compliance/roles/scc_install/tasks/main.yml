@@ -24,14 +24,23 @@
 
     - name: Download SCC installer
       ansible.windows.win_get_url:
-        url: "{{ scc_download_url }}"
-        dest: "{{ scc_temp_path }}\\SCC_{{ scc_version }}.zip"
+        url: "{{ scc_installer_url | default(scc_download_url) }}"
+        dest: "{{ scc_temp_path }}\\{{ scc_installer_filename }}"
         force: false
       register: scc_download
+      when: scc_local_installer is not defined
+
+    - name: Copy local SCC installer
+      ansible.windows.win_copy:
+        src: "{{ scc_local_installer }}"
+        dest: "{{ scc_temp_path }}\\{{ scc_installer_filename }}"
+        remote_src: true
+      when: scc_local_installer is defined
+      register: scc_copy
 
     - name: Extract SCC archive
       community.windows.win_unzip:
-        src: "{{ scc_temp_path }}\\SCC_{{ scc_version }}.zip"
+        src: "{{ scc_temp_path }}\\{{ scc_installer_filename }}"
         dest: "{{ scc_temp_path }}\\extracted"
         creates: "{{ scc_temp_path }}\\extracted"
 

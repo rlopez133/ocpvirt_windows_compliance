@@ -165,7 +165,7 @@ ansible_port: 5986
 
 # Collection defaults
 tenant_namespace: compliance-test
-scc_installer_url: "https://your-server/scc-5.10_Windows.zip"
+scc_installer_url: "https://your-server/scc-5.12.1_Windows_bundle.zip"
 ```
 
 3. Click **Save**
@@ -359,7 +359,7 @@ ocpvirt_compliance_grafana_dashboards: true
 ```yaml
 ---
 tenant_namespace: compliance-test
-scc_installer_url: "https://your-server/scc-5.10_Windows.zip"
+scc_installer_url: "https://your-server/scc-5.12.1_Windows_bundle.zip"
 ```
 
 4. Under **Options**, check:
@@ -767,7 +767,7 @@ ocpvirt_compliance_grafana_dashboards: true
 
 ### Install SCC
 ```yaml
-scc_installer_url: "https://server/scc-5.10_Windows.zip"
+scc_installer_url: "https://server/scc-5.12.1_Windows_bundle.zip"
 tenant_namespace: "compliance-test"
 ```
 

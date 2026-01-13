@@ -38,24 +38,8 @@ tenant_config:
 # OpenShift Monitoring Configuration
 ocpvirt_compliance_enable_user_workload_monitoring: true
 ocpvirt_compliance_alertmanager_dedicated: true
+# Grafana: Requires Grafana Operator to be installed (not included in OpenShift 4.11+)
 ocpvirt_compliance_grafana_dashboards: true
-
-# EDA Configuration
-eda_config:
-  enabled: true
-  controller_url: ""  # Required: EDA controller URL
-  webhook_port: 5001
-  rulebook_name: "compliance-auto-remediation"
-  auto_remediate_cat1: false  # CAT I requires manual approval
-  auto_remediate_cat2: true
-  auto_remediate_cat3: true
-
-# AAP Configuration
-aap_config:
-  controller_url: ""  # Required: AAP controller URL
-  organization: "Default"
-  project_name: "Windows Compliance Collection"
-  inventory_name: "OpenShift Virtualization VMs"
 
 # PrometheusRule Configuration
 prometheus_config:
