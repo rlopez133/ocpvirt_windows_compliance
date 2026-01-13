@@ -36,9 +36,9 @@
                   severity: critical
                   category: CAT1
                 annotations:
-                  summary: "Critical compliance violation on {{ $labels.vm_name }}"
-                  description: "CAT I control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }} in namespace {{ $labels.namespace }}"
-                  runbook_url: "https://wiki/compliance/{{ $labels.control_id }}"
+                  summary: "{% raw %}Critical compliance violation on {{ $labels.vm_name }}{% endraw %}"
+                  description: "{% raw %}CAT I control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }} in namespace {{ $labels.namespace }}{% endraw %}"
+                  runbook_url: "{% raw %}https://wiki/compliance/{{ $labels.control_id }}{% endraw %}"
 
               # CAT II (Warning) - Significant but not critical
               - alert: ComplianceCAT2Violation
@@ -49,8 +49,8 @@
                   severity: warning
                   category: CAT2
                 annotations:
-                  summary: "Compliance warning on {{ $labels.vm_name }}"
-                  description: "CAT II control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }}"
+                  summary: "{% raw %}Compliance warning on {{ $labels.vm_name }}{% endraw %}"
+                  description: "{% raw %}CAT II control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }}{% endraw %}"
 
               # CAT III (Info) - Low severity
               - alert: ComplianceCAT3Violation
@@ -61,8 +61,8 @@
                   severity: info
                   category: CAT3
                 annotations:
-                  summary: "Low severity compliance issue on {{ $labels.vm_name }}"
-                  description: "CAT III control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }}"
+                  summary: "{% raw %}Low severity compliance issue on {{ $labels.vm_name }}{% endraw %}"
+                  description: "{% raw %}CAT III control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }}{% endraw %}"
 
               # Overall compliance score below threshold
               - alert: ComplianceScoreBelowThreshold
@@ -72,8 +72,8 @@
                 labels:
                   severity: warning
                 annotations:
-                  summary: "Compliance score below threshold on {{ $labels.vm_name }}"
-                  description: "VM {{ $labels.vm_name }} has compliance score {{ $value }}%, below threshold of {{ tenant_config.alerting.thresholds.warning }}%"
+                  summary: "{% raw %}Compliance score below threshold on {{ $labels.vm_name }}{% endraw %}"
+                  description: "{% raw %}VM {{ $labels.vm_name }} has compliance score {{ $value }}%{% endraw %}, below threshold of {{ tenant_config.alerting.thresholds.warning }}%"
 
               # Scan failure
               - alert: ComplianceScanFailed
@@ -83,8 +83,8 @@
                 labels:
                   severity: warning
                 annotations:
-                  summary: "Compliance scan failed on {{ $labels.vm_name }}"
-                  description: "Compliance scan failed for VM {{ $labels.vm_name }}. Check scan logs."
+                  summary: "{% raw %}Compliance scan failed on {{ $labels.vm_name }}{% endraw %}"
+                  description: "{% raw %}Compliance scan failed for VM {{ $labels.vm_name }}. Check scan logs.{% endraw %}"
 
           - name: compliance.windows.records
             interval: 60s
