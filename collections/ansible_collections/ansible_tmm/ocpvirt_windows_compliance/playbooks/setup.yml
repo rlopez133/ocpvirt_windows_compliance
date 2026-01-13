@@ -43,7 +43,7 @@
           Storage: {{ tenant_config.storage.backend | default('pvc') }}
 
   roles:
-    - {role: ansible_tmm.ocpvirt_windows_compliance.setup}
+    - setup
 
   post_tasks:
     - name: Display completion message
