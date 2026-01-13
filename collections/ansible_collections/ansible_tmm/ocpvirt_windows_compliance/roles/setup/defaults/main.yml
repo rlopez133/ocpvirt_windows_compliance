@@ -2,6 +2,11 @@
 # Setup Role Defaults
 # Configure infrastructure components for compliance management
 
+# Compliance Thresholds (easily overridable in job template)
+compliance_threshold_critical: 100  # CAT I must be 100%
+compliance_threshold_warning: 95
+compliance_threshold_info: 80
+
 # Tenant Configuration
 # Override these values for your environment
 tenant_config:
