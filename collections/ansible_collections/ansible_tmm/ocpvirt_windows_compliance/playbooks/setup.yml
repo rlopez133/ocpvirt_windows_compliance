@@ -12,8 +12,9 @@
 
 - name: Setup Windows VM Compliance Infrastructure
   hosts: localhost
-  connection: local
   gather_facts: false
+  collections:
+    - ansible_tmm.ocpvirt_windows_compliance
 
   vars:
     # Default tenant config - override with extra vars
@@ -42,7 +43,7 @@
           Storage: {{ tenant_config.storage.backend | default('pvc') }}
 
   roles:
-    - role: ansible_tmm.ocpvirt_windows_compliance.setup
+    - {role: ansible_tmm.ocpvirt_windows_compliance.setup}
 
   post_tasks:
     - name: Display completion message

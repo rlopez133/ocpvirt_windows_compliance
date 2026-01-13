@@ -61,9 +61,6 @@ venv.bak/
 *.tar.gz
 ansible_tmm-ocpvirt_windows_compliance-*.tar.gz
 
-# Ansible Galaxy build artifacts
-ansible_collections/
-
 # Ansible Vault files (encrypted secrets)
 **/vault.yml
 **/vault.yaml
