@@ -1,0 +1,50 @@
+---
+# Setup Role - Main Task Dispatcher
+# Configures all infrastructure components for compliance management
+
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - tenant_config is defined
+      - tenant_config.namespace is defined
+      - tenant_config.name is defined
+    fail_msg: "tenant_config with namespace and name is required"
+
+- name: Display setup configuration
+  ansible.builtin.debug:
+    msg: |
+      Setting up compliance infrastructure for tenant: {{ tenant_config.name }}
+      Namespace: {{ tenant_config.namespace }}
+      Storage backend: {{ tenant_config.storage.backend | default('pvc') }}
+
+- name: Configure user workload monitoring
+  ansible.builtin.include_tasks: monitoring.yml
+  when: ocpvirt_compliance_enable_user_workload_monitoring | default(true)
+
+- name: Deploy Prometheus rules
+  ansible.builtin.include_tasks: prometheus_rules.yml
+
+- name: Configure Alertmanager
+  ansible.builtin.include_tasks: alertmanager.yml
+  when: ocpvirt_compliance_alertmanager_dedicated | default(true)
+
+- name: Deploy Grafana dashboards
+  ansible.builtin.include_tasks: grafana.yml
+  when: ocpvirt_compliance_grafana_dashboards | default(true)
+
+- name: Configure EDA rulebook activation
+  ansible.builtin.include_tasks: eda.yml
+  when: eda_config.enabled | default(true)
+
+- name: Create storage resources
+  ansible.builtin.include_tasks: storage.yml
+
+- name: Display setup summary
+  ansible.builtin.debug:
+    msg: |
+      Compliance infrastructure setup complete!
+      - Namespace: {{ tenant_config.namespace }}
+      - PrometheusRules: Deployed
+      - Alertmanager: {{ 'Configured' if ocpvirt_compliance_alertmanager_dedicated else 'Skipped' }}
+      - Grafana Dashboards: {{ 'Deployed' if ocpvirt_compliance_grafana_dashboards else 'Skipped' }}
+      - EDA: {{ 'Configured' if eda_config.enabled else 'Skipped' }}

@@ -1,0 +1,249 @@
+---
+# AAP Job Templates Configuration
+# Creates all job templates for compliance operations
+
+- name: Create Compliance-Setup job template
+  ansible.platform.job_template:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Compliance-Setup"
+    description: "Configure OpenShift monitoring, alerting, and EDA for compliance"
+    organization: "{{ aap_organization }}"
+    project: "Windows Compliance Collection"
+    playbook: "playbooks/setup.yml"
+    inventory: "localhost"
+    credentials:
+      - "openshift-api"
+    ask_variables_on_launch: true
+    extra_vars:
+      tenant_config:
+        name: "default"
+        namespace: "compliance"
+    state: present
+
+- name: Create Install-SCC job template
+  ansible.platform.job_template:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Install-SCC"
+    description: "Download and install DISA SCAP Compliance Checker on Windows VMs"
+    organization: "{{ aap_organization }}"
+    project: "Windows Compliance Collection"
+    playbook: "playbooks/install_scc.yml"
+    inventory: "{{ windows_vm_inventory }}"
+    credentials:
+      - "windows-winrm"
+    ask_variables_on_launch: true
+    ask_limit_on_launch: true
+    state: present
+
+- name: Create Compliance-Scan job template
+  ansible.platform.job_template:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Compliance-Scan"
+    description: "Run compliance scan on Windows VMs using DISA SCC"
+    organization: "{{ aap_organization }}"
+    project: "Windows Compliance Collection"
+    playbook: "playbooks/scan.yml"
+    inventory: "{{ windows_vm_inventory }}"
+    credentials:
+      - "windows-winrm"
+    ask_variables_on_launch: true
+    ask_limit_on_launch: true
+    extra_vars:
+      compliance_profile: "stig"
+    survey_enabled: true
+    survey_spec:
+      name: "Scan Parameters"
+      description: "Configure compliance scan options"
+      spec:
+        - question_name: "Compliance Profile"
+          question_description: "Select the compliance profile to use for scanning"
+          variable: "compliance_profile"
+          type: "multiplechoice"
+          choices:
+            - "stig"
+            - "stig-minimal"
+            - "cis"
+            - "hipaa"
+            - "pci-dss"
+          default: "stig"
+          required: true
+    state: present
+
+- name: Create Compliance-Remediate job template
+  ansible.platform.job_template:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Compliance-Remediate"
+    description: "Apply compliance remediation to Windows VMs"
+    organization: "{{ aap_organization }}"
+    project: "Windows Compliance Collection"
+    playbook: "playbooks/remediate.yml"
+    inventory: "{{ windows_vm_inventory }}"
+    credentials:
+      - "windows-winrm"
+    ask_variables_on_launch: true
+    ask_limit_on_launch: true
+    extra_vars:
+      compliance_profile: "stig"
+      cat_levels:
+        - "cat1"
+        - "cat2"
+    survey_enabled: true
+    survey_spec:
+      name: "Remediation Parameters"
+      description: "Configure remediation options"
+      spec:
+        - question_name: "Compliance Profile"
+          variable: "compliance_profile"
+          type: "multiplechoice"
+          choices:
+            - "stig"
+            - "stig-minimal"
+            - "cis"
+            - "hipaa"
+            - "pci-dss"
+          default: "stig"
+          required: true
+        - question_name: "CAT Levels to Apply"
+          question_description: "Select which severity levels to remediate"
+          variable: "cat_levels"
+          type: "multiselect"
+          choices:
+            - "cat1"
+            - "cat2"
+            - "cat3"
+          default: "cat1\ncat2"
+          required: true
+    state: present
+
+- name: Create Compliance-Report job template
+  ansible.platform.job_template:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Compliance-Report"
+    description: "Generate compliance audit reports"
+    organization: "{{ aap_organization }}"
+    project: "Windows Compliance Collection"
+    playbook: "playbooks/report.yml"
+    inventory: "localhost"
+    credentials:
+      - "openshift-api"
+      - "s3-reports"
+    ask_variables_on_launch: true
+    extra_vars:
+      report_format: "html"
+      report_template: "standard"
+    survey_enabled: true
+    survey_spec:
+      name: "Report Parameters"
+      spec:
+        - question_name: "Report Format"
+          variable: "report_format"
+          type: "multiplechoice"
+          choices:
+            - "html"
+            - "json"
+            - "csv"
+          default: "html"
+          required: true
+        - question_name: "Report Template"
+          variable: "report_template"
+          type: "multiplechoice"
+          choices:
+            - "standard"
+            - "executive"
+            - "detailed"
+          default: "standard"
+          required: true
+    state: present
+
+- name: Create Provision-Compliant-VM job template
+  ansible.platform.job_template:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Provision-Compliant-VM"
+    description: "Provision a new Windows VM from a compliant golden image"
+    organization: "{{ aap_organization }}"
+    project: "Windows Compliance Collection"
+    playbook: "playbooks/provision_vm.yml"
+    inventory: "localhost"
+    credentials:
+      - "openshift-api"
+    ask_variables_on_launch: true
+    survey_enabled: true
+    survey_spec:
+      name: "VM Provisioning Parameters"
+      spec:
+        - question_name: "VM Name"
+          variable: "vm_name"
+          type: "text"
+          required: true
+        - question_name: "Namespace"
+          variable: "vm_namespace"
+          type: "text"
+          required: true
+        - question_name: "Golden Image"
+          variable: "golden_image_name"
+          type: "text"
+          default: "win2022-stig-v1"
+          required: true
+    state: present
+
+- name: Create Create-Golden-Image job template
+  ansible.platform.job_template:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Create-Golden-Image"
+    description: "Create a pre-hardened golden image from a base Windows image"
+    organization: "{{ aap_organization }}"
+    project: "Windows Compliance Collection"
+    playbook: "playbooks/create_golden_image.yml"
+    inventory: "localhost"
+    credentials:
+      - "openshift-api"
+      - "windows-winrm"
+    ask_variables_on_launch: true
+    survey_enabled: true
+    survey_spec:
+      name: "Golden Image Parameters"
+      spec:
+        - question_name: "Image Name"
+          variable: "image_name"
+          type: "text"
+          required: true
+        - question_name: "Compliance Profile"
+          variable: "compliance_profile"
+          type: "multiplechoice"
+          choices:
+            - "stig"
+            - "stig-minimal"
+            - "cis"
+          default: "stig"
+          required: true
+        - question_name: "Source DataVolume"
+          variable: "source_datavolume"
+          type: "text"
+          default: "windows-2022-base"
+          required: true
+    state: present
+
+- name: Display job templates status
+  ansible.builtin.debug:
+    msg: "All job templates created/updated successfully"

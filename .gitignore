@@ -1,0 +1,224 @@
+# =============================================================================
+# Windows Compliance Collection - .gitignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Claude Code / Specify Tools
+# -----------------------------------------------------------------------------
+.claude/
+.specify/
+.mcp.json
+CLAUDE.md
+specs/
+
+# -----------------------------------------------------------------------------
+# macOS
+# -----------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# -----------------------------------------------------------------------------
+# Ansible
+# -----------------------------------------------------------------------------
+*.retry
+*.tar.gz
+ansible_tmm-ocpvirt_windows_compliance-*.tar.gz
+
+# Ansible Galaxy build artifacts
+ansible_collections/
+
+# Ansible Vault files (encrypted secrets)
+**/vault.yml
+**/vault.yaml
+**/*vault*.yml
+**/*vault*.yaml
+!**/vault.yml.example
+!**/vault.yaml.example
+
+# Ansible logs
+ansible.log
+
+# -----------------------------------------------------------------------------
+# Secrets and Credentials (NEVER commit these)
+# -----------------------------------------------------------------------------
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Credential files
+credentials.yml
+credentials.yaml
+secrets.yml
+secrets.yaml
+**/credentials/
+**/secrets/
+
+# SSH keys
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Certificates
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# Kubeconfig files
+kubeconfig
+kubeconfig.yaml
+kubeconfig.yml
+.kube/
+
+# Token files
+*token*
+*.token
+
+# -----------------------------------------------------------------------------
+# IDE and Editors
+# -----------------------------------------------------------------------------
+# VS Code
+.vscode/
+*.code-workspace
+
+# JetBrains (PyCharm, IntelliJ)
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# -----------------------------------------------------------------------------
+# Testing
+# -----------------------------------------------------------------------------
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+*.cover
+*.py,cover
+coverage.xml
+*.log
+
+# Molecule testing
+molecule/**/molecule.yml.bak
+
+# -----------------------------------------------------------------------------
+# Build and Distribution
+# -----------------------------------------------------------------------------
+*.tar.gz
+*.zip
+*.whl
+
+# -----------------------------------------------------------------------------
+# Reports and Outputs (generated files)
+# -----------------------------------------------------------------------------
+# Compliance reports (contain scan data)
+**/compliance-reports/
+**/reports/*.html
+**/reports/*.json
+**/reports/*.csv
+
+# SCC scan results
+**/scc-results/
+**/*.xccdf.xml
+
+# -----------------------------------------------------------------------------
+# Temporary Files
+# -----------------------------------------------------------------------------
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+tmp/
+temp/
+
+# -----------------------------------------------------------------------------
+# Reference/External Repositories (not part of this project)
+# -----------------------------------------------------------------------------
+nuno_security_compliance_git/
+
+# -----------------------------------------------------------------------------
+# Operating System Files
+# -----------------------------------------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# -----------------------------------------------------------------------------
+# Logs
+# -----------------------------------------------------------------------------
+*.log
+logs/
+log/
+
+# -----------------------------------------------------------------------------
+# Documentation Build
+# -----------------------------------------------------------------------------
+docs/_build/
+site/

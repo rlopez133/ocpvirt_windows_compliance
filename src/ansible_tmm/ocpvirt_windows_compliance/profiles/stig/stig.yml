@@ -1,0 +1,66 @@
+---
+# STIG Standard Profile - Full DISA STIG Implementation
+# Includes CAT I, CAT II, and CAT III controls
+
+compliance_profile:
+  name: "stig"
+  display_name: "STIG Standard Profile"
+  framework: "stig"
+  version: "V2R6"
+  description: >-
+    Full DISA Security Technical Implementation Guide (STIG) profile.
+    Includes all CAT I (High), CAT II (Medium), and CAT III (Low) controls.
+
+  # SCC benchmark mapping
+  scc_benchmark:
+    win2022: "Windows_Server_2022_STIG_SCAP_Benchmark"
+    win2019: "Windows_Server_2019_STIG_SCAP_Benchmark"
+
+  # Category settings
+  categories:
+    cat1:
+      enabled: true
+      description: "High severity - Critical vulnerabilities"
+      auto_remediate: false  # Requires manual approval
+    cat2:
+      enabled: true
+      description: "Medium severity - Significant vulnerabilities"
+      auto_remediate: true
+    cat3:
+      enabled: true
+      description: "Low severity - Minor vulnerabilities"
+      auto_remediate: true
+
+  # Control overrides
+  controls:
+    enabled: []
+    disabled: []
+
+  # Remediation settings
+  remediation:
+    disruption_high: false
+    reboot_allowed: false
+    backup_before_change: true
+
+  # Thresholds for compliance status
+  thresholds:
+    critical: 100    # CAT I must be 100%
+    warning: 95      # Overall warning threshold
+    info: 80         # Info threshold
+
+  # Expected coverage
+  expected_coverage:
+    minimum: 85
+    typical: 95
+    description: "Most controls can be automated; some require manual verification"
+
+  # Role variables passed to remediation roles
+  role_vars:
+    win22stig_cat1_patch: true
+    win22stig_cat2_patch: true
+    win22stig_cat3_patch: true
+    win22stig_disruption_high: false
+    win19stig_cat1_patch: true
+    win19stig_cat2_patch: true
+    win19stig_cat3_patch: true
+    win19stig_disruption_high: false

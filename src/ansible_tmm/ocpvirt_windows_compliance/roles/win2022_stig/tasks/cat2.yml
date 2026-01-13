@@ -1,0 +1,189 @@
+---
+# Windows Server 2022 STIG - CAT II (Medium Severity) Controls
+
+# WN22-AU-000010 - Audit policy for credential validation
+- name: "CAT2 | WN22-AU-000010 | Configure audit policy - Credential Validation"
+  when: "'WN22-AU-000010' not in win22stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Credential Validation
+    audit_type: "{{ win22stig_audit_policy.credential_validation }}"
+  tags:
+    - cat2
+    - WN22-AU-000010
+
+# WN22-AU-000020 - Audit policy for Kerberos
+- name: "CAT2 | WN22-AU-000020 | Configure audit policy - Kerberos Authentication"
+  when: "'WN22-AU-000020' not in win22stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Kerberos Authentication Service
+    audit_type: "{{ win22stig_audit_policy.kerberos_authentication }}"
+  tags:
+    - cat2
+    - WN22-AU-000020
+
+# WN22-AU-000030 - Audit policy for logon events
+- name: "CAT2 | WN22-AU-000030 | Configure audit policy - Logon"
+  when: "'WN22-AU-000030' not in win22stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Logon
+    audit_type: "{{ win22stig_audit_policy.logon }}"
+  tags:
+    - cat2
+    - WN22-AU-000030
+
+# WN22-AU-000040 - Audit policy for account management
+- name: "CAT2 | WN22-AU-000040 | Configure audit policy - User Account Management"
+  when: "'WN22-AU-000040' not in win22stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: User Account Management
+    audit_type: "{{ win22stig_audit_policy.user_account_management }}"
+  tags:
+    - cat2
+    - WN22-AU-000040
+
+# WN22-AU-000050 - Audit policy for process creation
+- name: "CAT2 | WN22-AU-000050 | Configure audit policy - Process Creation"
+  when: "'WN22-AU-000050' not in win22stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Process Creation
+    audit_type: "{{ win22stig_audit_policy.process_creation }}"
+  tags:
+    - cat2
+    - WN22-AU-000050
+
+# WN22-PK-000010 - Minimum password length
+- name: "CAT2 | WN22-PK-000010 | Configure minimum password length"
+  when: "'WN22-PK-000010' not in win22stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: MinimumPasswordLength
+    value: "{{ win22stig_password_policy.min_length }}"
+  tags:
+    - cat2
+    - WN22-PK-000010
+
+# WN22-PK-000020 - Password complexity
+- name: "CAT2 | WN22-PK-000020 | Enable password complexity"
+  when: "'WN22-PK-000020' not in win22stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: PasswordComplexity
+    value: "{{ 1 if win22stig_password_policy.complexity else 0 }}"
+  tags:
+    - cat2
+    - WN22-PK-000020
+
+# WN22-PK-000030 - Maximum password age
+- name: "CAT2 | WN22-PK-000030 | Configure maximum password age"
+  when: "'WN22-PK-000030' not in win22stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: MaximumPasswordAge
+    value: "{{ win22stig_password_policy.max_age }}"
+  tags:
+    - cat2
+    - WN22-PK-000030
+
+# WN22-PK-000040 - Password history
+- name: "CAT2 | WN22-PK-000040 | Configure password history"
+  when: "'WN22-PK-000040' not in win22stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: PasswordHistorySize
+    value: "{{ win22stig_password_policy.history }}"
+  tags:
+    - cat2
+    - WN22-PK-000040
+
+# WN22-SO-000100 - SMB signing required
+- name: "CAT2 | WN22-SO-000100 | Enable SMB signing"
+  when: "'WN22-SO-000100' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters
+    name: RequireSecuritySignature
+    data: 1
+    type: dword
+  tags:
+    - cat2
+    - WN22-SO-000100
+  notify: restart lanmanserver
+
+# WN22-SO-000110 - SMB client signing
+- name: "CAT2 | WN22-SO-000110 | Enable SMB client signing"
+  when: "'WN22-SO-000110' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters
+    name: RequireSecuritySignature
+    data: 1
+    type: dword
+  tags:
+    - cat2
+    - WN22-SO-000110
+  notify: restart lanmanworkstation
+
+# WN22-SO-000120 - Remote Desktop encryption
+- name: "CAT2 | WN22-SO-000120 | Configure RDP encryption"
+  when: "'WN22-SO-000120' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services
+    name: MinEncryptionLevel
+    data: 3
+    type: dword
+  tags:
+    - cat2
+    - WN22-SO-000120
+
+# WN22-SO-000130 - WDigest authentication
+- name: "CAT2 | WN22-SO-000130 | Disable WDigest authentication"
+  when: "'WN22-SO-000130' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest
+    name: UseLogonCredential
+    data: 0
+    type: dword
+  tags:
+    - cat2
+    - WN22-SO-000130
+
+# WN22-FW-000010 - Windows Firewall enabled
+- name: "CAT2 | WN22-FW-000010 | Enable Windows Firewall - Domain"
+  when: "'WN22-FW-000010' not in win22stig_skip_rules"
+  community.windows.win_firewall:
+    profiles:
+      - Domain
+    state: enabled
+  tags:
+    - cat2
+    - WN22-FW-000010
+
+- name: "CAT2 | WN22-FW-000020 | Enable Windows Firewall - Private"
+  when: "'WN22-FW-000020' not in win22stig_skip_rules"
+  community.windows.win_firewall:
+    profiles:
+      - Private
+    state: enabled
+  tags:
+    - cat2
+    - WN22-FW-000020
+
+- name: "CAT2 | WN22-FW-000030 | Enable Windows Firewall - Public"
+  when: "'WN22-FW-000030' not in win22stig_skip_rules"
+  community.windows.win_firewall:
+    profiles:
+      - Public
+    state: enabled
+  tags:
+    - cat2
+    - WN22-FW-000030
+
+# WN22-EP-000010 - Windows Defender enabled
+- name: "CAT2 | WN22-EP-000010 | Enable Windows Defender"
+  when: "'WN22-EP-000010' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender
+    name: DisableAntiSpyware
+    data: 0
+    type: dword
+  tags:
+    - cat2
+    - WN22-EP-000010

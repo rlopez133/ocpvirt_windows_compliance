@@ -1,0 +1,103 @@
+---
+# Setup Role - Prometheus Rules Deployment
+# Deploys PrometheusRules for compliance alerting
+
+- name: Ensure namespace exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ tenant_config.namespace }}"
+        labels: "{{ compliance_labels }}"
+
+- name: Deploy compliance PrometheusRule
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: monitoring.coreos.com/v1
+      kind: PrometheusRule
+      metadata:
+        name: "{{ prometheus_config.rule_name | default('compliance-alerts') }}"
+        namespace: "{{ tenant_config.namespace }}"
+        labels: "{{ compliance_labels | combine(prometheus_config.labels | default({})) }}"
+      spec:
+        groups:
+          - name: compliance.windows.alerts
+            interval: 60s
+            rules:
+              # CAT I (Critical) - Any failure is critical
+              - alert: ComplianceCAT1Violation
+                expr: |
+                  compliance_control_status{category="CAT1", status="fail"} == 1
+                for: 5m
+                labels:
+                  severity: critical
+                  category: CAT1
+                annotations:
+                  summary: "Critical compliance violation on {{ $labels.vm_name }}"
+                  description: "CAT I control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }} in namespace {{ $labels.namespace }}"
+                  runbook_url: "https://wiki/compliance/{{ $labels.control_id }}"
+
+              # CAT II (Warning) - Significant but not critical
+              - alert: ComplianceCAT2Violation
+                expr: |
+                  compliance_control_status{category="CAT2", status="fail"} == 1
+                for: 5m
+                labels:
+                  severity: warning
+                  category: CAT2
+                annotations:
+                  summary: "Compliance warning on {{ $labels.vm_name }}"
+                  description: "CAT II control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }}"
+
+              # CAT III (Info) - Low severity
+              - alert: ComplianceCAT3Violation
+                expr: |
+                  compliance_control_status{category="CAT3", status="fail"} == 1
+                for: 15m
+                labels:
+                  severity: info
+                  category: CAT3
+                annotations:
+                  summary: "Low severity compliance issue on {{ $labels.vm_name }}"
+                  description: "CAT III control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }}"
+
+              # Overall compliance score below threshold
+              - alert: ComplianceScoreBelowThreshold
+                expr: |
+                  compliance_score < {{ tenant_config.alerting.thresholds.warning | default(95) }}
+                for: 10m
+                labels:
+                  severity: warning
+                annotations:
+                  summary: "Compliance score below threshold on {{ $labels.vm_name }}"
+                  description: "VM {{ $labels.vm_name }} has compliance score {{ $value }}%, below threshold of {{ tenant_config.alerting.thresholds.warning }}%"
+
+              # Scan failure
+              - alert: ComplianceScanFailed
+                expr: |
+                  increase(compliance_scans_total{result="failed"}[1h]) > 0
+                for: 5m
+                labels:
+                  severity: warning
+                annotations:
+                  summary: "Compliance scan failed on {{ $labels.vm_name }}"
+                  description: "Compliance scan failed for VM {{ $labels.vm_name }}. Check scan logs."
+
+          - name: compliance.windows.records
+            interval: 60s
+            rules:
+              # Recording rule for compliance summary
+              - record: compliance:score:avg_by_namespace
+                expr: |
+                  avg by (namespace, profile) (compliance_score)
+
+              - record: compliance:violations:count_by_category
+                expr: |
+                  count by (namespace, category) (compliance_control_status{status="fail"} == 1)
+
+- name: Display PrometheusRule status
+  ansible.builtin.debug:
+    msg: "PrometheusRule {{ prometheus_config.rule_name }} deployed to {{ tenant_config.namespace }}"

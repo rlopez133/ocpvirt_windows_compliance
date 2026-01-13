@@ -1,0 +1,25 @@
+---
+# SCC Install Role Metadata
+
+galaxy_info:
+  role_name: scc_install
+  author: Roger Lopez
+  description: Download and install DISA SCAP Compliance Checker on Windows VMs
+  company: ""
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+
+  platforms:
+    - name: Windows
+      versions:
+        - "2019"
+        - "2022"
+
+  galaxy_tags:
+    - windows
+    - compliance
+    - stig
+    - scc
+    - scap
+
+dependencies: []

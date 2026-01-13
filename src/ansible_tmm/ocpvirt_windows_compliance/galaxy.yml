@@ -1,0 +1,54 @@
+---
+namespace: ansible_tmm
+name: ocpvirt_windows_compliance
+version: 1.0.0
+readme: README.md
+
+authors:
+  - Roger Lopez <rlopez@example.com>
+
+description: >-
+  Ansible Collection for Windows VM compliance lifecycle management on OpenShift
+  Virtualization. Provides scanning, hardening, monitoring, and automated
+  remediation for STIG, CIS, HIPAA, and PCI-DSS compliance frameworks.
+
+license:
+  - Apache-2.0
+
+license_file: LICENSE
+
+tags:
+  - windows
+  - compliance
+  - stig
+  - cis
+  - hipaa
+  - pci-dss
+  - openshift
+  - virtualization
+  - kubevirt
+  - security
+  - hardening
+  - remediation
+  - eda
+
+dependencies:
+  ansible.windows: ">=2.1.0"
+  community.windows: ">=2.0.0"
+  kubernetes.core: ">=3.0.0"
+  ansible.eda: ">=1.0.0"
+  ansible.platform: ">=2.0.0"
+
+repository: https://github.com/ansible-tmm/ocpvirt_windows_compliance
+documentation: https://github.com/ansible-tmm/ocpvirt_windows_compliance/docs
+homepage: https://github.com/ansible-tmm/ocpvirt_windows_compliance
+issues: https://github.com/ansible-tmm/ocpvirt_windows_compliance/issues
+
+build_ignore:
+  - "*.tar.gz"
+  - ".git"
+  - ".gitignore"
+  - "tests/output"
+  - ".pytest_cache"
+  - "__pycache__"
+  - "*.pyc"

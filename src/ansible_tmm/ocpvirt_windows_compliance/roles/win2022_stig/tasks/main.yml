@@ -1,0 +1,38 @@
+---
+# Windows Server 2022 STIG Role - Main Tasks
+# Applies DISA STIG hardening controls
+
+- name: Display Windows 2022 STIG remediation plan
+  ansible.builtin.debug:
+    msg: |
+      Windows Server 2022 STIG Remediation
+      =====================================
+      CAT I: {{ win22stig_cat1_patch }}
+      CAT II: {{ win22stig_cat2_patch }}
+      CAT III: {{ win22stig_cat3_patch }}
+      High Disruption: {{ win22stig_disruption_high }}
+      Skip Rules: {{ win22stig_skip_rules | default([]) | length }} rules
+
+- name: Apply CAT I (High Severity) controls
+  when: win22stig_cat1_patch
+  ansible.builtin.include_tasks: cat1.yml
+
+- name: Apply CAT II (Medium Severity) controls
+  when: win22stig_cat2_patch
+  ansible.builtin.include_tasks: cat2.yml
+
+- name: Apply CAT III (Low Severity) controls
+  when: win22stig_cat3_patch
+  ansible.builtin.include_tasks: cat3.yml
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Display remediation summary
+  ansible.builtin.debug:
+    msg: |
+      Windows Server 2022 STIG remediation complete.
+      Categories applied:
+      - CAT I: {{ win22stig_cat1_patch }}
+      - CAT II: {{ win22stig_cat2_patch }}
+      - CAT III: {{ win22stig_cat3_patch }}

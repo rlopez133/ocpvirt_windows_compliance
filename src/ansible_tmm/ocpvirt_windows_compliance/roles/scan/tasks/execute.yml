@@ -1,0 +1,65 @@
+---
+# Scan Role - Execute Scan
+# Runs DISA SCC scan
+
+- name: Generate scan ID
+  ansible.builtin.set_fact:
+    scan_id: "scan-{{ ansible_date_time.epoch }}"
+
+- name: Execute SCC scan
+  ansible.windows.win_shell: |
+    $scanId = "{{ scan_id }}"
+    $outputDir = "{{ scc_config.output_dir }}\$scanId"
+    $sccPath = "{{ scc_config.install_path }}\cscc.exe"
+    $benchmark = "{{ scc_benchmark }}"
+
+    # Create output directory
+    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+
+    # Run SCC
+    $startTime = Get-Date
+    try {
+        # Execute SCC with benchmark
+        $process = Start-Process -FilePath $sccPath -ArgumentList @(
+            "--benchmark", $benchmark,
+            "--output", $outputDir,
+            "--html"
+        ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput "$outputDir\stdout.txt" -RedirectStandardError "$outputDir\stderr.txt"
+        $exitCode = $process.ExitCode
+    } catch {
+        $exitCode = 1
+        $_.Exception.Message | Out-File "$outputDir\error.txt"
+    }
+    $endTime = Get-Date
+
+    # Find result files
+    $xccdfFile = Get-ChildItem -Path $outputDir -Filter "*xccdf*.xml" -Recurse | Select-Object -First 1
+    $htmlFile = Get-ChildItem -Path $outputDir -Filter "*.html" -Recurse | Select-Object -First 1
+
+    # Return result
+    @{
+        scan_id = $scanId
+        output_dir = $outputDir
+        started = $startTime.ToString("o")
+        completed = $endTime.ToString("o")
+        duration_seconds = [int]($endTime - $startTime).TotalSeconds
+        exit_code = $exitCode
+        xccdf_result = if ($xccdfFile) { $xccdfFile.FullName } else { $null }
+        html_report = if ($htmlFile) { $htmlFile.FullName } else { $null }
+    } | ConvertTo-Json
+  register: scc_scan_raw
+  async: "{{ scan_timeout }}"
+  poll: 30
+
+- name: Parse scan output
+  ansible.builtin.set_fact:
+    scc_scan_output: "{{ scc_scan_raw.stdout | from_json }}"
+
+- name: Display scan execution result
+  ansible.builtin.debug:
+    msg: |
+      Scan Execution Complete
+      - Scan ID: {{ scc_scan_output.scan_id }}
+      - Duration: {{ scc_scan_output.duration_seconds }} seconds
+      - Exit Code: {{ scc_scan_output.exit_code }}
+      - XCCDF Result: {{ scc_scan_output.xccdf_result | default('Not found') }}

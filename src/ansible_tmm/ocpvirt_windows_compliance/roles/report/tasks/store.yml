@@ -1,0 +1,51 @@
+---
+# Report Role - Store Report
+# Stores generated report to configured storage
+
+- name: Store to PVC
+  when: storage_backend == "pvc"
+  block:
+    - name: Copy report to PVC location
+      kubernetes.core.k8s_cp:
+        namespace: "{{ tenant_namespace }}"
+        pod: "{{ storage_pod | default('compliance-storage') }}"
+        container: "{{ storage_container | default('storage') }}"
+        local_path: "{{ report_path }}"
+        remote_path: "/data/reports/{{ report_filename }}"
+        no_preserve: true
+      delegate_to: localhost
+      ignore_errors: true
+
+    - name: Fallback - store report as ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: "compliance-report-{{ ansible_date_time.date }}"
+            namespace: "{{ tenant_namespace }}"
+            labels:
+              compliance.ocpvirt/type: "report"
+              compliance.ocpvirt/date: "{{ ansible_date_time.date }}"
+          data:
+            report_path: "{{ report_path }}"
+            report_summary: "{{ report_summary | to_json }}"
+      delegate_to: localhost
+
+- name: Store to S3
+  when: storage_backend == "s3"
+  amazon.aws.s3_object:
+    bucket: "{{ s3_bucket }}"
+    object: "reports/{{ tenant_namespace }}/{{ report_filename }}"
+    src: "{{ report_path }}"
+    mode: put
+  delegate_to: localhost
+  ignore_errors: true
+
+- name: Display storage status
+  ansible.builtin.debug:
+    msg: |
+      Report Stored
+      - Backend: {{ storage_backend }}
+      - Path: {{ report_path }}

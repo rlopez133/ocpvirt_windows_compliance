@@ -1,0 +1,44 @@
+---
+# Report Playbook
+# Generates compliance audit reports
+#
+# This playbook runs on localhost and queries metrics/results to generate reports.
+
+- name: Generate Compliance Report
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    tenant_namespace: ""
+    report_format: "html"
+    report_template: "standard"
+    include_evidence: true
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - tenant_namespace | length > 0
+        fail_msg: "tenant_namespace is required"
+
+    - name: Display report configuration
+      ansible.builtin.debug:
+        msg: |
+          Generating Compliance Report
+          ============================
+          Namespace: {{ tenant_namespace }}
+          Format: {{ report_format }}
+          Template: {{ report_template }}
+
+  roles:
+    - role: ansible_tmm.ocpvirt_windows_compliance.report
+
+  post_tasks:
+    - name: Display report location
+      ansible.builtin.debug:
+        msg: |
+          Report Generated
+          ================
+          Path: {{ report_path }}
+          Format: {{ report_format }}

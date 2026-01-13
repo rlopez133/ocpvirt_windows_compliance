@@ -1,0 +1,53 @@
+---
+# Remediate Playbook
+# Applies compliance remediation to Windows VMs
+#
+# This playbook should be run as an AAP Job Template against Windows VMs.
+# Use limit/filter to target specific VMs.
+
+- name: Apply Compliance Remediation
+  hosts: all
+  gather_facts: true
+
+  vars:
+    compliance_profile: "stig"
+    cat_levels:
+      - cat1
+      - cat2
+    allow_reboot: false
+    disruption_high: false
+    dry_run: false
+    trigger_source: "manual"
+
+  pre_tasks:
+    - name: Verify Windows target
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family == "Windows"
+        fail_msg: "This playbook only runs on Windows systems"
+
+    - name: Display remediation plan
+      ansible.builtin.debug:
+        msg: |
+          Remediation Configuration
+          =========================
+          Target: {{ inventory_hostname }}
+          Profile: {{ compliance_profile }}
+          CAT Levels: {{ cat_levels | join(', ') }}
+          Allow Reboot: {{ allow_reboot }}
+          Dry Run: {{ dry_run }}
+          Trigger: {{ trigger_source }}
+
+  roles:
+    - role: ansible_tmm.ocpvirt_windows_compliance.remediate
+
+  post_tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          Remediation Complete
+          ====================
+          Target: {{ inventory_hostname }}
+          Profile: {{ compliance_profile }}
+
+          Run a compliance scan to verify remediation effectiveness.

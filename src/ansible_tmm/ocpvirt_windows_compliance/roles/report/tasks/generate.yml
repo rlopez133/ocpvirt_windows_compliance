@@ -1,0 +1,55 @@
+---
+# Report Role - Generate Report
+# Creates formatted compliance report
+
+- name: Set report filename
+  ansible.builtin.set_fact:
+    report_filename: "{{ report_filename_prefix }}-{{ tenant_namespace }}-{{ ansible_date_time.date }}.{{ report_format }}"
+    report_path: "{{ report_output_dir }}/{{ report_filename_prefix }}-{{ tenant_namespace }}-{{ ansible_date_time.date }}.{{ report_format }}"
+
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ report_output_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+
+- name: Generate HTML report
+  when: report_format == "html"
+  ansible.builtin.template:
+    src: "{{ report_template }}-report.html.j2"
+    dest: "{{ report_path }}"
+    mode: "0644"
+  delegate_to: localhost
+
+- name: Generate JSON report
+  when: report_format == "json"
+  ansible.builtin.copy:
+    content: |
+      {
+        "report": {
+          "title": "Compliance Report - {{ tenant_namespace }}",
+          "generated": "{{ ansible_date_time.iso8601 }}",
+          "period": {
+            "start": "{{ report_period_start | default('') }}",
+            "end": "{{ report_period_end | default('') }}"
+          },
+          "summary": {{ report_summary | to_json }},
+          "vms": {{ compliance_data.current_scores | to_json }}
+        }
+      }
+    dest: "{{ report_path }}"
+    mode: "0644"
+  delegate_to: localhost
+
+- name: Generate CSV report
+  when: report_format == "csv"
+  ansible.builtin.template:
+    src: "csv-report.csv.j2"
+    dest: "{{ report_path }}"
+    mode: "0644"
+  delegate_to: localhost
+
+- name: Display report generation status
+  ansible.builtin.debug:
+    msg: "Report generated: {{ report_path }}"

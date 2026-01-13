@@ -1,0 +1,107 @@
+---
+# Golden Image Role - Prepare Tasks
+# Creates temporary VM from base image for hardening
+
+- name: Set temp VM name
+  ansible.builtin.set_fact:
+    temp_vm_name: "{{ temp_vm.name_prefix }}-{{ ansible_date_time.epoch }}"
+    temp_vm_namespace: "{{ temp_vm.namespace | default(golden_image.namespace) }}"
+
+- name: Ensure target namespace exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ golden_image.namespace }}"
+        labels: "{{ golden_image_labels }}"
+
+- name: Create temporary VM from source DataVolume
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: kubevirt.io/v1
+      kind: VirtualMachine
+      metadata:
+        name: "{{ temp_vm_name }}"
+        namespace: "{{ temp_vm_namespace }}"
+        labels:
+          compliance.ocpvirt/purpose: "golden-image-creation"
+          compliance.ocpvirt/temp: "true"
+      spec:
+        running: true
+        template:
+          metadata:
+            labels:
+              kubevirt.io/vm: "{{ temp_vm_name }}"
+          spec:
+            domain:
+              cpu:
+                cores: "{{ temp_vm.cpu_cores | default(4) }}"
+              memory:
+                guest: "{{ temp_vm.memory | default('8Gi') }}"
+              devices:
+                disks:
+                  - name: rootdisk
+                    disk:
+                      bus: virtio
+                  - name: cloudinit
+                    cdrom:
+                      bus: sata
+                interfaces:
+                  - name: default
+                    masquerade: {}
+            networks:
+              - name: default
+                pod: {}
+            volumes:
+              - name: rootdisk
+                dataVolume:
+                  name: "{{ temp_vm_name }}-disk"
+              - name: cloudinit
+                cloudInitNoCloud:
+                  userData: |
+                    #cloud-config
+                    users: []
+        dataVolumeTemplates:
+          - metadata:
+              name: "{{ temp_vm_name }}-disk"
+            spec:
+              source:
+                pvc:
+                  name: "{{ golden_image_source.datavolume_name }}"
+                  namespace: "{{ golden_image_source.namespace }}"
+              pvc:
+                accessModes:
+                  - ReadWriteMany
+                resources:
+                  requests:
+                    storage: "{{ golden_image.storage_size | default('60Gi') }}"
+                storageClassName: "{{ golden_image.storage_class | default(omit) }}"
+
+- name: Wait for VM to be ready
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    name: "{{ temp_vm_name }}"
+    namespace: "{{ temp_vm_namespace }}"
+  register: temp_vm_status
+  until: >-
+    temp_vm_status.resources | length > 0 and
+    temp_vm_status.resources[0].status.ready | default(false)
+  retries: "{{ (temp_vm.ready_timeout | default(600) / 10) | int }}"
+  delay: 10
+  when: temp_vm.wait_for_ready | default(true)
+
+- name: Wait for VM to be accessible via WinRM
+  ansible.builtin.wait_for:
+    timeout: 300
+  delegate_to: localhost
+
+- name: Store temp VM info for later tasks
+  ansible.builtin.set_fact:
+    golden_image_temp_vm:
+      name: "{{ temp_vm_name }}"
+      namespace: "{{ temp_vm_namespace }}"
+      disk_name: "{{ temp_vm_name }}-disk"

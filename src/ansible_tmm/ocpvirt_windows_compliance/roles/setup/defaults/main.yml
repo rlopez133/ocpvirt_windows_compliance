@@ -1,0 +1,78 @@
+---
+# Setup Role Defaults
+# Configure infrastructure components for compliance management
+
+# Tenant Configuration
+# Override these values for your environment
+tenant_config:
+  name: "default"
+  namespace: "compliance"
+
+  storage:
+    backend: "pvc"  # pvc | s3
+    pvc_name: "compliance-reports"
+    pvc_storage_class: ""  # Use cluster default if empty
+    pvc_size: "50Gi"
+    # S3 configuration (when backend: s3)
+    s3_endpoint: ""
+    s3_bucket: ""
+    s3_region: "us-east-1"
+    # Note: S3 credentials should be stored in AAP credentials, not here
+
+  retention:
+    scan_results_days: 90
+    reports_days: 365
+    audit_logs_days: 730
+
+  scan_schedule:
+    frequency: "1h"  # 15m | 30m | 1h | 4h | daily
+    stagger_minutes: 5
+
+  alerting:
+    thresholds:
+      critical: 100  # CAT I must be 100%
+      warning: 95
+      info: 80
+    webhook_url: ""  # Override per-tenant
+
+# OpenShift Monitoring Configuration
+ocpvirt_compliance_enable_user_workload_monitoring: true
+ocpvirt_compliance_alertmanager_dedicated: true
+ocpvirt_compliance_grafana_dashboards: true
+
+# EDA Configuration
+eda_config:
+  enabled: true
+  controller_url: ""  # Required: EDA controller URL
+  webhook_port: 5001
+  rulebook_name: "compliance-auto-remediation"
+  auto_remediate_cat1: false  # CAT I requires manual approval
+  auto_remediate_cat2: true
+  auto_remediate_cat3: true
+
+# AAP Configuration
+aap_config:
+  controller_url: ""  # Required: AAP controller URL
+  organization: "Default"
+  project_name: "Windows Compliance Collection"
+  inventory_name: "OpenShift Virtualization VMs"
+
+# PrometheusRule Configuration
+prometheus_config:
+  namespace: "{{ tenant_config.namespace }}"
+  rule_name: "compliance-alerts"
+  labels:
+    app.kubernetes.io/name: "ocpvirt-windows-compliance"
+    app.kubernetes.io/component: "monitoring"
+
+# Grafana Dashboard Configuration
+grafana_config:
+  namespace: "{{ tenant_config.namespace }}"
+  dashboard_name: "Windows Compliance"
+  datasource: "prometheus"
+
+# Resource labels applied to all created resources
+compliance_labels:
+  compliance.ocpvirt/managed: "true"
+  compliance.ocpvirt/tenant: "{{ tenant_config.name }}"
+  compliance.ocpvirt/version: "1.0.0"

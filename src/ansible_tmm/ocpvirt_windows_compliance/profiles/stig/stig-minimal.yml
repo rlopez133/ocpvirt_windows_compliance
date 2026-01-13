@@ -1,0 +1,67 @@
+---
+# STIG Minimal Profile - CAT I Only
+# High severity controls only for rapid hardening
+
+compliance_profile:
+  name: "stig-minimal"
+  display_name: "STIG Minimal (CAT I Only)"
+  framework: "stig"
+  version: "V2R6"
+  base_profile: "stig"
+  description: >-
+    Minimal STIG profile focusing only on CAT I (High severity) controls.
+    Use this for rapid initial hardening or resource-constrained environments.
+
+  # SCC benchmark mapping
+  scc_benchmark:
+    win2022: "Windows_Server_2022_STIG_SCAP_Benchmark"
+    win2019: "Windows_Server_2019_STIG_SCAP_Benchmark"
+
+  # Category settings - CAT I only
+  categories:
+    cat1:
+      enabled: true
+      description: "High severity - Critical vulnerabilities"
+      auto_remediate: false
+    cat2:
+      enabled: false
+      description: "Medium severity - Disabled in minimal profile"
+      auto_remediate: false
+    cat3:
+      enabled: false
+      description: "Low severity - Disabled in minimal profile"
+      auto_remediate: false
+
+  # Control overrides
+  controls:
+    enabled: []
+    disabled: []
+
+  # Remediation settings
+  remediation:
+    disruption_high: false
+    reboot_allowed: false
+    backup_before_change: true
+
+  # Thresholds
+  thresholds:
+    critical: 100
+    warning: 100
+    info: 100
+
+  # Expected coverage
+  expected_coverage:
+    minimum: 100
+    typical: 100
+    description: "All CAT I controls must pass"
+
+  # Role variables
+  role_vars:
+    win22stig_cat1_patch: true
+    win22stig_cat2_patch: false
+    win22stig_cat3_patch: false
+    win22stig_disruption_high: false
+    win19stig_cat1_patch: true
+    win19stig_cat2_patch: false
+    win19stig_cat3_patch: false
+    win19stig_disruption_high: false

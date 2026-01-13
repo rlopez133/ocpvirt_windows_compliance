@@ -1,0 +1,72 @@
+---
+# Create Golden Image Playbook
+# Creates a pre-hardened Windows VM golden image
+#
+# Required Variables:
+#   golden_image.name: Name for the golden image
+#   golden_image_source.datavolume_name: Source base image DataVolume
+#   compliance_profile: Profile to apply (stig, cis, etc.)
+
+- name: Create Compliant Golden Image
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    # Override these in job template extra_vars or survey
+    golden_image:
+      name: ""
+      namespace: "golden-images"
+      storage_size: "60Gi"
+
+    golden_image_source:
+      type: "datavolume"
+      datavolume_name: ""
+      namespace: "openshift-virtualization-os-images"
+
+    compliance_profile: "stig"
+    compliance_profile_version: "V2R6"
+
+    golden_image_hardening:
+      install_scc: true
+      run_remediation: true
+      cat_levels:
+        - cat1
+        - cat2
+      run_final_scan: true
+      required_score: 95
+
+  pre_tasks:
+    - name: Validate required parameters
+      ansible.builtin.assert:
+        that:
+          - golden_image.name | length > 0
+          - golden_image_source.datavolume_name | length > 0
+        fail_msg: "golden_image.name and golden_image_source.datavolume_name are required"
+
+    - name: Display golden image creation plan
+      ansible.builtin.debug:
+        msg: |
+          Golden Image Creation
+          =====================
+          Image Name: {{ golden_image.name }}
+          Source: {{ golden_image_source.datavolume_name }}
+          Profile: {{ compliance_profile }} ({{ compliance_profile_version }})
+          Target Namespace: {{ golden_image.namespace }}
+
+  roles:
+    - role: ansible_tmm.ocpvirt_windows_compliance.golden_image
+
+  post_tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          Golden Image Created Successfully!
+          ===================================
+          Image: {{ golden_image.name }}
+          Namespace: {{ golden_image.namespace }}
+          Profile: {{ compliance_profile }}
+
+          To provision VMs from this image:
+          - Use the 'Provision-Compliant-VM' job template
+          - Set golden_image_name: {{ golden_image.name }}

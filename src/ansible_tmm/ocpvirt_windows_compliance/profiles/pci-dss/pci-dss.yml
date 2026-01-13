@@ -1,0 +1,109 @@
+---
+# PCI-DSS Mapped Profile
+# Payment Card Industry Data Security Standard
+
+compliance_profile:
+  name: "pci-dss"
+  display_name: "PCI-DSS v4.0"
+  framework: "pci-dss"
+  version: "4.0"
+  description: >-
+    PCI-DSS v4.0 mapped controls for Windows Server.
+    Based on STIG controls mapped to PCI-DSS requirements.
+
+  # Uses STIG benchmarks with PCI-DSS control mapping
+  scc_benchmark:
+    win2022: "Windows_Server_2022_STIG_SCAP_Benchmark"
+    win2019: "Windows_Server_2019_STIG_SCAP_Benchmark"
+
+  # PCI-DSS requirement categories
+  categories:
+    req1_2:
+      enabled: true
+      description: "Build and Maintain a Secure Network"
+      auto_remediate: true
+    req3_4:
+      enabled: true
+      description: "Protect Account Data"
+      auto_remediate: true
+    req5_6:
+      enabled: true
+      description: "Maintain a Vulnerability Management Program"
+      auto_remediate: true
+    req7_9:
+      enabled: true
+      description: "Implement Strong Access Control"
+      auto_remediate: true
+    req10_12:
+      enabled: true
+      description: "Monitoring and Testing"
+      auto_remediate: true
+
+  # PCI-DSS to STIG control mapping
+  control_mapping:
+    # Requirement 1 - Network Security Controls
+    network_security:
+      pci_requirement: "1"
+      stig_controls:
+        - "WN22-FW-000010"  # Firewall enabled
+        - "WN22-FW-000020"  # Firewall rules
+    # Requirement 2 - Secure Configurations
+    secure_config:
+      pci_requirement: "2"
+      stig_controls:
+        - "WN22-SO-000010"  # Security options
+        - "WN22-SO-000020"  # Password policy
+    # Requirement 5 - Anti-Malware
+    anti_malware:
+      pci_requirement: "5"
+      stig_controls:
+        - "WN22-EP-000010"  # Windows Defender
+    # Requirement 7 - Restrict Access
+    access_control:
+      pci_requirement: "7"
+      stig_controls:
+        - "WN22-AC-000010"  # User rights
+        - "WN22-AC-000020"  # Admin access
+    # Requirement 8 - User Identification
+    user_identification:
+      pci_requirement: "8"
+      stig_controls:
+        - "WN22-SO-000100"  # Account policies
+        - "WN22-SO-000110"  # Password complexity
+    # Requirement 10 - Logging and Monitoring
+    logging:
+      pci_requirement: "10"
+      stig_controls:
+        - "WN22-AU-000010"  # Audit policy
+        - "WN22-AU-000020"  # Event logging
+        - "WN22-AU-000030"  # Log retention
+
+  # Control overrides
+  controls:
+    enabled: []
+    disabled: []
+
+  # Remediation settings
+  remediation:
+    disruption_high: false
+    reboot_allowed: false
+    backup_before_change: true
+
+  # Thresholds
+  thresholds:
+    critical: 100
+    warning: 95
+    info: 85
+
+  # Expected coverage
+  expected_coverage:
+    minimum: 90
+    typical: 95
+    description: "PCI-DSS-mapped controls from STIG baseline"
+
+  # Role variables
+  role_vars:
+    win22stig_cat1_patch: true
+    win22stig_cat2_patch: true
+    win22stig_cat3_patch: false
+    pci_dss_focus: true

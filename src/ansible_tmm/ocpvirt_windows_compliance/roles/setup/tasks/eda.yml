@@ -1,0 +1,69 @@
+---
+# Setup Role - EDA Rulebook Activation
+# Configures Event Driven Ansible for auto-remediation
+
+- name: Validate EDA configuration
+  ansible.builtin.assert:
+    that:
+      - eda_config.controller_url is defined
+      - eda_config.controller_url | length > 0
+    fail_msg: "eda_config.controller_url is required for EDA setup"
+
+- name: Display EDA configuration
+  ansible.builtin.debug:
+    msg: |
+      Configuring EDA rulebook activation:
+      - Controller URL: {{ eda_config.controller_url }}
+      - Rulebook: {{ eda_config.rulebook_name | default('compliance-auto-remediation') }}
+      - Auto-remediate CAT I: {{ eda_config.auto_remediate_cat1 | default(false) }}
+      - Auto-remediate CAT II: {{ eda_config.auto_remediate_cat2 | default(true) }}
+      - Auto-remediate CAT III: {{ eda_config.auto_remediate_cat3 | default(true) }}
+
+# Note: EDA rulebook activation is typically configured through AAP UI or API
+# This task documents the expected configuration
+
+- name: Create EDA configuration documentation
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: eda-compliance-config
+        namespace: "{{ tenant_config.namespace }}"
+        labels: "{{ compliance_labels }}"
+      data:
+        eda-config.yaml: |
+          # EDA Rulebook Activation Configuration
+          # Apply this configuration in EDA Controller
+
+          rulebook_activation:
+            name: "{{ eda_config.rulebook_name | default('compliance-auto-remediation') }}"
+            rulebook: compliance_remediation.yml
+            project: Windows Compliance Collection
+            decision_environment: Default Decision Environment
+            enabled: true
+
+            extra_vars:
+              aap_controller_url: "{{ aap_config.controller_url | default('') }}"
+              remediation_job_template: Compliance-Remediate
+              tenant_namespace: "{{ tenant_config.namespace }}"
+              auto_remediate_cat1: {{ eda_config.auto_remediate_cat1 | default(false) }}
+              auto_remediate_cat2: {{ eda_config.auto_remediate_cat2 | default(true) }}
+              auto_remediate_cat3: {{ eda_config.auto_remediate_cat3 | default(true) }}
+
+            sources:
+              - type: alertmanager
+                name: compliance-alerts
+                host: 0.0.0.0
+                port: {{ eda_config.webhook_port | default(5001) }}
+
+- name: Display EDA setup instructions
+  ansible.builtin.debug:
+    msg: |
+      EDA configuration saved to ConfigMap 'eda-compliance-config'.
+
+      Manual steps required in EDA Controller:
+      1. Import the rulebook from the collection
+      2. Create a rulebook activation with the configuration above
+      3. Ensure the decision environment has network access to AAP

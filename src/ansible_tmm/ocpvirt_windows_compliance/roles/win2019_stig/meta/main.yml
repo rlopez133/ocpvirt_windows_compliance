@@ -1,0 +1,24 @@
+---
+# Windows Server 2019 STIG Role Metadata
+
+galaxy_info:
+  role_name: win2019_stig
+  author: Roger Lopez
+  description: Windows Server 2019 STIG remediation based on DISA best practices
+  company: ""
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+
+  platforms:
+    - name: Windows
+      versions:
+        - "2019"
+
+  galaxy_tags:
+    - windows
+    - compliance
+    - stig
+    - hardening
+    - security
+
+dependencies: []

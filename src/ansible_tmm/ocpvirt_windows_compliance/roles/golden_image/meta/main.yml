@@ -1,0 +1,25 @@
+---
+# Golden Image Role Metadata
+
+galaxy_info:
+  role_name: golden_image
+  author: Roger Lopez
+  description: Create pre-hardened Windows VM golden images
+  company: ""
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+
+  platforms:
+    - name: GenericLinux
+      versions:
+        - all
+
+  galaxy_tags:
+    - openshift
+    - kubevirt
+    - windows
+    - compliance
+    - golden-image
+
+dependencies:
+  - role: kubernetes.core

@@ -1,0 +1,38 @@
+---
+# Scan Role Defaults
+# Run compliance scans on Windows VMs using DISA SCC
+
+# Target VMs - override with job template variables
+target_vms: []
+
+# Compliance profile
+compliance_profile: "stig"
+
+# Scanner configuration
+scanner_type: "scc"  # scc | openscap (legacy)
+scan_timeout: 1800  # 30 minutes
+
+# SCC configuration
+scc_config:
+  install_path: "C:\\Program Files\\DISA\\SCC"
+  benchmark:
+    win2022: "Windows_Server_2022_STIG"
+    win2019: "Windows_Server_2019_STIG"
+  output_dir: "C:\\ComplianceReports"
+
+# Result storage
+store_results: true
+results_storage:
+  local_path: "/tmp/compliance-results"
+  push_to_storage: true
+
+# Metrics
+push_metrics: true
+metrics_config:
+  pushgateway_url: ""  # If using Prometheus Pushgateway
+
+# Thresholds for status determination
+scan_thresholds:
+  critical: 100
+  warning: 95
+  info: 80

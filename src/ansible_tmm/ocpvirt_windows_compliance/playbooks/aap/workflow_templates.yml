@@ -1,0 +1,92 @@
+---
+# AAP Workflow Templates Configuration
+# Creates workflow templates for multi-step compliance operations
+
+- name: Create Compliance-Full-Cycle workflow
+  ansible.platform.workflow_job_template:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Compliance-Full-Cycle"
+    description: "Complete compliance cycle: Scan → Remediate → Rescan → Report"
+    organization: "{{ aap_organization }}"
+    ask_variables_on_launch: true
+    ask_limit_on_launch: true
+    survey_enabled: true
+    survey_spec:
+      name: "Full Cycle Parameters"
+      spec:
+        - question_name: "Compliance Profile"
+          variable: "compliance_profile"
+          type: "multiplechoice"
+          choices:
+            - "stig"
+            - "stig-minimal"
+            - "cis"
+            - "hipaa"
+            - "pci-dss"
+          default: "stig"
+          required: true
+    state: present
+  register: workflow_result
+
+- name: Create workflow nodes
+  ansible.platform.workflow_job_template_node:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    workflow_job_template: "Compliance-Full-Cycle"
+    identifier: "{{ item.identifier }}"
+    unified_job_template: "{{ item.job_template }}"
+    state: present
+  loop:
+    - identifier: "scan"
+      job_template: "Compliance-Scan"
+    - identifier: "remediate"
+      job_template: "Compliance-Remediate"
+    - identifier: "rescan"
+      job_template: "Compliance-Scan"
+    - identifier: "report"
+      job_template: "Compliance-Report"
+
+- name: Link workflow nodes - scan to remediate
+  ansible.platform.workflow_job_template_node:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    workflow_job_template: "Compliance-Full-Cycle"
+    identifier: "scan"
+    success_nodes:
+      - "remediate"
+    state: present
+
+- name: Link workflow nodes - remediate to rescan
+  ansible.platform.workflow_job_template_node:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    workflow_job_template: "Compliance-Full-Cycle"
+    identifier: "remediate"
+    success_nodes:
+      - "rescan"
+    state: present
+
+- name: Link workflow nodes - rescan to report
+  ansible.platform.workflow_job_template_node:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    workflow_job_template: "Compliance-Full-Cycle"
+    identifier: "rescan"
+    success_nodes:
+      - "report"
+    state: present
+
+- name: Display workflow status
+  ansible.builtin.debug:
+    msg: "Workflow template 'Compliance-Full-Cycle' created/updated successfully"

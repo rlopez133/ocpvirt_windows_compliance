@@ -1,0 +1,52 @@
+---
+# Scan Role - Push Metrics
+# Pushes compliance metrics to Prometheus
+
+- name: Build metrics payload
+  ansible.builtin.set_fact:
+    metrics_payload: |
+      # HELP compliance_score Current compliance score percentage
+      # TYPE compliance_score gauge
+      compliance_score{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",profile="{{ scan_result.profile }}",framework="stig"} {{ scan_result.score.score | default(0) }}
+
+      # HELP compliance_controls_passed Number of passing controls
+      # TYPE compliance_controls_passed gauge
+      compliance_controls_passed{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} {{ scan_result.score.passed | default(0) }}
+
+      # HELP compliance_controls_failed Number of failing controls
+      # TYPE compliance_controls_failed gauge
+      compliance_controls_failed{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} {{ scan_result.score.failed | default(0) }}
+
+      # HELP compliance_last_scan_timestamp Timestamp of last scan
+      # TYPE compliance_last_scan_timestamp gauge
+      compliance_last_scan_timestamp{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} {{ ansible_date_time.epoch }}
+
+      # HELP compliance_scan_duration_seconds Duration of last scan
+      # TYPE compliance_scan_duration_seconds gauge
+      compliance_scan_duration_seconds{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} {{ scan_result.duration_seconds }}
+
+- name: Push metrics to Pushgateway
+  when: metrics_config.pushgateway_url | default('') | length > 0
+  ansible.builtin.uri:
+    url: "{{ metrics_config.pushgateway_url }}/metrics/job/compliance_scan/instance/{{ scan_result.vm_name }}"
+    method: POST
+    body: "{{ metrics_payload }}"
+    headers:
+      Content-Type: text/plain
+    status_code: [200, 202]
+  delegate_to: localhost
+  ignore_errors: true
+
+- name: Store metrics for ServiceMonitor collection
+  ansible.builtin.copy:
+    content: "{{ metrics_payload }}"
+    dest: "{{ results_storage.local_path }}/{{ scan_result.scan_id }}/metrics.prom"
+  delegate_to: localhost
+
+- name: Display metrics status
+  ansible.builtin.debug:
+    msg: |
+      Metrics Recorded
+      - Score: {{ scan_result.score.score | default(0) }}%
+      - Passed: {{ scan_result.score.passed | default(0) }}
+      - Failed: {{ scan_result.score.failed | default(0) }}

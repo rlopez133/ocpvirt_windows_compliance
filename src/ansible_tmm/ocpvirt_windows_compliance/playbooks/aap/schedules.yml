@@ -1,0 +1,54 @@
+---
+# AAP Schedules Configuration
+# Creates schedules for automated compliance operations
+
+- name: Create hourly compliance scan schedule
+  ansible.platform.schedule:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Hourly-Compliance-Scan"
+    description: "Run compliance scan every hour"
+    unified_job_template: "Compliance-Scan"
+    rrule: "DTSTART:20260101T000000Z RRULE:FREQ=HOURLY;INTERVAL=1"
+    extra_data:
+      compliance_profile: "stig"
+    enabled: true
+    state: present
+
+- name: Create daily compliance report schedule
+  ansible.platform.schedule:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Daily-Compliance-Report"
+    description: "Generate compliance report daily at 6 AM UTC"
+    unified_job_template: "Compliance-Report"
+    rrule: "DTSTART:20260101T060000Z RRULE:FREQ=DAILY;INTERVAL=1"
+    extra_data:
+      report_format: "html"
+      report_template: "standard"
+    enabled: true
+    state: present
+
+- name: Create weekly detailed report schedule
+  ansible.platform.schedule:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Weekly-Detailed-Report"
+    description: "Generate detailed compliance report weekly on Monday"
+    unified_job_template: "Compliance-Report"
+    rrule: "DTSTART:20260106T060000Z RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO"
+    extra_data:
+      report_format: "html"
+      report_template: "detailed"
+    enabled: true
+    state: present
+
+- name: Display schedules status
+  ansible.builtin.debug:
+    msg: "All schedules created/updated successfully"

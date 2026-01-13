@@ -1,0 +1,27 @@
+---
+# AAP Project Configuration
+# Creates the project for the Windows Compliance Collection
+
+- name: Create Windows Compliance Collection project
+  ansible.platform.project:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "Windows Compliance Collection"
+    description: "Ansible Collection for Windows VM compliance lifecycle management"
+    organization: "{{ aap_organization }}"
+    scm_type: git
+    scm_url: "{{ collection_repo_url }}"
+    scm_branch: main
+    scm_clean: true
+    scm_delete_on_update: false
+    scm_update_on_launch: true
+    scm_update_cache_timeout: 86400
+    state: present
+  register: project_result
+
+- name: Display project creation result
+  ansible.builtin.debug:
+    msg: "Project 'Windows Compliance Collection' created/updated successfully"
+  when: project_result is defined

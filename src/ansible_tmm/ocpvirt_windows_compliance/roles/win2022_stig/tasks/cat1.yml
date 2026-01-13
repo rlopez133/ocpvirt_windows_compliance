@@ -1,0 +1,146 @@
+---
+# Windows Server 2022 STIG - CAT I (High Severity) Controls
+# These are critical security controls that must be addressed
+
+# WN22-00-000010 - Windows Server 2022 must be a supported release
+- name: "CAT1 | WN22-00-000010 | Verify Windows 2022 is current"
+  when: "'WN22-00-000010' not in win22stig_skip_rules"
+  ansible.builtin.debug:
+    msg: "Checking Windows Server 2022 is up to date - manual verification required"
+  tags:
+    - cat1
+    - WN22-00-000010
+
+# WN22-00-000020 - Outdated or unused accounts must be removed
+- name: "CAT1 | WN22-00-000020 | Check for inactive accounts"
+  when: "'WN22-00-000020' not in win22stig_skip_rules"
+  ansible.windows.win_powershell:
+    script: |
+      $threshold = (Get-Date).AddDays(-35)
+      Get-LocalUser | Where-Object { $_.Enabled -and $_.LastLogon -lt $threshold } |
+        Select-Object Name, LastLogon | ConvertTo-Json
+  register: inactive_accounts
+  tags:
+    - cat1
+    - WN22-00-000020
+
+# WN22-00-000030 - Accounts with blank passwords must be disabled
+- name: "CAT1 | WN22-00-000030 | Ensure no blank passwords"
+  when: "'WN22-00-000030' not in win22stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: LimitBlankPasswordUse
+    value: 1
+  tags:
+    - cat1
+    - WN22-00-000030
+
+# WN22-AC-000010 - Account lockout threshold
+- name: "CAT1 | WN22-AC-000010 | Configure account lockout threshold"
+  when: "'WN22-AC-000010' not in win22stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: LockoutBadCount
+    value: "{{ win22stig_lockout_policy.threshold }}"
+  tags:
+    - cat1
+    - WN22-AC-000010
+
+# WN22-SO-000010 - Anonymous SID/Name translation must be disabled
+- name: "CAT1 | WN22-SO-000010 | Disable anonymous SID/Name translation"
+  when: "'WN22-SO-000010' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\Lsa
+    name: AnonymousNameLookup
+    data: 0
+    type: dword
+  tags:
+    - cat1
+    - WN22-SO-000010
+
+# WN22-SO-000020 - Anonymous enumeration of SAM accounts must be disabled
+- name: "CAT1 | WN22-SO-000020 | Disable anonymous SAM enumeration"
+  when: "'WN22-SO-000020' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\Lsa
+    name: RestrictAnonymousSAM
+    data: 1
+    type: dword
+  tags:
+    - cat1
+    - WN22-SO-000020
+
+# WN22-SO-000030 - Anonymous enumeration of shares must be restricted
+- name: "CAT1 | WN22-SO-000030 | Restrict anonymous share enumeration"
+  when: "'WN22-SO-000030' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\Lsa
+    name: RestrictAnonymous
+    data: 1
+    type: dword
+  tags:
+    - cat1
+    - WN22-SO-000030
+
+# WN22-SO-000040 - LAN Manager hash must not be stored
+- name: "CAT1 | WN22-SO-000040 | Disable LAN Manager hash storage"
+  when: "'WN22-SO-000040' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\Lsa
+    name: NoLMHash
+    data: 1
+    type: dword
+  tags:
+    - cat1
+    - WN22-SO-000040
+
+# WN22-SO-000050 - LAN Manager authentication level
+- name: "CAT1 | WN22-SO-000050 | Set LM authentication to NTLMv2 only"
+  when: "'WN22-SO-000050' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\Lsa
+    name: LmCompatibilityLevel
+    data: 5
+    type: dword
+  tags:
+    - cat1
+    - WN22-SO-000050
+
+# WN22-SO-000060 - LDAP client signing must be required
+- name: "CAT1 | WN22-SO-000060 | Require LDAP client signing"
+  when: "'WN22-SO-000060' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\LDAP
+    name: LDAPClientIntegrity
+    data: 2
+    type: dword
+  tags:
+    - cat1
+    - WN22-SO-000060
+
+# WN22-CC-000010 - Credential Guard must be enabled
+- name: "CAT1 | WN22-CC-000010 | Enable Credential Guard"
+  when:
+    - "'WN22-CC-000010' not in win22stig_skip_rules"
+    - win22stig_security_options.credential_guard
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard
+    name: EnableVirtualizationBasedSecurity
+    data: 1
+    type: dword
+  tags:
+    - cat1
+    - WN22-CC-000010
+
+- name: "CAT1 | WN22-CC-000010 | Configure Credential Guard"
+  when:
+    - "'WN22-CC-000010' not in win22stig_skip_rules"
+    - win22stig_security_options.credential_guard
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard
+    name: LsaCfgFlags
+    data: 1
+    type: dword
+  tags:
+    - cat1
+    - WN22-CC-000010

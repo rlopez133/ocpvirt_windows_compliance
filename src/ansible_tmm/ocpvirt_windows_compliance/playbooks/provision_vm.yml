@@ -1,0 +1,174 @@
+---
+# Provision VM Playbook
+# Provisions a new Windows VM from a compliant golden image
+#
+# Required Variables:
+#   vm_name: Name for the new VM
+#   vm_namespace: Target namespace
+#   golden_image_name: Name of the golden image to use
+
+- name: Provision Compliant Windows VM
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    # Override these in job template extra_vars or survey
+    vm_name: ""
+    vm_namespace: ""
+    golden_image_name: "win2022-stig-v1"
+    golden_image_namespace: "golden-images"
+
+    # VM specifications
+    vm_cpu_cores: 4
+    vm_memory: "8Gi"
+    vm_storage_size: "60Gi"
+    vm_storage_class: ""
+
+    # Network configuration
+    vm_network_type: "masquerade"  # masquerade | bridge
+
+    # Start VM after creation
+    vm_start_after_create: true
+
+    # Labels to apply
+    vm_labels:
+      compliance.ocpvirt/managed: "true"
+      compliance.ocpvirt/eda-enabled: "true"
+
+  pre_tasks:
+    - name: Validate required parameters
+      ansible.builtin.assert:
+        that:
+          - vm_name | length > 0
+          - vm_namespace | length > 0
+          - golden_image_name | length > 0
+        fail_msg: "vm_name, vm_namespace, and golden_image_name are required"
+
+    - name: Get golden image information
+      kubernetes.core.k8s_info:
+        api_version: cdi.kubevirt.io/v1beta1
+        kind: DataVolume
+        name: "{{ golden_image_name }}"
+        namespace: "{{ golden_image_namespace }}"
+      register: golden_image_info
+
+    - name: Verify golden image exists
+      ansible.builtin.assert:
+        that:
+          - golden_image_info.resources | length > 0
+        fail_msg: "Golden image {{ golden_image_name }} not found in {{ golden_image_namespace }}"
+
+    - name: Extract profile from golden image
+      ansible.builtin.set_fact:
+        source_profile: "{{ golden_image_info.resources[0].metadata.labels['compliance.ocpvirt/profile'] | default('unknown') }}"
+        source_version: "{{ golden_image_info.resources[0].metadata.labels['compliance.ocpvirt/version'] | default('unknown') }}"
+
+    - name: Display provisioning plan
+      ansible.builtin.debug:
+        msg: |
+          Provisioning Compliant VM
+          =========================
+          VM Name: {{ vm_name }}
+          Namespace: {{ vm_namespace }}
+          Golden Image: {{ golden_image_name }}
+          Profile: {{ source_profile }} ({{ source_version }})
+          CPU: {{ vm_cpu_cores }} cores
+          Memory: {{ vm_memory }}
+
+  tasks:
+    - name: Ensure target namespace exists
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ vm_namespace }}"
+
+    - name: Create VM from golden image
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: kubevirt.io/v1
+          kind: VirtualMachine
+          metadata:
+            name: "{{ vm_name }}"
+            namespace: "{{ vm_namespace }}"
+            labels: "{{ vm_labels | combine({'compliance.ocpvirt/profile': source_profile, 'compliance.ocpvirt/golden-image': golden_image_name}) }}"
+            annotations:
+              compliance.ocpvirt/provisioned-date: "{{ ansible_date_time.iso8601 }}"
+              compliance.ocpvirt/source-image: "{{ golden_image_name }}"
+          spec:
+            running: "{{ vm_start_after_create }}"
+            template:
+              metadata:
+                labels:
+                  kubevirt.io/vm: "{{ vm_name }}"
+                  compliance.ocpvirt/managed: "true"
+              spec:
+                domain:
+                  cpu:
+                    cores: "{{ vm_cpu_cores }}"
+                  memory:
+                    guest: "{{ vm_memory }}"
+                  devices:
+                    disks:
+                      - name: rootdisk
+                        disk:
+                          bus: virtio
+                    interfaces:
+                      - name: default
+                        masquerade: {}
+                networks:
+                  - name: default
+                    pod: {}
+                volumes:
+                  - name: rootdisk
+                    dataVolume:
+                      name: "{{ vm_name }}-disk"
+            dataVolumeTemplates:
+              - metadata:
+                  name: "{{ vm_name }}-disk"
+                spec:
+                  source:
+                    pvc:
+                      name: "{{ golden_image_name }}"
+                      namespace: "{{ golden_image_namespace }}"
+                  pvc:
+                    accessModes:
+                      - ReadWriteMany
+                    resources:
+                      requests:
+                        storage: "{{ vm_storage_size }}"
+                    storageClassName: "{{ vm_storage_class | default(omit) }}"
+
+    - name: Wait for VM to be ready
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        name: "{{ vm_name }}"
+        namespace: "{{ vm_namespace }}"
+      register: vm_status
+      until: >-
+        vm_status.resources | length > 0 and
+        vm_status.resources[0].status.ready | default(false)
+      retries: 60
+      delay: 10
+      when: vm_start_after_create
+
+  post_tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          VM Provisioned Successfully!
+          ============================
+          VM Name: {{ vm_name }}
+          Namespace: {{ vm_namespace }}
+          Status: {{ 'Running' if vm_start_after_create else 'Stopped' }}
+          Profile: {{ source_profile }}
+
+          The VM is pre-hardened with {{ source_profile }} profile.
+          It will be included in scheduled compliance scans automatically.
+
+          EDA auto-remediation: {{ 'Enabled' if vm_labels['compliance.ocpvirt/eda-enabled'] | default(false) else 'Disabled' }}

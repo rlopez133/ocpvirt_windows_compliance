@@ -1,0 +1,23 @@
+---
+# Report Role Metadata
+
+galaxy_info:
+  role_name: report
+  author: Roger Lopez
+  description: Generate compliance audit reports
+  company: ""
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+
+  platforms:
+    - name: GenericLinux
+      versions:
+        - all
+
+  galaxy_tags:
+    - compliance
+    - reporting
+    - audit
+    - stig
+
+dependencies: []

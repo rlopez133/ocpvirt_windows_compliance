@@ -1,0 +1,42 @@
+---
+# Remediate Role Defaults
+# Applies compliance remediation to Windows VMs
+
+# Target VMs - override with job template variables
+target_vms: []
+#   - name: vm-name
+#     namespace: vm-namespace
+
+# Compliance profile
+compliance_profile: "stig"
+
+# Remediation scope
+remediation_scope: "failed_only"  # all | failed_only
+
+# Category levels to remediate
+cat_levels:
+  - cat1
+  - cat2
+  # - cat3  # Uncomment to include low severity
+
+# Specific controls to remediate (empty = all in selected categories)
+specific_controls: []
+
+# Controls to skip
+skip_controls: []
+
+# Safety settings
+allow_reboot: false
+disruption_high: false
+backup_before_change: true
+dry_run: false
+
+# Trigger source (for auditing)
+trigger_source: "manual"  # manual | eda | scheduled
+
+# Remediation behavior
+remediation:
+  max_retries: 3
+  retry_delay: 30
+  continue_on_error: true
+  create_restore_point: true

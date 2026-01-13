@@ -1,0 +1,40 @@
+---
+# Scan Role - Main Tasks
+# Runs compliance scan using DISA SCC
+
+- name: Display scan configuration
+  ansible.builtin.debug:
+    msg: |
+      Compliance Scan Configuration
+      =============================
+      Profile: {{ compliance_profile }}
+      Scanner: {{ scanner_type }}
+      Timeout: {{ scan_timeout }} seconds
+
+- name: Preflight checks
+  ansible.builtin.include_tasks: preflight.yml
+
+- name: Execute compliance scan
+  ansible.builtin.include_tasks: execute.yml
+
+- name: Collect scan results
+  ansible.builtin.include_tasks: collect.yml
+
+- name: Store results
+  when: store_results
+  ansible.builtin.include_tasks: store.yml
+
+- name: Push metrics
+  when: push_metrics
+  ansible.builtin.include_tasks: metrics.yml
+
+- name: Display scan summary
+  ansible.builtin.debug:
+    msg: |
+      Scan Complete
+      =============
+      Target: {{ inventory_hostname }}
+      Score: {{ scan_result.score.total | default('N/A') }}%
+      Status: {{ scan_result.status | default('unknown') }}
+      Passed: {{ scan_result.score.passed | default(0) }}
+      Failed: {{ scan_result.score.failed | default(0) }}

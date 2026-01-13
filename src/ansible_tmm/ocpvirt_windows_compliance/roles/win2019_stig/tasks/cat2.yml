@@ -1,0 +1,167 @@
+---
+# Windows Server 2019 STIG - CAT II (Medium Severity) Controls
+
+# WN19-AU-000010 - Audit policy for credential validation
+- name: "CAT2 | WN19-AU-000010 | Configure audit policy - Credential Validation"
+  when: "'WN19-AU-000010' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Credential Validation
+    audit_type: "{{ win19stig_audit_policy.credential_validation }}"
+  tags:
+    - cat2
+    - WN19-AU-000010
+
+# WN19-AU-000020 - Audit policy for logon events
+- name: "CAT2 | WN19-AU-000020 | Configure audit policy - Logon"
+  when: "'WN19-AU-000020' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Logon
+    audit_type: "{{ win19stig_audit_policy.logon }}"
+  tags:
+    - cat2
+    - WN19-AU-000020
+
+# WN19-AU-000030 - Audit policy for account management
+- name: "CAT2 | WN19-AU-000030 | Configure audit policy - User Account Management"
+  when: "'WN19-AU-000030' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: User Account Management
+    audit_type: "{{ win19stig_audit_policy.user_account_management }}"
+  tags:
+    - cat2
+    - WN19-AU-000030
+
+# WN19-AU-000040 - Audit policy for process creation
+- name: "CAT2 | WN19-AU-000040 | Configure audit policy - Process Creation"
+  when: "'WN19-AU-000040' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Process Creation
+    audit_type: "{{ win19stig_audit_policy.process_creation }}"
+  tags:
+    - cat2
+    - WN19-AU-000040
+
+# WN19-PK-000010 - Minimum password length
+- name: "CAT2 | WN19-PK-000010 | Configure minimum password length"
+  when: "'WN19-PK-000010' not in win19stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: MinimumPasswordLength
+    value: "{{ win19stig_password_policy.min_length }}"
+  tags:
+    - cat2
+    - WN19-PK-000010
+
+# WN19-PK-000020 - Password complexity
+- name: "CAT2 | WN19-PK-000020 | Enable password complexity"
+  when: "'WN19-PK-000020' not in win19stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: PasswordComplexity
+    value: "{{ 1 if win19stig_password_policy.complexity else 0 }}"
+  tags:
+    - cat2
+    - WN19-PK-000020
+
+# WN19-PK-000030 - Maximum password age
+- name: "CAT2 | WN19-PK-000030 | Configure maximum password age"
+  when: "'WN19-PK-000030' not in win19stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: MaximumPasswordAge
+    value: "{{ win19stig_password_policy.max_age }}"
+  tags:
+    - cat2
+    - WN19-PK-000030
+
+# WN19-PK-000040 - Password history
+- name: "CAT2 | WN19-PK-000040 | Configure password history"
+  when: "'WN19-PK-000040' not in win19stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: PasswordHistorySize
+    value: "{{ win19stig_password_policy.history }}"
+  tags:
+    - cat2
+    - WN19-PK-000040
+
+# WN19-SO-000100 - SMB signing required
+- name: "CAT2 | WN19-SO-000100 | Enable SMB signing"
+  when: "'WN19-SO-000100' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters
+    name: RequireSecuritySignature
+    data: 1
+    type: dword
+  tags:
+    - cat2
+    - WN19-SO-000100
+  notify: restart lanmanserver
+
+# WN19-SO-000110 - SMB client signing
+- name: "CAT2 | WN19-SO-000110 | Enable SMB client signing"
+  when: "'WN19-SO-000110' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters
+    name: RequireSecuritySignature
+    data: 1
+    type: dword
+  tags:
+    - cat2
+    - WN19-SO-000110
+  notify: restart lanmanworkstation
+
+# WN19-SO-000120 - WDigest authentication
+- name: "CAT2 | WN19-SO-000120 | Disable WDigest authentication"
+  when: "'WN19-SO-000120' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest
+    name: UseLogonCredential
+    data: 0
+    type: dword
+  tags:
+    - cat2
+    - WN19-SO-000120
+
+# WN19-FW-000010 - Windows Firewall enabled
+- name: "CAT2 | WN19-FW-000010 | Enable Windows Firewall - Domain"
+  when: "'WN19-FW-000010' not in win19stig_skip_rules"
+  community.windows.win_firewall:
+    profiles:
+      - Domain
+    state: enabled
+  tags:
+    - cat2
+    - WN19-FW-000010
+
+- name: "CAT2 | WN19-FW-000020 | Enable Windows Firewall - Private"
+  when: "'WN19-FW-000020' not in win19stig_skip_rules"
+  community.windows.win_firewall:
+    profiles:
+      - Private
+    state: enabled
+  tags:
+    - cat2
+    - WN19-FW-000020
+
+- name: "CAT2 | WN19-FW-000030 | Enable Windows Firewall - Public"
+  when: "'WN19-FW-000030' not in win19stig_skip_rules"
+  community.windows.win_firewall:
+    profiles:
+      - Public
+    state: enabled
+  tags:
+    - cat2
+    - WN19-FW-000030
+
+# WN19-EP-000010 - Windows Defender enabled
+- name: "CAT2 | WN19-EP-000010 | Enable Windows Defender"
+  when: "'WN19-EP-000010' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender
+    name: DisableAntiSpyware
+    data: 0
+    type: dword
+  tags:
+    - cat2
+    - WN19-EP-000010

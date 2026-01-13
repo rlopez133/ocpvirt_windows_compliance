@@ -1,0 +1,25 @@
+---
+# Windows Server 2019 STIG Role - Handlers
+
+- name: restart lanmanserver
+  ansible.windows.win_service:
+    name: LanmanServer
+    state: restarted
+
+- name: restart lanmanworkstation
+  ansible.windows.win_service:
+    name: LanmanWorkstation
+    state: restarted
+
+- name: restart wuauserv
+  ansible.windows.win_service:
+    name: wuauserv
+    state: restarted
+
+- name: restart winrm
+  ansible.windows.win_service:
+    name: WinRM
+    state: restarted
+
+- name: gpupdate
+  ansible.windows.win_shell: gpupdate /force

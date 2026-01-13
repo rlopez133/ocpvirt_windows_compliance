@@ -1,0 +1,79 @@
+---
+# Setup Role - Alertmanager Configuration
+# Configures Alertmanager webhook receiver for EDA integration
+
+- name: Determine webhook URL
+  ansible.builtin.set_fact:
+    eda_webhook_url: >-
+      {{ tenant_config.alerting.webhook_url | default(eda_config.controller_url + '/api/eda/v1/external_webhook/') }}
+  when: eda_config.enabled | default(true)
+
+- name: Deploy AlertmanagerConfig for EDA webhook
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: monitoring.coreos.com/v1beta1
+      kind: AlertmanagerConfig
+      metadata:
+        name: compliance-webhook
+        namespace: "{{ tenant_config.namespace }}"
+        labels: "{{ compliance_labels }}"
+      spec:
+        route:
+          groupBy:
+            - alertname
+            - vm_name
+            - namespace
+          groupWait: 30s
+          groupInterval: 5m
+          repeatInterval: 4h
+          receiver: eda-webhook
+          routes:
+            # CAT I alerts - notify immediately, no auto-remediation
+            - matchers:
+                - name: category
+                  value: CAT1
+                  matchType: "="
+              receiver: eda-webhook-cat1
+              groupWait: 10s
+              repeatInterval: 1h
+
+            # CAT II alerts - auto-remediation eligible
+            - matchers:
+                - name: category
+                  value: CAT2
+                  matchType: "="
+              receiver: eda-webhook
+              groupWait: 30s
+
+            # CAT III alerts - lower priority
+            - matchers:
+                - name: category
+                  value: CAT3
+                  matchType: "="
+              receiver: eda-webhook
+              groupWait: 5m
+              repeatInterval: 12h
+
+        receivers:
+          - name: eda-webhook
+            webhookConfigs:
+              - url: "{{ eda_webhook_url }}"
+                sendResolved: true
+                httpConfig:
+                  followRedirects: true
+
+          - name: eda-webhook-cat1
+            webhookConfigs:
+              - url: "{{ eda_webhook_url }}"
+                sendResolved: true
+                httpConfig:
+                  followRedirects: true
+  when: eda_config.enabled | default(true)
+
+- name: Display Alertmanager configuration status
+  ansible.builtin.debug:
+    msg: |
+      AlertmanagerConfig deployed:
+      - Namespace: {{ tenant_config.namespace }}
+      - Webhook URL: {{ eda_webhook_url | default('Not configured') }}
