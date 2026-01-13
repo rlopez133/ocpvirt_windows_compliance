@@ -1,0 +1,115 @@
+---
+# Windows Server 2019 STIG - CAT III (Low Severity) Controls
+
+# WN19-CC-000020 - Lock screen timeout
+- name: "CAT3 | WN19-CC-000020 | Configure screen saver timeout"
+  when: "'WN19-CC-000020' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKCU:\Control Panel\Desktop
+    name: ScreenSaveTimeOut
+    data: "900"
+    type: string
+  tags:
+    - cat3
+    - WN19-CC-000020
+
+# WN19-CC-000030 - Screen saver password protection
+- name: "CAT3 | WN19-CC-000030 | Enable screen saver password"
+  when: "'WN19-CC-000030' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKCU:\Control Panel\Desktop
+    name: ScreenSaverIsSecure
+    data: "1"
+    type: string
+  tags:
+    - cat3
+    - WN19-CC-000030
+
+# WN19-CC-000040 - Legal notice text
+- name: "CAT3 | WN19-CC-000040 | Configure legal notice caption"
+  when: "'WN19-CC-000040' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: LegalNoticeCaption
+    data: "DoD Notice and Consent Banner"
+    type: string
+  tags:
+    - cat3
+    - WN19-CC-000040
+
+# WN19-CC-000050 - Legal notice text content
+- name: "CAT3 | WN19-CC-000050 | Configure legal notice text"
+  when: "'WN19-CC-000050' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: LegalNoticeText
+    data: |
+      You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only.
+      By using this IS (which includes any device attached to this IS), you consent to the following conditions:
+      -The USG routinely intercepts and monitors communications on this IS for purposes including, but not limited to, penetration testing, COMSEC monitoring, network operations and defense, personnel misconduct (PM), law enforcement (LE), and counterintelligence (CI) investigations.
+      -At any time, the USG may inspect and seize data stored on this IS.
+      -Communications using, or data stored on, this IS are not private, are subject to routine monitoring, interception, and search, and may be disclosed or used for any USG-authorized purpose.
+      -This IS includes security measures (e.g., authentication and access controls) to protect USG interests--not for your personal benefit or privacy.
+      -Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or monitoring of the content of privileged communications, or work product, related to personal representation or services by attorneys, psychotherapists, or clergy, and their assistants. Such communications and work product are private and confidential. See User Agreement for details.
+    type: string
+  tags:
+    - cat3
+    - WN19-CC-000050
+
+# WN19-CC-000060 - Hide last logged on user
+- name: "CAT3 | WN19-CC-000060 | Hide last logged on user"
+  when: "'WN19-CC-000060' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: DontDisplayLastUserName
+    data: 1
+    type: dword
+  tags:
+    - cat3
+    - WN19-CC-000060
+
+# WN19-CC-000070 - Disable autoplay
+- name: "CAT3 | WN19-CC-000070 | Disable autoplay"
+  when: "'WN19-CC-000070' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer
+    name: NoDriveTypeAutoRun
+    data: 255
+    type: dword
+  tags:
+    - cat3
+    - WN19-CC-000070
+
+# WN19-MS-000010 - Configure event log sizes
+- name: "CAT3 | WN19-MS-000010 | Configure Application event log size"
+  when: "'WN19-MS-000010' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\Eventlog\Application
+    name: MaxSize
+    data: 32768
+    type: dword
+  tags:
+    - cat3
+    - WN19-MS-000010
+
+- name: "CAT3 | WN19-MS-000020 | Configure Security event log size"
+  when: "'WN19-MS-000020' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\Eventlog\Security
+    name: MaxSize
+    data: 196608
+    type: dword
+  tags:
+    - cat3
+    - WN19-MS-000020
+
+- name: "CAT3 | WN19-MS-000030 | Configure System event log size"
+  when: "'WN19-MS-000030' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\Eventlog\System
+    name: MaxSize
+    data: 32768
+    type: dword
+  tags:
+    - cat3
+    - WN19-MS-000030

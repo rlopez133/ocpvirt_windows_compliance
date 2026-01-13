@@ -1,0 +1,33 @@
+---
+# Scan Role - Store Results
+# Stores scan results to configured storage
+
+- name: Fetch XCCDF result to controller
+  when: scc_scan_output.xccdf_result is defined
+  ansible.windows.win_fetch:
+    src: "{{ scc_scan_output.xccdf_result }}"
+    dest: "{{ results_storage.local_path }}/{{ scan_result.scan_id }}/"
+    flat: false
+  register: fetch_xccdf
+
+- name: Fetch HTML report to controller
+  when: scc_scan_output.html_report is defined
+  ansible.windows.win_fetch:
+    src: "{{ scc_scan_output.html_report }}"
+    dest: "{{ results_storage.local_path }}/{{ scan_result.scan_id }}/"
+    flat: false
+  register: fetch_html
+
+- name: Create scan summary JSON
+  ansible.builtin.copy:
+    content: "{{ scan_result | to_nice_json }}"
+    dest: "{{ results_storage.local_path }}/{{ scan_result.scan_id }}/summary.json"
+  delegate_to: localhost
+
+- name: Display storage result
+  ansible.builtin.debug:
+    msg: |
+      Results Stored
+      - Location: {{ results_storage.local_path }}/{{ scan_result.scan_id }}/
+      - XCCDF: {{ 'Stored' if fetch_xccdf is defined else 'Not available' }}
+      - HTML: {{ 'Stored' if fetch_html is defined else 'Not available' }}

@@ -1,0 +1,46 @@
+---
+# Golden Image Role - Main Tasks
+# Creates a hardened golden image from a base Windows image
+
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - golden_image.name is defined
+      - golden_image.name | length > 0
+      - golden_image_source.datavolume_name is defined or golden_image_source.url is defined
+    fail_msg: "golden_image.name and source configuration are required"
+
+- name: Display golden image creation plan
+  ansible.builtin.debug:
+    msg: |
+      Creating Golden Image: {{ golden_image.name }}
+      =============================================
+      Source: {{ golden_image_source.datavolume_name | default(golden_image_source.url) }}
+      Target Namespace: {{ golden_image.namespace }}
+      Compliance Profile: {{ compliance_profile }}
+      Profile Version: {{ compliance_profile_version }}
+
+- name: Prepare temporary VM
+  ansible.builtin.include_tasks: prepare.yml
+
+- name: Harden the temporary VM
+  ansible.builtin.include_tasks: harden.yml
+  when: golden_image_hardening.run_remediation
+
+- name: Capture golden image
+  ansible.builtin.include_tasks: capture.yml
+
+- name: Display completion message
+  ansible.builtin.debug:
+    msg: |
+      Golden Image Created Successfully!
+      ==================================
+      Image Name: {{ golden_image.name }}
+      Namespace: {{ golden_image.namespace }}
+      Profile: {{ compliance_profile }} ({{ compliance_profile_version }})
+      DataVolume: {{ golden_image.name }}
+
+      Use this image to provision compliant VMs:
+        source_datavolume:
+          name: {{ golden_image.name }}
+          namespace: {{ golden_image.namespace }}

@@ -1,0 +1,24 @@
+---
+# Setup Role Metadata
+
+galaxy_info:
+  role_name: setup
+  author: Roger Lopez
+  description: Configure infrastructure for Windows VM compliance management
+  company: ""
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+
+  platforms:
+    - name: GenericLinux
+      versions:
+        - all
+
+  galaxy_tags:
+    - openshift
+    - compliance
+    - monitoring
+    - eda
+
+dependencies:
+  - role: kubernetes.core

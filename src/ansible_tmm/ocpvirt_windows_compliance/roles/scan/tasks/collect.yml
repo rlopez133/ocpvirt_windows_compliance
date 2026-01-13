@@ -1,0 +1,49 @@
+---
+# Scan Role - Collect Results
+# Parses XCCDF results and calculates compliance score
+
+- name: Read XCCDF result file
+  when: scc_scan_output.xccdf_result is defined and scc_scan_output.xccdf_result
+  ansible.windows.win_shell: |
+    Get-Content -Path "{{ scc_scan_output.xccdf_result }}" -Raw
+  register: xccdf_content
+
+- name: Calculate compliance score
+  when: xccdf_content is defined and xccdf_content.stdout
+  ansible.builtin.set_fact:
+    parsed_results: "{{ xccdf_content.stdout | ansible_tmm.ocpvirt_windows_compliance.parse_xccdf }}"
+
+- name: Calculate score from parsed results
+  when: parsed_results is defined
+  ansible.builtin.set_fact:
+    calculated_score: "{{ parsed_results | ansible_tmm.ocpvirt_windows_compliance.calculate_score(scan_thresholds) }}"
+
+- name: Build scan result object
+  ansible.builtin.set_fact:
+    scan_result:
+      scan_id: "{{ scc_scan_output.scan_id }}"
+      vm_name: "{{ inventory_hostname }}"
+      namespace: "{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}"
+      timestamp: "{{ scc_scan_output.completed }}"
+      profile: "{{ compliance_profile }}"
+      os_version: "{{ windows_version }}"
+      duration_seconds: "{{ scc_scan_output.duration_seconds }}"
+      score: "{{ calculated_score | default({}) }}"
+      status: "{{ calculated_score.status | default('unknown') }}"
+      artifacts:
+        xccdf_result: "{{ scc_scan_output.xccdf_result | default(None) }}"
+        html_report: "{{ scc_scan_output.html_report | default(None) }}"
+
+- name: Add to scan_results list
+  ansible.builtin.set_fact:
+    scan_results: "{{ scan_results | default([]) + [scan_result] }}"
+
+- name: Display collected results
+  ansible.builtin.debug:
+    msg: |
+      Results Collected
+      - Total Controls: {{ scan_result.score.total | default(0) }}
+      - Passed: {{ scan_result.score.passed | default(0) }}
+      - Failed: {{ scan_result.score.failed | default(0) }}
+      - Score: {{ scan_result.score.score | default(0) }}%
+      - Status: {{ scan_result.status }}

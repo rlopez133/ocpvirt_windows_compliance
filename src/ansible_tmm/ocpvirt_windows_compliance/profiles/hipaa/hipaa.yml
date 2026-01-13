@@ -1,0 +1,91 @@
+---
+# HIPAA Mapped Profile
+# Health Insurance Portability and Accountability Act
+
+compliance_profile:
+  name: "hipaa"
+  display_name: "HIPAA Security Rule"
+  framework: "hipaa"
+  version: "2024"
+  description: >-
+    HIPAA Security Rule mapped controls for Windows Server.
+    Based on STIG controls mapped to HIPAA requirements.
+
+  # Uses STIG benchmarks with HIPAA control mapping
+  scc_benchmark:
+    win2022: "Windows_Server_2022_STIG_SCAP_Benchmark"
+    win2019: "Windows_Server_2019_STIG_SCAP_Benchmark"
+
+  # HIPAA safeguard categories
+  categories:
+    administrative:
+      enabled: true
+      description: "Administrative safeguards"
+      auto_remediate: true
+    physical:
+      enabled: true
+      description: "Physical safeguards (software controls)"
+      auto_remediate: true
+    technical:
+      enabled: true
+      description: "Technical safeguards"
+      auto_remediate: true
+
+  # HIPAA to STIG control mapping
+  control_mapping:
+    # 164.312(a)(1) - Access Control
+    access_control:
+      stig_controls:
+        - "WN22-SO-000010"  # Account lockout
+        - "WN22-SO-000020"  # Password policy
+        - "WN22-AC-000010"  # User rights assignment
+    # 164.312(b) - Audit Controls
+    audit_controls:
+      stig_controls:
+        - "WN22-AU-000010"  # Audit policy
+        - "WN22-AU-000020"  # Event logging
+    # 164.312(c)(1) - Integrity
+    integrity:
+      stig_controls:
+        - "WN22-SO-000100"  # SMB signing
+        - "WN22-SO-000110"  # LDAP signing
+    # 164.312(d) - Authentication
+    authentication:
+      stig_controls:
+        - "WN22-SO-000200"  # LAN Manager
+        - "WN22-SO-000210"  # NTLMv2
+    # 164.312(e)(1) - Transmission Security
+    transmission:
+      stig_controls:
+        - "WN22-SO-000300"  # TLS settings
+        - "WN22-SO-000310"  # Cipher suites
+
+  # Control overrides
+  controls:
+    enabled: []
+    disabled: []
+
+  # Remediation settings
+  remediation:
+    disruption_high: false
+    reboot_allowed: false
+    backup_before_change: true
+
+  # Thresholds
+  thresholds:
+    critical: 100
+    warning: 95
+    info: 85
+
+  # Expected coverage
+  expected_coverage:
+    minimum: 90
+    typical: 95
+    description: "HIPAA-mapped controls from STIG baseline"
+
+  # Role variables
+  role_vars:
+    win22stig_cat1_patch: true
+    win22stig_cat2_patch: true
+    win22stig_cat3_patch: false
+    hipaa_focus: true

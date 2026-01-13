@@ -1,0 +1,45 @@
+---
+# Scan Playbook
+# Runs compliance scans on Windows VMs
+#
+# This playbook should be run as an AAP Job Template against Windows VMs.
+# Use limit/filter to target specific VMs.
+
+- name: Run Compliance Scan
+  hosts: all
+  gather_facts: true
+
+  vars:
+    compliance_profile: "stig"
+    store_results: true
+    push_metrics: true
+
+  pre_tasks:
+    - name: Verify Windows target
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family == "Windows"
+        fail_msg: "This playbook only runs on Windows systems"
+
+    - name: Display scan information
+      ansible.builtin.debug:
+        msg: |
+          Compliance Scan
+          ===============
+          Target: {{ inventory_hostname }}
+          Profile: {{ compliance_profile }}
+
+  roles:
+    - role: ansible_tmm.ocpvirt_windows_compliance.scan
+
+  post_tasks:
+    - name: Display scan results
+      ansible.builtin.debug:
+        msg: |
+          Scan Complete
+          =============
+          Target: {{ inventory_hostname }}
+          Score: {{ scan_result.score.score | default('N/A') }}%
+          Status: {{ scan_result.status | default('unknown') }}
+          Passed: {{ scan_result.score.passed | default(0) }}
+          Failed: {{ scan_result.score.failed | default(0) }}

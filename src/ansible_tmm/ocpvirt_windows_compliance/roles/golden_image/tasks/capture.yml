@@ -1,0 +1,113 @@
+---
+# Golden Image Role - Capture Tasks
+# Captures the hardened VM as a golden image DataVolume
+
+- name: Create snapshot of hardened disk
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: snapshot.storage.k8s.io/v1
+      kind: VolumeSnapshot
+      metadata:
+        name: "{{ golden_image.name }}-snapshot"
+        namespace: "{{ golden_image_temp_vm.namespace }}"
+        labels:
+          compliance.ocpvirt/profile: "{{ compliance_profile }}"
+          compliance.ocpvirt/version: "{{ compliance_profile_version }}"
+      spec:
+        source:
+          persistentVolumeClaimName: "{{ golden_image_temp_vm.disk_name }}"
+
+- name: Wait for snapshot to be ready
+  kubernetes.core.k8s_info:
+    api_version: snapshot.storage.k8s.io/v1
+    kind: VolumeSnapshot
+    name: "{{ golden_image.name }}-snapshot"
+    namespace: "{{ golden_image_temp_vm.namespace }}"
+  register: snapshot_status
+  until: >-
+    snapshot_status.resources | length > 0 and
+    snapshot_status.resources[0].status.readyToUse | default(false)
+  retries: 60
+  delay: 10
+
+- name: Create golden image DataVolume from snapshot
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: "{{ golden_image.name }}"
+        namespace: "{{ golden_image.namespace }}"
+        labels:
+          compliance.ocpvirt/managed: "true"
+          compliance.ocpvirt/type: "golden-image"
+          compliance.ocpvirt/profile: "{{ compliance_profile }}"
+          compliance.ocpvirt/version: "{{ compliance_profile_version }}"
+          compliance.ocpvirt/os-version: "{{ ansible_distribution_version | default('unknown') }}"
+        annotations:
+          compliance.ocpvirt/created-date: "{{ ansible_date_time.iso8601 }}"
+          compliance.ocpvirt/source-vm: "{{ golden_image_temp_vm.name }}"
+      spec:
+        source:
+          snapshot:
+            name: "{{ golden_image.name }}-snapshot"
+            namespace: "{{ golden_image_temp_vm.namespace }}"
+        pvc:
+          accessModes:
+            - ReadWriteMany
+          resources:
+            requests:
+              storage: "{{ golden_image.storage_size | default('60Gi') }}"
+          storageClassName: "{{ golden_image.storage_class | default(omit) }}"
+
+- name: Wait for DataVolume to be ready
+  kubernetes.core.k8s_info:
+    api_version: cdi.kubevirt.io/v1beta1
+    kind: DataVolume
+    name: "{{ golden_image.name }}"
+    namespace: "{{ golden_image.namespace }}"
+  register: dv_status
+  until: >-
+    dv_status.resources | length > 0 and
+    dv_status.resources[0].status.phase | default('') == 'Succeeded'
+  retries: 120
+  delay: 10
+
+- name: Cleanup temporary VM
+  when: capture.cleanup_temp_vm | default(true)
+  block:
+    - name: Delete temporary VM
+      kubernetes.core.k8s:
+        state: absent
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        name: "{{ golden_image_temp_vm.name }}"
+        namespace: "{{ golden_image_temp_vm.namespace }}"
+
+    - name: Delete temporary DataVolume
+      kubernetes.core.k8s:
+        state: absent
+        api_version: cdi.kubevirt.io/v1beta1
+        kind: DataVolume
+        name: "{{ golden_image_temp_vm.disk_name }}"
+        namespace: "{{ golden_image_temp_vm.namespace }}"
+
+    - name: Delete temporary snapshot
+      kubernetes.core.k8s:
+        state: absent
+        api_version: snapshot.storage.k8s.io/v1
+        kind: VolumeSnapshot
+        name: "{{ golden_image.name }}-snapshot"
+        namespace: "{{ golden_image_temp_vm.namespace }}"
+
+- name: Store capture result
+  ansible.builtin.set_fact:
+    golden_image_result:
+      name: "{{ golden_image.name }}"
+      namespace: "{{ golden_image.namespace }}"
+      datavolume: "{{ golden_image.name }}"
+      profile: "{{ compliance_profile }}"
+      version: "{{ compliance_profile_version }}"
+      created: "{{ ansible_date_time.iso8601 }}"

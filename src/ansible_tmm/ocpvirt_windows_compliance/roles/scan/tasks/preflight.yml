@@ -1,0 +1,50 @@
+---
+# Scan Role - Preflight Checks
+# Verifies SCC is installed and ready
+
+- name: Check if SCC is installed
+  ansible.windows.win_stat:
+    path: "{{ scc_config.install_path }}\\cscc.exe"
+  register: scc_check
+
+- name: Fail if SCC not installed
+  ansible.builtin.fail:
+    msg: |
+      DISA SCC is not installed at {{ scc_config.install_path }}.
+      Run the 'Install-SCC' job template first.
+  when: not scc_check.stat.exists
+
+- name: Get Windows version
+  ansible.windows.win_powershell:
+    script: |
+      $os = Get-CimInstance Win32_OperatingSystem
+      @{
+        Caption = $os.Caption
+        Version = $os.Version
+        BuildNumber = $os.BuildNumber
+      } | ConvertTo-Json
+  register: os_info_raw
+
+- name: Parse OS information
+  ansible.builtin.set_fact:
+    os_info: "{{ os_info_raw.output | from_json }}"
+
+- name: Determine Windows version and benchmark
+  ansible.builtin.set_fact:
+    windows_version: >-
+      {%- if '2022' in os_info.Caption -%}2022{%- elif '2019' in os_info.Caption -%}2019{%- else -%}unknown{%- endif -%}
+    scc_benchmark: >-
+      {%- if '2022' in os_info.Caption -%}{{ scc_config.benchmark.win2022 }}{%- elif '2019' in os_info.Caption -%}{{ scc_config.benchmark.win2019 }}{%- else -%}unknown{%- endif -%}
+
+- name: Create output directory
+  ansible.windows.win_file:
+    path: "{{ scc_config.output_dir }}"
+    state: directory
+
+- name: Display preflight results
+  ansible.builtin.debug:
+    msg: |
+      Preflight Complete
+      - SCC: Installed
+      - OS: Windows Server {{ windows_version }}
+      - Benchmark: {{ scc_benchmark }}

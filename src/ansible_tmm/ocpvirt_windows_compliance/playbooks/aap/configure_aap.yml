@@ -1,0 +1,89 @@
+---
+# Configure AAP Playbook
+# Deploys all AAP resources for Windows VM compliance management
+#
+# Prerequisites:
+#   - AAP controller access
+#   - Credentials created manually in AAP:
+#     - windows-winrm: Machine credential for Windows VMs
+#     - openshift-api: OpenShift API credential
+#     - s3-reports: AWS credential for S3 (optional)
+#
+# Required Variables:
+#   controller_host: AAP controller hostname
+#   controller_username: AAP admin username
+#   controller_password: AAP admin password (use vault)
+#   aap_organization: AAP organization name
+#   collection_repo_url: Git URL for the collection
+
+- name: Configure Ansible Automation Platform for Compliance
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    controller_host: ""
+    controller_username: "admin"
+    controller_password: ""
+    controller_validate_certs: true
+    aap_organization: "Default"
+    collection_repo_url: "https://github.com/ansible-tmm/ocpvirt_windows_compliance"
+    windows_vm_inventory: "OpenShift Virtualization VMs"
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - controller_host | length > 0
+          - controller_password | length > 0
+          - collection_repo_url | length > 0
+        fail_msg: "controller_host, controller_password, and collection_repo_url are required"
+
+    - name: Display configuration
+      ansible.builtin.debug:
+        msg: |
+          Configuring AAP for Windows VM Compliance
+          ==========================================
+          Controller: {{ controller_host }}
+          Organization: {{ aap_organization }}
+          Repository: {{ collection_repo_url }}
+
+  tasks:
+    - name: Deploy AAP project
+      ansible.builtin.include_tasks: projects.yml
+
+    - name: Deploy job templates
+      ansible.builtin.include_tasks: job_templates.yml
+
+    - name: Deploy schedules
+      ansible.builtin.include_tasks: schedules.yml
+
+    - name: Deploy workflow templates
+      ansible.builtin.include_tasks: workflow_templates.yml
+
+    - name: Configure EDA rulebook activations
+      ansible.builtin.include_tasks: eda_rulebooks.yml
+      when: configure_eda | default(true)
+
+  post_tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          AAP Configuration Complete!
+          ===========================
+
+          Created Resources:
+          - Project: Windows Compliance Collection
+          - Job Templates: Setup, Install-SCC, Scan, Remediate, Report, Provision-VM, Create-Golden-Image
+          - Workflow: Compliance-Full-Cycle
+          - Schedules: Hourly scan, Daily report
+
+          Manual Steps Required:
+          1. Create credentials in AAP (if not already done):
+             - windows-winrm (Machine - Windows)
+             - openshift-api (OpenShift API)
+             - s3-reports (AWS - optional)
+
+          2. Configure inventory with OpenShift Virtualization VMs
+
+          3. Test job templates with a single VM

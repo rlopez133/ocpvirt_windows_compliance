@@ -1,0 +1,62 @@
+---
+# Windows Server 2019 STIG Role Defaults
+# Based on DISA STIG V3R1
+
+# Category patches
+win19stig_cat1_patch: true
+win19stig_cat2_patch: true
+win19stig_cat3_patch: true
+
+# Allow high disruption changes
+win19stig_disruption_high: false
+
+# Skip specific rules (by rule ID)
+win19stig_skip_rules: []
+
+# Backup settings before changes
+win19stig_backup: true
+
+# Audit policy settings
+win19stig_audit_policy:
+  credential_validation: "Success and Failure"
+  kerberos_authentication: "Success and Failure"
+  kerberos_service_ticket: "Success and Failure"
+  application_group_management: "Success and Failure"
+  computer_account_management: "Success and Failure"
+  security_group_management: "Success and Failure"
+  user_account_management: "Success and Failure"
+  process_creation: "Success"
+  logoff: "Success"
+  logon: "Success and Failure"
+  special_logon: "Success"
+  removable_storage: "Success and Failure"
+  audit_policy_change: "Success and Failure"
+  authentication_policy_change: "Success"
+  authorization_policy_change: "Success"
+  sensitive_privilege_use: "Success and Failure"
+  ipsec_driver: "Success and Failure"
+  security_state_change: "Success"
+  security_system_extension: "Success and Failure"
+  system_integrity: "Success and Failure"
+
+# Password policy
+win19stig_password_policy:
+  min_length: 14
+  complexity: true
+  max_age: 60
+  min_age: 1
+  history: 24
+  reversible_encryption: false
+
+# Account lockout policy
+win19stig_lockout_policy:
+  threshold: 3
+  duration: 15
+  reset_count: 15
+
+# Security options
+win19stig_security_options:
+  administrator_account_status: "disabled"
+  guest_account_status: "disabled"
+  lsa_protection: true
+  credential_guard: true

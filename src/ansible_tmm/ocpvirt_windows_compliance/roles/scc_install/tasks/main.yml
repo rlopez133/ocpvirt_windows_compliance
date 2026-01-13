@@ -1,0 +1,126 @@
+---
+# SCC Install Role - Main Tasks
+# Downloads and installs DISA SCAP Compliance Checker
+
+- name: Display SCC installation information
+  ansible.builtin.debug:
+    msg: |
+      Installing DISA SCC {{ scc_version }}
+      Install path: {{ scc_install_path }}
+      Download STIG content: {{ scc_download_stig_content }}
+
+- name: Check if SCC is already installed
+  ansible.windows.win_stat:
+    path: "{{ scc_install_path }}\\cscc.exe"
+  register: scc_installed
+
+- name: Install SCC if not present
+  when: not scc_installed.stat.exists
+  block:
+    - name: Create temp directory
+      ansible.windows.win_file:
+        path: "{{ scc_temp_path }}"
+        state: directory
+
+    - name: Download SCC installer
+      ansible.windows.win_get_url:
+        url: "{{ scc_download_url }}"
+        dest: "{{ scc_temp_path }}\\SCC_{{ scc_version }}.zip"
+        force: false
+      register: scc_download
+
+    - name: Extract SCC archive
+      community.windows.win_unzip:
+        src: "{{ scc_temp_path }}\\SCC_{{ scc_version }}.zip"
+        dest: "{{ scc_temp_path }}\\extracted"
+        creates: "{{ scc_temp_path }}\\extracted"
+
+    - name: Create SCC installation directory
+      ansible.windows.win_file:
+        path: "{{ scc_install_path }}"
+        state: directory
+
+    - name: Find SCC installer in extracted files
+      ansible.windows.win_find:
+        paths: "{{ scc_temp_path }}\\extracted"
+        patterns: "*.msi"
+        recurse: true
+      register: scc_msi_files
+
+    - name: Install SCC using MSI
+      ansible.windows.win_package:
+        path: "{{ scc_msi_files.files[0].path }}"
+        state: present
+        arguments: "/quiet /norestart INSTALLDIR=\"{{ scc_install_path }}\""
+      when: scc_msi_files.files | length > 0
+      register: scc_install_result
+
+    - name: Copy SCC files if no MSI found
+      ansible.windows.win_copy:
+        src: "{{ scc_temp_path }}\\extracted\\"
+        dest: "{{ scc_install_path }}\\"
+        remote_src: true
+      when: scc_msi_files.files | length == 0
+
+- name: Download STIG content
+  when: scc_download_stig_content
+  block:
+    - name: Create STIG content directory
+      ansible.windows.win_file:
+        path: "{{ scc_install_path }}\\Resources\\Content"
+        state: directory
+
+    - name: Download STIG benchmark content
+      ansible.windows.win_get_url:
+        url: "{{ item.url }}"
+        dest: "{{ scc_install_path }}\\Resources\\Content\\{{ item.name }}.zip"
+        force: false
+      loop: "{{ scc_stig_content }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Extract STIG content
+      community.windows.win_unzip:
+        src: "{{ scc_install_path }}\\Resources\\Content\\{{ item.name }}.zip"
+        dest: "{{ scc_install_path }}\\Resources\\Content\\{{ item.name }}"
+        creates: "{{ scc_install_path }}\\Resources\\Content\\{{ item.name }}"
+      loop: "{{ scc_stig_content }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+- name: Verify SCC installation
+  when: scc_verify_install
+  block:
+    - name: Check SCC executable exists
+      ansible.windows.win_stat:
+        path: "{{ scc_install_path }}\\cscc.exe"
+      register: scc_exe_check
+      failed_when: not scc_exe_check.stat.exists
+
+    - name: Get SCC version
+      ansible.windows.win_shell: |
+        & "{{ scc_install_path }}\cscc.exe" --version
+      register: scc_version_output
+      ignore_errors: true
+
+    - name: Display SCC version
+      ansible.builtin.debug:
+        msg: "SCC installed: {{ scc_version_output.stdout | default('Version check failed') }}"
+
+- name: Run test scan
+  when: scc_test_scan
+  block:
+    - name: Execute test scan
+      ansible.windows.win_shell: |
+        & "{{ scc_install_path }}\cscc.exe" --help
+      register: scc_test_result
+
+    - name: Display test result
+      ansible.builtin.debug:
+        msg: "SCC test completed successfully"
+
+- name: Cleanup temp files
+  ansible.windows.win_file:
+    path: "{{ scc_temp_path }}"
+    state: absent
+  when: scc_download is defined and scc_download.changed

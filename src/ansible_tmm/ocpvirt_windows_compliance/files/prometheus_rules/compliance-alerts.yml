@@ -1,0 +1,157 @@
+---
+# PrometheusRule Template for Windows VM Compliance Alerts
+# Deploy this to the tenant namespace for compliance monitoring
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: compliance-alerts
+  labels:
+    app.kubernetes.io/name: ocpvirt-windows-compliance
+    app.kubernetes.io/component: monitoring
+    compliance.ocpvirt/managed: "true"
+spec:
+  groups:
+    - name: compliance.windows.critical
+      interval: 30s
+      rules:
+        # CAT I (Critical) violations - immediate alert
+        - alert: ComplianceCAT1Violation
+          expr: |
+            compliance_control_status{category="CAT1", status="fail"} == 1
+          for: 1m
+          labels:
+            severity: critical
+            category: CAT1
+          annotations:
+            summary: "CRITICAL: CAT I compliance violation on {{ $labels.vm_name }}"
+            description: |
+              Critical security control {{ $labels.control_id }} has failed on VM {{ $labels.vm_name }}.
+              Namespace: {{ $labels.namespace }}
+              Profile: {{ $labels.profile }}
+              This requires immediate attention and manual remediation approval.
+            runbook_url: "https://stigviewer.com/stig/{{ $labels.control_id }}"
+
+        # Multiple CAT I failures
+        - alert: ComplianceMultipleCAT1Violations
+          expr: |
+            count by (vm_name, namespace) (compliance_control_status{category="CAT1", status="fail"} == 1) > 3
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "CRITICAL: Multiple CAT I violations on {{ $labels.vm_name }}"
+            description: "VM {{ $labels.vm_name }} has {{ $value }} CAT I violations. Immediate action required."
+
+    - name: compliance.windows.warning
+      interval: 60s
+      rules:
+        # CAT II (Warning) violations
+        - alert: ComplianceCAT2Violation
+          expr: |
+            compliance_control_status{category="CAT2", status="fail"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            category: CAT2
+          annotations:
+            summary: "Compliance warning: CAT II violation on {{ $labels.vm_name }}"
+            description: |
+              Medium severity control {{ $labels.control_id }} has failed on VM {{ $labels.vm_name }}.
+              This can be auto-remediated if EDA is enabled for this VM.
+
+        # Compliance score below threshold
+        - alert: ComplianceScoreCritical
+          expr: |
+            compliance_score < 80
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Low compliance score on {{ $labels.vm_name }}"
+            description: "VM {{ $labels.vm_name }} has compliance score {{ $value }}%, which is below the critical threshold."
+
+        - alert: ComplianceScoreWarning
+          expr: |
+            compliance_score >= 80 and compliance_score < 95
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Compliance score below target on {{ $labels.vm_name }}"
+            description: "VM {{ $labels.vm_name }} has compliance score {{ $value }}%, below the target of 95%."
+
+    - name: compliance.windows.info
+      interval: 120s
+      rules:
+        # CAT III (Info) violations
+        - alert: ComplianceCAT3Violation
+          expr: |
+            compliance_control_status{category="CAT3", status="fail"} == 1
+          for: 30m
+          labels:
+            severity: info
+            category: CAT3
+          annotations:
+            summary: "Low severity compliance issue on {{ $labels.vm_name }}"
+            description: "CAT III control {{ $labels.control_id }} failed on {{ $labels.vm_name }}."
+
+    - name: compliance.windows.operations
+      interval: 60s
+      rules:
+        # Scan failures
+        - alert: ComplianceScanFailed
+          expr: |
+            increase(compliance_scans_total{result="failed"}[1h]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Compliance scan failed on {{ $labels.vm_name }}"
+            description: "A compliance scan has failed for VM {{ $labels.vm_name }}. Check scan logs for details."
+
+        # No recent scans
+        - alert: ComplianceScanMissing
+          expr: |
+            time() - compliance_last_scan_timestamp > 7200
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "No recent compliance scan for {{ $labels.vm_name }}"
+            description: "VM {{ $labels.vm_name }} has not been scanned in over 2 hours."
+
+        # Remediation failures
+        - alert: ComplianceRemediationFailed
+          expr: |
+            increase(compliance_remediations_total{result="failed"}[1h]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Remediation failed on {{ $labels.vm_name }}"
+            description: "A remediation job has failed for VM {{ $labels.vm_name }}."
+
+    - name: compliance.windows.records
+      interval: 60s
+      rules:
+        # Recording rules for aggregation
+        - record: compliance:score:avg_by_namespace
+          expr: |
+            avg by (namespace, profile) (compliance_score)
+
+        - record: compliance:violations:count_by_category
+          expr: |
+            count by (namespace, category) (compliance_control_status{status="fail"} == 1)
+
+        - record: compliance:vms:total_by_namespace
+          expr: |
+            count by (namespace) (compliance_score)
+
+        - record: compliance:vms:compliant_by_namespace
+          expr: |
+            count by (namespace) (compliance_score >= 95)
+
+        - record: compliance:scans:rate_1h
+          expr: |
+            sum by (namespace) (increase(compliance_scans_total[1h]))

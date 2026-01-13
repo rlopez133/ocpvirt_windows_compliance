@@ -1,0 +1,60 @@
+---
+# Setup Playbook
+# Configures all infrastructure components for compliance management
+#
+# Required Variables:
+#   tenant_config: Tenant configuration dictionary (see data-model.md)
+#   eda_config.controller_url: EDA controller URL
+#   aap_config.controller_url: AAP controller URL
+#
+# Example:
+#   ansible-playbook setup.yml -e @tenant-config.yml
+
+- name: Setup Windows VM Compliance Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # Default tenant config - override with extra vars
+    tenant_config:
+      name: "default"
+      namespace: "compliance"
+      storage:
+        backend: "pvc"
+        pvc_name: "compliance-reports"
+
+  pre_tasks:
+    - name: Validate required configuration
+      ansible.builtin.assert:
+        that:
+          - tenant_config is defined
+          - tenant_config.namespace is defined
+        fail_msg: "tenant_config with namespace is required"
+
+    - name: Display setup information
+      ansible.builtin.debug:
+        msg: |
+          Windows VM Compliance Infrastructure Setup
+          ==========================================
+          Tenant: {{ tenant_config.name }}
+          Namespace: {{ tenant_config.namespace }}
+          Storage: {{ tenant_config.storage.backend | default('pvc') }}
+
+  roles:
+    - role: ansible_tmm.ocpvirt_windows_compliance.setup
+
+  post_tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          Setup Complete!
+          ===============
+
+          Next steps:
+          1. Install DISA SCC on Windows VMs using 'Install-SCC' job template
+          2. Run initial compliance scan using 'Compliance-Scan' job template
+          3. Review results in Grafana dashboard
+
+          Dashboard: OpenShift Console → Observe → Dashboards → Windows Compliance
+          Alerts: OpenShift Console → Observe → Alerting

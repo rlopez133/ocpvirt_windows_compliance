@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Windows Server 2019 Unattended Installation
+  Configured for: BIOS Boot (MBR), WinRM/Ansible, Compliance Automation
+
+  Usage: Paste this into OpenShift Virtualization VM Sysprep configuration
+         Set Boot Mode to BIOS (not UEFI)
+
+  SECURITY: Search for "CHANGE_ME_BEFORE_USE" and replace with a secure password!
+-->
+<unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:schemas-microsoft-com:unattend">
+
+  <!-- ============================================================
+       WINDOWS PE PASS - Disk Configuration and OS Installation
+       ============================================================ -->
+  <settings pass="windowsPE">
+    <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+
+      <!-- MBR Disk Configuration for BIOS Boot -->
+      <DiskConfiguration>
+        <Disk wcm:action="add">
+          <DiskID>0</DiskID>
+          <WillWipeDisk>true</WillWipeDisk>
+          <CreatePartitions>
+            <!-- Single Primary Partition - Uses all disk space -->
+            <CreatePartition wcm:action="add">
+              <Order>1</Order>
+              <Extend>true</Extend>
+              <Type>Primary</Type>
+            </CreatePartition>
+          </CreatePartitions>
+          <ModifyPartitions>
+            <!-- Format as NTFS and set Active for boot -->
+            <ModifyPartition wcm:action="add">
+              <Order>1</Order>
+              <PartitionID>1</PartitionID>
+              <Format>NTFS</Format>
+              <Label>Windows</Label>
+              <Letter>C</Letter>
+              <Active>true</Active>
+            </ModifyPartition>
+          </ModifyPartitions>
+        </Disk>
+      </DiskConfiguration>
+
+      <!-- Windows Edition Selection - Windows Server 2019 -->
+      <ImageInstall>
+        <OSImage>
+          <InstallFrom>
+            <MetaData wcm:action="add">
+              <Key>/IMAGE/NAME</Key>
+              <!-- Options:
+                   Windows Server 2019 SERVERSTANDARD
+                   Windows Server 2019 SERVERDATACENTER
+              -->
+              <Value>Windows Server 2019 SERVERSTANDARD</Value>
+            </MetaData>
+          </InstallFrom>
+          <InstallTo>
+            <DiskID>0</DiskID>
+            <PartitionID>1</PartitionID>
+          </InstallTo>
+        </OSImage>
+      </ImageInstall>
+
+      <!-- User Data -->
+      <UserData>
+        <AcceptEula>true</AcceptEula>
+        <FullName>Administrator</FullName>
+        <Organization>Compliance Team</Organization>
+      </UserData>
+
+      <!-- Disable Firewall during install -->
+      <EnableFirewall>false</EnableFirewall>
+
+    </component>
+
+    <!-- Locale Settings for PE -->
+    <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <SetupUILanguage>
+        <UILanguage>en-US</UILanguage>
+      </SetupUILanguage>
+      <InputLocale>en-US</InputLocale>
+      <SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage>
+      <UserLocale>en-US</UserLocale>
+    </component>
+  </settings>
+
+  <!-- ============================================================
+       OFFLINE SERVICING PASS
+       ============================================================ -->
+  <settings pass="offlineServicing">
+    <component name="Microsoft-Windows-LUA-Settings" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <!-- Disable UAC temporarily for setup (re-enable via Ansible for STIG) -->
+      <EnableLUA>false</EnableLUA>
+    </component>
+  </settings>
+
+  <!-- ============================================================
+       SPECIALIZE PASS - Machine-Specific Configuration
+       ============================================================ -->
+  <settings pass="specialize">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+
+      <!-- Computer Name - Will be changed after cloning -->
+      <ComputerName>WIN2019-TPL</ComputerName>
+
+      <!-- Timezone - Adjust as needed -->
+      <TimeZone>UTC</TimeZone>
+
+      <!-- Initial Auto-Logon for Setup -->
+      <AutoLogon>
+        <Enabled>true</Enabled>
+        <LogonCount>10</LogonCount>
+        <Username>Administrator</Username>
+        <Password>
+          <!-- CHANGE THIS PASSWORD for production use -->
+          <Value>CHANGE_ME_BEFORE_USE</Value>
+          <PlainText>true</PlainText>
+        </Password>
+      </AutoLogon>
+
+      <!-- User Accounts -->
+      <UserAccounts>
+        <LocalAccounts>
+          <LocalAccount wcm:action="add">
+            <Name>Administrator</Name>
+            <DisplayName>Administrator</DisplayName>
+            <Group>Administrators</Group>
+            <Description>Built-in Administrator Account</Description>
+          </LocalAccount>
+        </LocalAccounts>
+      </UserAccounts>
+
+    </component>
+
+    <!-- Disable IE Enhanced Security for initial setup -->
+    <component name="Microsoft-Windows-IE-ESC" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <IEHardenAdmin>false</IEHardenAdmin>
+      <IEHardenUser>false</IEHardenUser>
+    </component>
+
+    <!-- Server Manager - Don't show at logon -->
+    <component name="Microsoft-Windows-ServerManager-SvrMgrNc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <DoNotOpenServerManagerAtLogon>true</DoNotOpenServerManagerAtLogon>
+    </component>
+
+    <!-- Disable Windows Error Reporting prompts -->
+    <component name="Microsoft-Windows-ErrorReportingCore" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <DisableWER>1</DisableWER>
+    </component>
+
+  </settings>
+
+  <!-- ============================================================
+       OOBE SYSTEM PASS - First Boot Configuration
+       ============================================================ -->
+  <settings pass="oobeSystem">
+
+    <!-- Locale Settings -->
+    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <InputLocale>en-US</InputLocale>
+      <SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage>
+      <UserLocale>en-US</UserLocale>
+    </component>
+
+    <!-- Shell Setup and First Logon Commands -->
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+
+      <!-- Skip all OOBE screens -->
+      <OOBE>
+        <HideEULAPage>true</HideEULAPage>
+        <HideLocalAccountScreen>true</HideLocalAccountScreen>
+        <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+        <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+        <NetworkLocation>Work</NetworkLocation>
+        <ProtectYourPC>3</ProtectYourPC>
+        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <SkipUserOOBE>true</SkipUserOOBE>
+      </OOBE>
+
+      <!-- Administrator Account Setup -->
+      <UserAccounts>
+        <AdministratorPassword>
+          <!-- CHANGE THIS PASSWORD for production use -->
+          <Value>CHANGE_ME_BEFORE_USE</Value>
+          <PlainText>true</PlainText>
+        </AdministratorPassword>
+        <LocalAccounts>
+          <LocalAccount wcm:action="add">
+            <Name>Administrator</Name>
+            <DisplayName>Administrator</DisplayName>
+            <Group>Administrators</Group>
+            <Description>Built-in Administrator Account</Description>
+          </LocalAccount>
+        </LocalAccounts>
+      </UserAccounts>
+
+      <!-- Auto-Logon for First Boot Commands -->
+      <AutoLogon>
+        <Enabled>true</Enabled>
+        <LogonCount>10</LogonCount>
+        <Username>Administrator</Username>
+        <Password>
+          <Value>CHANGE_ME_BEFORE_USE</Value>
+          <PlainText>true</PlainText>
+        </Password>
+      </AutoLogon>
+
+      <!-- Timezone -->
+      <TimeZone>UTC</TimeZone>
+
+      <!-- ============================================================
+           FIRST LOGON COMMANDS - WinRM and Ansible Setup
+           These run automatically on first boot
+           ============================================================ -->
+      <FirstLogonCommands>
+
+        <!-- 1. Set Execution Policy for PowerShell -->
+        <SynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <CommandLine>powershell.exe -Command "Set-ExecutionPolicy RemoteSigned -Force"</CommandLine>
+          <Description>Set PowerShell Execution Policy</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 2. Enable WinRM Service -->
+        <SynchronousCommand wcm:action="add">
+          <Order>2</Order>
+          <CommandLine>powershell.exe -Command "Enable-PSRemoting -Force -SkipNetworkProfileCheck"</CommandLine>
+          <Description>Enable PowerShell Remoting</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 3. Configure WinRM Service to Auto Start -->
+        <SynchronousCommand wcm:action="add">
+          <Order>3</Order>
+          <CommandLine>powershell.exe -Command "Set-Service WinRM -StartupType Automatic"</CommandLine>
+          <Description>Set WinRM to Auto Start</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 4. Start WinRM Service -->
+        <SynchronousCommand wcm:action="add">
+          <Order>4</Order>
+          <CommandLine>powershell.exe -Command "Start-Service WinRM"</CommandLine>
+          <Description>Start WinRM Service</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 5. Configure WinRM for Ansible - Basic Auth -->
+        <SynchronousCommand wcm:action="add">
+          <Order>5</Order>
+          <CommandLine>powershell.exe -Command "Set-Item WSMan:\localhost\Service\Auth\Basic -Value $true"</CommandLine>
+          <Description>Enable Basic Authentication</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 6. Configure WinRM for Ansible - Allow Unencrypted -->
+        <SynchronousCommand wcm:action="add">
+          <Order>6</Order>
+          <CommandLine>powershell.exe -Command "Set-Item WSMan:\localhost\Service\AllowUnencrypted -Value $true"</CommandLine>
+          <Description>Allow Unencrypted Traffic</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 7. Configure WinRM Listener for HTTP (5985) -->
+        <SynchronousCommand wcm:action="add">
+          <Order>7</Order>
+          <CommandLine>powershell.exe -Command "Remove-WSManInstance -ResourceURI winrm/config/Listener -SelectorSet @{Transport='HTTP'; Address='*'} -ErrorAction SilentlyContinue; New-WSManInstance -ResourceURI winrm/config/Listener -SelectorSet @{Transport='HTTP'; Address='*'}"</CommandLine>
+          <Description>Create HTTP Listener</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 8. Create PowerShell script for HTTPS WinRM setup -->
+        <SynchronousCommand wcm:action="add">
+          <Order>8</Order>
+          <CommandLine>powershell.exe -Command "$script = @'
+# Create self-signed certificate
+$cert = New-SelfSignedCertificate -DnsName $env:COMPUTERNAME, 'localhost' -CertStoreLocation Cert:\LocalMachine\My -NotAfter (Get-Date).AddYears(5) -KeySpec KeyExchange
+$thumbprint = $cert.Thumbprint
+Write-Host \"Certificate created: $thumbprint\"
+
+# Remove existing HTTPS listener if present
+try { Remove-WSManInstance -ResourceURI winrm/config/Listener -SelectorSet @{Transport=\"HTTPS\"; Address=\"*\"} -ErrorAction SilentlyContinue } catch {}
+
+# Create HTTPS listener with certificate
+New-WSManInstance -ResourceURI winrm/config/Listener -SelectorSet @{Transport=\"HTTPS\"; Address=\"*\"} -ValueSet @{CertificateThumbprint=$thumbprint}
+Write-Host \"HTTPS WinRM listener created on port 5986\"
+'@; $script | Out-File -FilePath C:\setup-winrm-https.ps1 -Encoding ASCII"</CommandLine>
+          <Description>Create HTTPS Setup Script</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 9. Execute HTTPS WinRM setup script -->
+        <SynchronousCommand wcm:action="add">
+          <Order>9</Order>
+          <CommandLine>powershell.exe -ExecutionPolicy Bypass -File C:\setup-winrm-https.ps1</CommandLine>
+          <Description>Run HTTPS WinRM Setup Script</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 10. Configure WinRM Memory and Settings -->
+        <SynchronousCommand wcm:action="add">
+          <Order>10</Order>
+          <CommandLine>powershell.exe -Command "Set-Item WSMan:\localhost\Shell\MaxMemoryPerShellMB 2048; Set-Item WSMan:\localhost\MaxTimeoutms 1800000"</CommandLine>
+          <Description>Configure WinRM Memory and Timeout</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 11. Enable Windows Firewall -->
+        <SynchronousCommand wcm:action="add">
+          <Order>11</Order>
+          <CommandLine>netsh advfirewall set allprofiles state on</CommandLine>
+          <Description>Enable Windows Firewall</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 12. Open Firewall for WinRM HTTP (5985) -->
+        <SynchronousCommand wcm:action="add">
+          <Order>12</Order>
+          <CommandLine>netsh advfirewall firewall add rule name="WinRM HTTP" dir=in action=allow protocol=TCP localport=5985</CommandLine>
+          <Description>Open Firewall Port 5985</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 13. Open Firewall for WinRM HTTPS (5986) -->
+        <SynchronousCommand wcm:action="add">
+          <Order>13</Order>
+          <CommandLine>netsh advfirewall firewall add rule name="WinRM HTTPS" dir=in action=allow protocol=TCP localport=5986</CommandLine>
+          <Description>Open Firewall Port 5986</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 14. Enable Remote Desktop -->
+        <SynchronousCommand wcm:action="add">
+          <Order>14</Order>
+          <CommandLine>powershell.exe -Command "Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0"</CommandLine>
+          <Description>Enable Remote Desktop</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 15. Open Firewall for RDP (3389) -->
+        <SynchronousCommand wcm:action="add">
+          <Order>15</Order>
+          <CommandLine>netsh advfirewall firewall add rule name="Remote Desktop" dir=in action=allow protocol=TCP localport=3389</CommandLine>
+          <Description>Open Firewall Port 3389 for RDP</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 16. Install VirtIO Guest Agent from any CD-ROM drive -->
+        <SynchronousCommand wcm:action="add">
+          <Order>16</Order>
+          <CommandLine>powershell.exe -ExecutionPolicy Bypass -Command "$cdroms = Get-Volume | Where-Object { $_.DriveType -eq 'CD-ROM' }; foreach ($c in $cdroms) { $installer = Join-Path ($c.DriveLetter + ':\') 'virtio-win-guest-tools.exe'; if (Test-Path $installer) { Start-Process -FilePath $installer -ArgumentList '/install','/passive','/norestart' -Wait; break } }"</CommandLine>
+          <Description>Install VirtIO Guest Tools</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 17. Restart WinRM to Apply All Changes -->
+        <SynchronousCommand wcm:action="add">
+          <Order>17</Order>
+          <CommandLine>powershell.exe -Command "Restart-Service WinRM -Force"</CommandLine>
+          <Description>Restart WinRM Service</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+        <!-- 18. Create marker file indicating setup is complete -->
+        <SynchronousCommand wcm:action="add">
+          <Order>18</Order>
+          <CommandLine>powershell.exe -Command "'WinRM HTTP and HTTPS setup completed at: ' + (Get-Date) | Out-File -FilePath 'C:\setup-complete.txt'; if (Test-Path 'C:\setup-winrm-https.ps1') { Remove-Item 'C:\setup-winrm-https.ps1' }"</CommandLine>
+          <Description>Create Setup Complete Marker and Cleanup</Description>
+          <RequiresUserInput>false</RequiresUserInput>
+        </SynchronousCommand>
+
+      </FirstLogonCommands>
+
+    </component>
+  </settings>
+
+</unattend>

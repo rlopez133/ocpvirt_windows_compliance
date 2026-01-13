@@ -1,0 +1,39 @@
+---
+# Report Role - Main Tasks
+# Generates compliance audit reports
+
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - tenant_namespace | length > 0
+    fail_msg: "tenant_namespace is required"
+
+- name: Display report configuration
+  ansible.builtin.debug:
+    msg: |
+      Report Generation
+      =================
+      Namespace: {{ tenant_namespace }}
+      Period: {{ report_period_start | default('All time') }} to {{ report_period_end | default('Now') }}
+      Format: {{ report_format }}
+      Template: {{ report_template }}
+
+- name: Collect scan data
+  ansible.builtin.include_tasks: collect.yml
+
+- name: Generate report
+  ansible.builtin.include_tasks: generate.yml
+
+- name: Store report
+  when: push_to_storage
+  ansible.builtin.include_tasks: store.yml
+
+- name: Display report summary
+  ansible.builtin.debug:
+    msg: |
+      Report Generated
+      ================
+      Path: {{ report_path }}
+      Format: {{ report_format }}
+      VMs Covered: {{ report_summary.vms_covered | default(0) }}
+      Average Score: {{ report_summary.average_score | default('N/A') }}%

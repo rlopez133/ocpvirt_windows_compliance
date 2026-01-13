@@ -1,0 +1,62 @@
+---
+# CIS Benchmark Profile - Level 1
+# Center for Internet Security Windows Server Benchmark
+
+compliance_profile:
+  name: "cis"
+  display_name: "CIS Level 1"
+  framework: "cis"
+  version: "3.0.0"
+  description: >-
+    Center for Internet Security (CIS) Windows Server Benchmark Level 1.
+    Provides baseline security configuration for most environments.
+
+  # SCC benchmark mapping (if CIS content is available)
+  scc_benchmark:
+    win2022: "CIS_Microsoft_Windows_Server_2022_Benchmark"
+    win2019: "CIS_Microsoft_Windows_Server_2019_Benchmark"
+
+  # CIS uses Levels instead of Categories
+  categories:
+    level1:
+      enabled: true
+      description: "Level 1 - Basic security settings"
+      auto_remediate: true
+    level2:
+      enabled: false
+      description: "Level 2 - Extended security (may impact functionality)"
+      auto_remediate: false
+
+  # Mapped to STIG categories for compatibility
+  category_mapping:
+    level1: "cat2"
+    level2: "cat1"
+
+  # Control overrides
+  controls:
+    enabled: []
+    disabled: []
+
+  # Remediation settings
+  remediation:
+    disruption_high: false
+    reboot_allowed: false
+    backup_before_change: true
+
+  # Thresholds
+  thresholds:
+    critical: 100
+    warning: 90
+    info: 75
+
+  # Expected coverage
+  expected_coverage:
+    minimum: 85
+    typical: 92
+    description: "Most Level 1 controls can be automated"
+
+  # Role variables
+  role_vars:
+    cis_level1_patch: true
+    cis_level2_patch: false
+    cis_disruption_high: false

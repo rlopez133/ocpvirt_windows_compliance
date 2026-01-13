@@ -1,0 +1,29 @@
+---
+# Report Role Defaults
+# Generate compliance audit reports
+
+# Required variables (override in job template)
+tenant_namespace: ""
+report_period_start: ""  # ISO date: 2026-01-01
+report_period_end: ""    # ISO date: 2026-03-31
+
+# Report configuration
+report_format: "html"  # html | json | csv
+report_template: "standard"  # standard | executive | detailed
+
+# Include sections
+include_evidence: true
+include_remediation_history: true
+include_trend_analysis: true
+
+# Output configuration
+report_output_dir: "/tmp/compliance-reports"
+report_filename_prefix: "compliance-report"
+
+# Storage
+push_to_storage: true
+storage_backend: "pvc"  # pvc | s3
+
+# Notification
+send_notification: false
+notification_recipients: []

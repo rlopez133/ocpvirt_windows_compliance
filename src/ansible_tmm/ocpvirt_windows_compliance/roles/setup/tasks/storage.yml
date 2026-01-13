@@ -1,0 +1,63 @@
+---
+# Setup Role - Storage Configuration
+# Creates PVC or validates S3 configuration for compliance data
+
+- name: Configure PVC storage
+  when: tenant_config.storage.backend == 'pvc'
+  block:
+    - name: Create compliance reports PVC
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: "{{ tenant_config.storage.pvc_name | default('compliance-reports') }}"
+            namespace: "{{ tenant_config.namespace }}"
+            labels: "{{ compliance_labels }}"
+          spec:
+            accessModes:
+              - ReadWriteMany
+            resources:
+              requests:
+                storage: "{{ tenant_config.storage.pvc_size | default('50Gi') }}"
+            storageClassName: "{{ tenant_config.storage.pvc_storage_class | default(omit) }}"
+
+    - name: Display PVC status
+      ansible.builtin.debug:
+        msg: "PVC {{ tenant_config.storage.pvc_name }} created in {{ tenant_config.namespace }}"
+
+- name: Configure S3 storage
+  when: tenant_config.storage.backend == 's3'
+  block:
+    - name: Validate S3 configuration
+      ansible.builtin.assert:
+        that:
+          - tenant_config.storage.s3_endpoint is defined
+          - tenant_config.storage.s3_bucket is defined
+        fail_msg: "S3 endpoint and bucket are required when using S3 backend"
+
+    - name: Create S3 configuration ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: compliance-s3-config
+            namespace: "{{ tenant_config.namespace }}"
+            labels: "{{ compliance_labels }}"
+          data:
+            S3_ENDPOINT: "{{ tenant_config.storage.s3_endpoint }}"
+            S3_BUCKET: "{{ tenant_config.storage.s3_bucket }}"
+            S3_REGION: "{{ tenant_config.storage.s3_region | default('us-east-1') }}"
+
+    - name: Display S3 configuration
+      ansible.builtin.debug:
+        msg: |
+          S3 storage configured:
+          - Endpoint: {{ tenant_config.storage.s3_endpoint }}
+          - Bucket: {{ tenant_config.storage.s3_bucket }}
+          - Region: {{ tenant_config.storage.s3_region | default('us-east-1') }}
+
+          Note: S3 credentials must be configured in AAP as 's3-reports' credential.

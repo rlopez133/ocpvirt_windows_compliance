@@ -1,0 +1,38 @@
+---
+# Install SCC Playbook
+# Downloads and installs DISA SCAP Compliance Checker on Windows VMs
+#
+# This playbook should be run as an AAP Job Template against Windows VMs.
+# Use limit/filter to target specific VMs.
+
+- name: Install DISA SCAP Compliance Checker
+  hosts: all
+  gather_facts: true
+
+  vars:
+    scc_version: "5.13"
+    scc_download_stig_content: true
+    scc_verify_install: true
+
+  pre_tasks:
+    - name: Verify Windows target
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family == "Windows"
+        fail_msg: "This playbook only runs on Windows systems"
+
+    - name: Display target information
+      ansible.builtin.debug:
+        msg: |
+          Installing DISA SCC on {{ inventory_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+
+  roles:
+    - role: ansible_tmm.ocpvirt_windows_compliance.scc_install
+
+  post_tasks:
+    - name: Installation complete
+      ansible.builtin.debug:
+        msg: |
+          SCC installation complete on {{ inventory_hostname }}
+          SCC is ready for compliance scanning.

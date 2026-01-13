@@ -1,0 +1,116 @@
+---
+# Remediate Role - Main Task Dispatcher
+# Detects OS version and dispatches to appropriate remediation role
+
+- name: Validate remediation configuration
+  ansible.builtin.assert:
+    that:
+      - cat_levels is defined
+      - cat_levels | length > 0
+    fail_msg: "At least one CAT level must be specified for remediation"
+
+- name: Display remediation plan
+  ansible.builtin.debug:
+    msg: |
+      Remediation Configuration
+      =========================
+      Profile: {{ compliance_profile }}
+      Scope: {{ remediation_scope }}
+      CAT Levels: {{ cat_levels | join(', ') }}
+      Allow Reboot: {{ allow_reboot }}
+      Dry Run: {{ dry_run }}
+      Trigger: {{ trigger_source }}
+
+- name: Gather Windows facts
+  ansible.windows.win_powershell:
+    script: |
+      $os = Get-CimInstance Win32_OperatingSystem
+      @{
+        Caption = $os.Caption
+        Version = $os.Version
+        BuildNumber = $os.BuildNumber
+      } | ConvertTo-Json
+  register: os_info_raw
+
+- name: Parse OS information
+  ansible.builtin.set_fact:
+    os_info: "{{ os_info_raw.output | from_json }}"
+
+- name: Determine Windows version
+  ansible.builtin.set_fact:
+    windows_version: >-
+      {%- if '2022' in os_info.Caption -%}
+        2022
+      {%- elif '2019' in os_info.Caption -%}
+        2019
+      {%- else -%}
+        unknown
+      {%- endif -%}
+
+- name: Display detected OS
+  ansible.builtin.debug:
+    msg: "Detected Windows Server {{ windows_version }} (Build {{ os_info.BuildNumber }})"
+
+- name: Create system restore point
+  when: remediation.create_restore_point | default(true) and not dry_run
+  ansible.windows.win_powershell:
+    script: |
+      Checkpoint-Computer -Description "Pre-Compliance-Remediation-{{ ansible_date_time.iso8601 }}" -RestorePointType MODIFY_SETTINGS
+  ignore_errors: true
+
+- name: Log remediation start
+  ansible.builtin.set_fact:
+    remediation_start_time: "{{ ansible_date_time.iso8601 }}"
+    remediation_changes: []
+
+- name: Apply Windows 2022 STIG remediation
+  when: windows_version == '2022'
+  ansible.builtin.include_role:
+    name: ansible_tmm.ocpvirt_windows_compliance.win2022_stig
+  vars:
+    win22stig_cat1_patch: "{{ 'cat1' in cat_levels }}"
+    win22stig_cat2_patch: "{{ 'cat2' in cat_levels }}"
+    win22stig_cat3_patch: "{{ 'cat3' in cat_levels }}"
+    win22stig_disruption_high: "{{ disruption_high }}"
+    win22stig_skip_rules: "{{ skip_controls }}"
+
+- name: Apply Windows 2019 STIG remediation
+  when: windows_version == '2019'
+  ansible.builtin.include_role:
+    name: ansible_tmm.ocpvirt_windows_compliance.win2019_stig
+  vars:
+    win19stig_cat1_patch: "{{ 'cat1' in cat_levels }}"
+    win19stig_cat2_patch: "{{ 'cat2' in cat_levels }}"
+    win19stig_cat3_patch: "{{ 'cat3' in cat_levels }}"
+    win19stig_disruption_high: "{{ disruption_high }}"
+    win19stig_skip_rules: "{{ skip_controls }}"
+
+- name: Fail if OS not supported
+  when: windows_version == 'unknown'
+  ansible.builtin.fail:
+    msg: "Unsupported Windows version: {{ os_info.Caption }}. Only Windows Server 2019 and 2022 are supported."
+
+- name: Log remediation completion
+  ansible.builtin.set_fact:
+    remediation_result:
+      started: "{{ remediation_start_time }}"
+      completed: "{{ ansible_date_time.iso8601 }}"
+      os_version: "{{ windows_version }}"
+      profile: "{{ compliance_profile }}"
+      cat_levels: "{{ cat_levels }}"
+      trigger: "{{ trigger_source }}"
+      dry_run: "{{ dry_run }}"
+
+- name: Display remediation summary
+  ansible.builtin.debug:
+    msg: |
+      Remediation Complete
+      ====================
+      Started: {{ remediation_result.started }}
+      Completed: {{ remediation_result.completed }}
+      OS Version: Windows Server {{ remediation_result.os_version }}
+      Profile: {{ remediation_result.profile }}
+      CAT Levels: {{ remediation_result.cat_levels | join(', ') }}
+      Dry Run: {{ remediation_result.dry_run }}
+
+      Note: Run a compliance scan to verify remediation effectiveness.

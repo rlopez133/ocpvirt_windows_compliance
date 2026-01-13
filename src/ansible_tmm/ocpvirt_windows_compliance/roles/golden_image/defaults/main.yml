@@ -1,0 +1,50 @@
+---
+# Golden Image Role Defaults
+# Create pre-hardened Windows VM images
+
+# Source image configuration
+golden_image_source:
+  type: "datavolume"  # datavolume | url | registry
+  datavolume_name: ""
+  namespace: "openshift-virtualization-os-images"
+
+# Target golden image configuration
+golden_image:
+  name: ""  # Required
+  namespace: "golden-images"
+  storage_class: ""  # Use cluster default if empty
+  storage_size: "60Gi"
+
+# Compliance profile to apply
+compliance_profile: "stig"
+compliance_profile_version: "V2R6"
+
+# Hardening options
+golden_image_hardening:
+  install_scc: true
+  run_remediation: true
+  cat_levels:
+    - cat1
+    - cat2
+  run_final_scan: true
+  required_score: 95
+
+# Temporary VM for hardening
+temp_vm:
+  name_prefix: "hardening-temp"
+  namespace: ""  # Use golden_image.namespace if empty
+  cpu_cores: 4
+  memory: "8Gi"
+  wait_for_ready: true
+  ready_timeout: 600
+
+# Capture settings
+capture:
+  sysprep: true
+  shutdown_before_capture: true
+  cleanup_temp_vm: true
+
+# Labels applied to golden image
+golden_image_labels:
+  compliance.ocpvirt/managed: "true"
+  compliance.ocpvirt/type: "golden-image"

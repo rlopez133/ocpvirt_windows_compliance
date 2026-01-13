@@ -1,0 +1,70 @@
+---
+# AAP EDA Rulebook Activation Configuration
+# Documents EDA configuration (actual activation done in EDA Controller)
+
+- name: Display EDA configuration requirements
+  ansible.builtin.debug:
+    msg: |
+      EDA Rulebook Activation Configuration
+      =====================================
+
+      The following rulebook activation should be created in EDA Controller:
+
+      Name: Compliance-Auto-Remediation
+      Rulebook: compliance_remediation.yml
+      Project: Windows Compliance Collection
+      Decision Environment: Default Decision Environment
+      Enabled: Yes
+
+      Extra Variables:
+        aap_controller_url: {{ controller_host }}
+        remediation_job_template: Compliance-Remediate
+        auto_remediate_cat1: false
+        auto_remediate_cat2: true
+        auto_remediate_cat3: true
+
+      Source Configuration:
+        Type: alertmanager
+        Host: 0.0.0.0
+        Port: 5001
+
+      This must be configured manually in EDA Controller as the
+      ansible.eda collection modules for rulebook activation are
+      not yet fully available for automation.
+
+# Note: When ansible.eda modules for rulebook activation become available,
+# this task file can be updated to automate EDA configuration
+
+- name: Create EDA configuration reference ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: eda-aap-integration-config
+        namespace: "{{ eda_namespace | default('aap') }}"
+      data:
+        README: |
+          This ConfigMap documents the EDA rulebook activation configuration
+          for Windows VM compliance auto-remediation.
+
+          See the compliance_remediation.yml rulebook in the collection for
+          the full rulebook definition.
+        rulebook_activation.yaml: |
+          name: Compliance-Auto-Remediation
+          rulebook: compliance_remediation.yml
+          project: Windows Compliance Collection
+          decision_environment: Default Decision Environment
+          enabled: true
+          extra_vars:
+            aap_controller_url: "{{ controller_host }}"
+            remediation_job_template: Compliance-Remediate
+            auto_remediate_cat1: false
+            auto_remediate_cat2: true
+            auto_remediate_cat3: true
+  ignore_errors: true
+
+- name: EDA configuration complete
+  ansible.builtin.debug:
+    msg: "EDA configuration documented. Manual activation required in EDA Controller."

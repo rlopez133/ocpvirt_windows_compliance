@@ -1,0 +1,93 @@
+---
+# Golden Image Role - Harden Tasks
+# Applies compliance hardening to the temporary VM
+
+- name: Display hardening configuration
+  ansible.builtin.debug:
+    msg: |
+      Hardening VM: {{ golden_image_temp_vm.name }}
+      Profile: {{ compliance_profile }}
+      CAT Levels: {{ golden_image_hardening.cat_levels | join(', ') }}
+
+- name: Install SCC on temporary VM
+  when: golden_image_hardening.install_scc
+  ansible.builtin.include_role:
+    name: ansible_tmm.ocpvirt_windows_compliance.scc_install
+  vars:
+    ansible_host: "{{ golden_image_temp_vm.name }}"
+
+- name: Apply compliance remediation
+  when: golden_image_hardening.run_remediation
+  ansible.builtin.include_role:
+    name: ansible_tmm.ocpvirt_windows_compliance.remediate
+  vars:
+    target_vms:
+      - name: "{{ golden_image_temp_vm.name }}"
+        namespace: "{{ golden_image_temp_vm.namespace }}"
+    cat_levels: "{{ golden_image_hardening.cat_levels }}"
+    allow_reboot: true
+
+- name: Run final compliance scan
+  when: golden_image_hardening.run_final_scan
+  block:
+    - name: Execute compliance scan
+      ansible.builtin.include_role:
+        name: ansible_tmm.ocpvirt_windows_compliance.scan
+      vars:
+        target_vms:
+          - name: "{{ golden_image_temp_vm.name }}"
+            namespace: "{{ golden_image_temp_vm.namespace }}"
+
+    - name: Verify compliance score meets threshold
+      ansible.builtin.assert:
+        that:
+          - scan_results is defined
+          - scan_results[0].score.total >= golden_image_hardening.required_score
+        fail_msg: |
+          Compliance score {{ scan_results[0].score.total }}% is below required {{ golden_image_hardening.required_score }}%.
+          Golden image creation aborted.
+      when: scan_results is defined
+
+- name: Prepare VM for capture
+  block:
+    - name: Run Sysprep (if enabled)
+      when: capture.sysprep | default(true)
+      ansible.windows.win_shell: |
+        # Generalize the image
+        & C:\Windows\System32\Sysprep\sysprep.exe /generalize /oobe /shutdown /quiet
+      async: 300
+      poll: 0
+      ignore_errors: true
+
+    - name: Wait for VM to shutdown after Sysprep
+      kubernetes.core.k8s_info:
+        api_version: kubevirt.io/v1
+        kind: VirtualMachineInstance
+        name: "{{ golden_image_temp_vm.name }}"
+        namespace: "{{ golden_image_temp_vm.namespace }}"
+      register: vmi_status
+      until: vmi_status.resources | length == 0
+      retries: 60
+      delay: 10
+      when: capture.sysprep | default(true)
+
+- name: Shutdown VM if not already stopped
+  when: capture.shutdown_before_capture | default(true) and not (capture.sysprep | default(true))
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: kubevirt.io/v1
+      kind: VirtualMachine
+      metadata:
+        name: "{{ golden_image_temp_vm.name }}"
+        namespace: "{{ golden_image_temp_vm.namespace }}"
+      spec:
+        running: false
+
+- name: Store hardening result
+  ansible.builtin.set_fact:
+    golden_image_hardening_result:
+      completed: true
+      scc_installed: "{{ golden_image_hardening.install_scc }}"
+      remediation_applied: "{{ golden_image_hardening.run_remediation }}"
+      final_score: "{{ scan_results[0].score.total | default('N/A') }}"
