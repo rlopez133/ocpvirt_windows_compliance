@@ -223,6 +223,50 @@
 #   e.g., https://github.com/org/repo.git with subpath to collection directory
 # Or the collection must be published and extensions/eda/rulebooks at repo root.
 
+- name: Check if rulebook activation already exists
+  ansible.eda.rulebook_activation_info:
+    name: "{{ eda_event_stream_name }}-activation"
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
+  register: eda_activation_info
+  ignore_errors: true
+
+- name: Set activation exists fact
+  ansible.builtin.set_fact:
+    eda_activation_exists: "{{ eda_activation_info.activations | default([]) | length > 0 }}"
+    eda_activation_status: "{{ (eda_activation_info.activations | first).status | default('unknown') if (eda_activation_info.activations | default([]) | length > 0) else 'not_found' }}"
+
+- name: Display existing activation status
+  ansible.builtin.debug:
+    msg: |
+      Rulebook Activation Check:
+      - Name: {{ eda_event_stream_name }}-activation
+      - Exists: {{ eda_activation_exists }}
+      - Status: {{ eda_activation_status }}
+      {% if eda_activation_exists and eda_activation_status == 'running' %}
+      - Action: Skipping creation (activation is already running)
+      {% elif eda_activation_exists %}
+      - Action: Deleting and recreating activation
+      {% else %}
+      - Action: Creating new activation
+      {% endif %}
+
+- name: Delete existing rulebook activation if not running
+  ansible.eda.rulebook_activation:
+    name: "{{ eda_event_stream_name }}-activation"
+    state: absent
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
+  when:
+    - eda_activation_exists
+    - eda_activation_status != 'running'
+
 - name: Create rulebook activation with event stream binding
   ansible.eda.rulebook_activation:
     name: "{{ eda_event_stream_name }}-activation"
@@ -248,18 +292,24 @@
     controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
     validate_certs: "{{ aap_validate_certs }}"
   register: eda_activation_result
+  when: not eda_activation_exists or eda_activation_status != 'running'
 
 - name: Display rulebook activation status
   ansible.builtin.debug:
     msg: |
-      Rulebook Activation Created:
+      Rulebook Activation Status:
       - Name: {{ eda_event_stream_name }}-activation
-      - ID: {{ eda_activation_result.id | default('N/A') }}
+      - ID: {{ eda_activation_result.id | default('Existing activation') }}
       - Project: {{ eda_project_name }}
       - Rulebook: {{ eda_rulebook_name }}.yml
       - Event Stream Binding: {{ eda_event_stream_name }}
       - Auto-Remediate CAT I: {{ eda_auto_remediate_cat1 }}
       - Auto-Remediate CAT II: {{ eda_auto_remediate_cat2 }}
       - Auto-Remediate CAT III: {{ eda_auto_remediate_cat3 }}
+      {% if eda_activation_exists and eda_activation_status == 'running' %}
+      - Note: Using existing running activation (no changes made)
+      {% else %}
+      - Note: Activation created/recreated successfully
+      {% endif %}
 
       EDA configuration complete. Alerts will flow from Alertmanager to this rulebook.
