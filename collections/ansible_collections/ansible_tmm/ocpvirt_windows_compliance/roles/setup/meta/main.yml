@@ -19,3 +19,11 @@ galaxy_info:
     - compliance
     - monitoring
     - eda
+
+dependencies: []
+
+collections:
+  - name: ansible.eda
+    version: ">=2.10.0"
+  - name: kubernetes.core
+    version: ">=2.4.0"
