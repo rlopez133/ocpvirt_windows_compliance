@@ -77,13 +77,20 @@
         path: "{{ scc_temp_path }}"
         state: directory
 
+    - name: Check if SCC installer already downloaded
+      ansible.windows.win_stat:
+        path: "{{ scc_temp_path }}\\{{ scc_installer_filename }}"
+      register: scc_installer_exists
+
     - name: Download SCC installer
       ansible.windows.win_get_url:
         url: "{{ scc_installer_url }}"
         dest: "{{ scc_temp_path }}\\{{ scc_installer_filename }}"
         force: false
       register: scc_download
-      when: scc_local_installer is not defined
+      when:
+        - scc_local_installer is not defined
+        - not scc_installer_exists.stat.exists
 
     - name: Copy local SCC installer
       ansible.windows.win_copy:
@@ -134,11 +141,17 @@
         path: "{{ scc_install_path }}\\Resources\\Content"
         state: directory
 
+    - name: Check if STIG content already downloaded
+      ansible.windows.win_stat:
+        path: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}.zip"
+      register: stig_content_exists
+
     - name: Download STIG benchmark content for {{ detected_stig_name }}
       ansible.windows.win_get_url:
         url: "{{ detected_stig_url }}"
         dest: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}.zip"
         force: false
+      when: not stig_content_exists.stat.exists
 
     - name: Extract STIG content
       community.windows.win_unzip:
