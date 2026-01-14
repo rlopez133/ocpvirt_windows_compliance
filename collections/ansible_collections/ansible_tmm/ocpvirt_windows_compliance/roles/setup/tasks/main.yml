@@ -49,6 +49,10 @@
 - name: Create storage resources
   ansible.builtin.include_tasks: storage.yml
 
+- name: Create AAP job templates
+  ansible.builtin.include_tasks: job_templates.yml
+  when: aap_create_job_templates | default(true)
+
 - name: Display setup summary
   ansible.builtin.debug:
     msg: |
@@ -58,3 +62,4 @@
       - Alertmanager: {{ 'Configured' if ocpvirt_compliance_alertmanager_dedicated else 'Skipped' }}
       - PrometheusRules: Deployed
       - Grafana Dashboards: {{ 'Deployed' if ocpvirt_compliance_grafana_dashboards else 'Skipped' }}
+      - AAP Job Templates: {{ 'Created' if aap_create_job_templates | default(true) else 'Skipped' }}
