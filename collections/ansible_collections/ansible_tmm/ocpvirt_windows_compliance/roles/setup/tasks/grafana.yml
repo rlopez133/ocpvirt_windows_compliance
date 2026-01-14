@@ -2,27 +2,30 @@
 # Setup Role - Grafana Dashboard Deployment
 # Deploys Grafana dashboards for compliance visualization
 # Dashboard JSON is stored in files/grafana_dashboards/ to avoid Jinja2 templating issues
+# Uses kubectl/oc to apply the ConfigMap with JSON as literal string
 
 - name: Read Grafana dashboard JSON file
   ansible.builtin.slurp:
     src: "{{ role_path }}/files/grafana_dashboards/compliance-dashboard.json"
   register: dashboard_file
 
-- name: Deploy Grafana dashboard ConfigMap
+- name: Generate ConfigMap manifest file
+  ansible.builtin.template:
+    src: grafana-dashboard-configmap.yml.j2
+    dest: /tmp/grafana-dashboard-configmap.yml
+    mode: '0644'
+  vars:
+    dashboard_json_content: "{{ dashboard_file.content | b64decode }}"
+
+- name: Apply Grafana dashboard ConfigMap
   kubernetes.core.k8s:
     state: present
-    definition:
-      apiVersion: v1
-      kind: ConfigMap
-      metadata:
-        name: grafana-dashboard-compliance
-        namespace: "{{ tenant_config.namespace }}"
-        labels:
-          grafana_dashboard: "1"
-          app.kubernetes.io/name: ocpvirt-windows-compliance
-          app.kubernetes.io/component: dashboard
-      data:
-        compliance-dashboard.json: "{{ dashboard_file.content | b64decode }}"
+    src: /tmp/grafana-dashboard-configmap.yml
+
+- name: Clean up temporary manifest file
+  ansible.builtin.file:
+    path: /tmp/grafana-dashboard-configmap.yml
+    state: absent
 
 - name: Display dashboard deployment status
   ansible.builtin.debug:

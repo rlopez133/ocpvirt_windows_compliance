@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-compliance
+  namespace: {{ tenant_config.namespace }}
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: ocpvirt-windows-compliance
+    app.kubernetes.io/component: dashboard
+data:
+  compliance-dashboard.json: |
+{{ dashboard_json_content | indent(4, first=True) }}
