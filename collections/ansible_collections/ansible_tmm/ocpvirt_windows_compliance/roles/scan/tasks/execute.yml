@@ -6,35 +6,81 @@
   ansible.builtin.set_fact:
     scan_id: "scan-{{ ansible_date_time.epoch }}"
 
+- name: Get SCC help to understand available options
+  ansible.windows.win_shell: |
+    & "{{ scc_install_path }}\cscc.exe" --help 2>&1
+  register: scc_help
+  ignore_errors: true
+  changed_when: false
+
+- name: Display SCC help output
+  ansible.builtin.debug:
+    msg: "{{ scc_help.stdout | default('No help output') }}"
+
+- name: Find STIG content path
+  ansible.windows.win_find:
+    paths: "{{ scc_install_path }}\\Resources\\Content"
+    patterns: "{{ scc_benchmark }}*"
+    file_type: directory
+  register: stig_content_search
+
+- name: Display found STIG content
+  ansible.builtin.debug:
+    msg: "STIG content directories: {{ stig_content_search.files | map(attribute='path') | list }}"
+
 - name: Execute SCC scan
   ansible.windows.win_shell: |
     $scanId = "{{ scan_id }}"
     $outputDir = "{{ scc_config.output_dir }}\$scanId"
     $sccPath = "{{ scc_install_path }}\cscc.exe"
     $benchmark = "{{ scc_benchmark }}"
+    $stigContentPath = "{{ stig_content_search.files[0].path | default('') }}"
 
     # Create output directory
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 
-    # Run SCC
+    # Run SCC - try different argument formats
     $startTime = Get-Date
+    $exitCode = 0
+    $stdout = ""
+    $stderr = ""
+
     try {
-        # Execute SCC with benchmark
-        $process = Start-Process -FilePath $sccPath -ArgumentList @(
-            "--benchmark", $benchmark,
-            "--output", $outputDir,
-            "--html"
-        ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput "$outputDir\stdout.txt" -RedirectStandardError "$outputDir\stderr.txt"
-        $exitCode = $process.ExitCode
+        # SCC typically uses -c for content directory and -o for output
+        # Let's try the documented CLI options
+        $args = @()
+
+        # If we have STIG content, point to it
+        if ($stigContentPath -and (Test-Path $stigContentPath)) {
+            $args += "-c"
+            $args += $stigContentPath
+        }
+
+        # Output directory
+        $args += "-o"
+        $args += $outputDir
+
+        # Run scan
+        $result = & $sccPath @args 2>&1
+        $stdout = $result | Out-String
+        $exitCode = $LASTEXITCODE
     } catch {
         $exitCode = 1
-        $_.Exception.Message | Out-File "$outputDir\error.txt"
+        $stderr = $_.Exception.Message
     }
     $endTime = Get-Date
 
-    # Find result files
-    $xccdfFile = Get-ChildItem -Path $outputDir -Filter "*xccdf*.xml" -Recurse | Select-Object -First 1
-    $htmlFile = Get-ChildItem -Path $outputDir -Filter "*.html" -Recurse | Select-Object -First 1
+    # Save output for debugging
+    $stdout | Out-File "$outputDir\stdout.txt" -Force
+    $stderr | Out-File "$outputDir\stderr.txt" -Force
+
+    # Find result files - search more broadly
+    $xccdfFile = Get-ChildItem -Path $outputDir -Filter "*xccdf*.xml" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $xccdfFile) {
+        # Also check SCC's default output location
+        $xccdfFile = Get-ChildItem -Path "$env:USERPROFILE\SCC\Results" -Filter "*xccdf*.xml" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
+    $htmlFile = Get-ChildItem -Path $outputDir -Filter "*.html" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 
     # Return result
     @{
@@ -44,9 +90,11 @@
         completed = $endTime.ToString("o")
         duration_seconds = [int]($endTime - $startTime).TotalSeconds
         exit_code = $exitCode
+        stdout = $stdout.Substring(0, [Math]::Min($stdout.Length, 1000))
+        stderr = $stderr
         xccdf_result = if ($xccdfFile) { $xccdfFile.FullName } else { $null }
         html_report = if ($htmlFile) { $htmlFile.FullName } else { $null }
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
   register: scc_scan_raw
   async: "{{ scan_timeout }}"
   poll: 30
