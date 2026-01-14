@@ -158,7 +158,15 @@
 
     - name: Install SCC using EXE installer
       ansible.windows.win_shell: |
-        Start-Process -FilePath "{{ scc_exe_files.files[0].path }}" -ArgumentList "/S" -Wait -PassThru | Select-Object -ExpandProperty ExitCode
+        # Try Inno Setup silent switches first (most common for government software)
+        $installer = "{{ scc_exe_files.files[0].path }}"
+        $installDir = "{{ scc_install_path }}"
+
+        # Inno Setup uses /VERYSILENT /SUPPRESSMSGBOXES /DIR="path"
+        $args = @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$installDir`"")
+
+        $process = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru
+        $process.ExitCode
       when:
         - scc_msi_files.files | length == 0
         - scc_exe_files.files | default([]) | length > 0
