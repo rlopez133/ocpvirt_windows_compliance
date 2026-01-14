@@ -19,7 +19,7 @@
 
 - name: Find SCAP content file for benchmark
   ansible.windows.win_find:
-    paths: "{{ stig_content_search.files[0].path }}"
+    paths: "{{ stig_content_search.files[0].path | default('C:\\') }}"
     patterns: "*xccdf*.xml,*Benchmark*.xml"
     recurse: true
   register: scap_content_search
@@ -28,7 +28,20 @@
 - name: Display found SCAP content files
   ansible.builtin.debug:
     msg: "SCAP content files: {{ scap_content_search.files | default([]) | map(attribute='path') | list }}"
-  when: scap_content_search is defined
+  when: scap_content_search is defined and scap_content_search is not skipped
+
+- name: Fail if no STIG content found
+  ansible.builtin.fail:
+    msg: |
+      No STIG content found for benchmark '{{ scc_benchmark }}'.
+      Searched in: {{ scc_install_path }}\Resources\Content
+      Ensure STIG content was downloaded during SCC installation.
+      Set scc_download_stig_content: true when running Install-SCC.
+  when: >
+    (stig_content_search.files | default([]) | length == 0) or
+    (scap_content_search is not defined) or
+    (scap_content_search is skipped) or
+    (scap_content_search.files | default([]) | length == 0)
 
 - name: Execute SCC scan
   ansible.windows.win_shell: |
@@ -36,7 +49,7 @@
     $outputDir = "{{ scc_config.output_dir }}\$scanId"
     $sccPath = "{{ scc_install_path }}\cscc.exe"
     $benchmark = "{{ scc_benchmark }}"
-    $scapContentFile = "{{ scap_content_search.files[0].path | default('') }}"
+    $scapContentFile = "{{ (scap_content_search.files | default([]))[0].path | default('') }}"
 
     # Create output directory
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
