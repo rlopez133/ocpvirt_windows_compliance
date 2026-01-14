@@ -23,7 +23,5 @@ galaxy_info:
 dependencies: []
 
 collections:
-  - name: ansible.eda
-    version: ">=2.10.0"
-  - name: kubernetes.core
-    version: ">=2.4.0"
+  - ansible.eda
+  - kubernetes.core
