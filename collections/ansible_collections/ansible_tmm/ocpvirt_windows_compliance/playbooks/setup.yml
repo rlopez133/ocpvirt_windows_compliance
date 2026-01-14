@@ -43,7 +43,7 @@
           Storage: {{ tenant_config.storage.backend | default('pvc') }}
 
   roles:
-    - setup
+    - role: ../roles/setup
 
   post_tasks:
     - name: Display completion message
