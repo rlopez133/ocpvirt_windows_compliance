@@ -18,6 +18,7 @@
       - OpenShift Credential: {{ aap_credential_openshift }}
       - Windows VM Credential: {{ aap_credential_windows }}
       - Windows Inventory: {{ aap_inventory_windows }}
+      - Localhost Inventory: {{ aap_inventory_localhost }}
       - S3 Reports Credential: {{ aap_credential_s3_reports | default('Not configured', true) }}
 
 # =============================================================================
@@ -136,7 +137,7 @@
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
     playbook: "{{ aap_playbook_path_prefix }}/report.yml"
-    inventory: "localhost"
+    inventory: "{{ aap_inventory_localhost }}"
     credentials: "{{ compliance_report_credentials }}"
     ask_variables_on_launch: true
     extra_vars:
@@ -176,7 +177,7 @@
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
     playbook: "{{ aap_playbook_path_prefix }}/provision_vm.yml"
-    inventory: "localhost"
+    inventory: "{{ aap_inventory_localhost }}"
     credentials:
       - "{{ aap_credential_openshift }}"
     ask_variables_on_launch: true
@@ -209,7 +210,7 @@
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
     playbook: "{{ aap_playbook_path_prefix }}/create_golden_image.yml"
-    inventory: "localhost"
+    inventory: "{{ aap_inventory_localhost }}"
     credentials:
       - "{{ aap_credential_openshift }}"
       - "{{ aap_credential_windows }}"
