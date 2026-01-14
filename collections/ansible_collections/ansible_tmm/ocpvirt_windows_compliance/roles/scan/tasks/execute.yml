@@ -1,21 +1,10 @@
 ---
 # Scan Role - Execute Scan
-# Runs DISA SCC scan
+# Runs DISA SCC scan using correct CLI syntax
 
 - name: Generate scan ID
   ansible.builtin.set_fact:
     scan_id: "scan-{{ ansible_date_time.epoch }}"
-
-- name: Get SCC help to understand available options
-  ansible.windows.win_shell: |
-    & "{{ scc_install_path }}\cscc.exe" --help 2>&1
-  register: scc_help
-  ignore_errors: true
-  changed_when: false
-
-- name: Display SCC help output
-  ansible.builtin.debug:
-    msg: "{{ scc_help.stdout | default('No help output') }}"
 
 - name: Find STIG content path
   ansible.windows.win_find:
@@ -28,37 +17,78 @@
   ansible.builtin.debug:
     msg: "STIG content directories: {{ stig_content_search.files | map(attribute='path') | list }}"
 
+- name: Find SCAP content file for benchmark
+  ansible.windows.win_find:
+    paths: "{{ stig_content_search.files[0].path | default('C:\\') }}"
+    patterns: "*xccdf*.xml,*Benchmark*.xml"
+    recurse: true
+  register: scap_content_search
+  when: stig_content_search.files | length > 0
+
+- name: Display found SCAP content files
+  ansible.builtin.debug:
+    msg: "SCAP content files: {{ scap_content_search.files | default([]) | map(attribute='path') | list }}"
+  when: scap_content_search is defined and scap_content_search is not skipped
+
+- name: Fail if no STIG content found
+  ansible.builtin.fail:
+    msg: |
+      No STIG content found for benchmark '{{ scc_benchmark }}'.
+      Searched in: {{ scc_install_path }}\Resources\Content
+      Ensure STIG content was downloaded during SCC installation.
+      Set scc_download_stig_content: true when running Install-SCC.
+  when: >
+    (stig_content_search.files | default([]) | length == 0) or
+    (scap_content_search is not defined) or
+    (scap_content_search is skipped) or
+    (scap_content_search.files | default([]) | length == 0)
+
 - name: Execute SCC scan
   ansible.windows.win_shell: |
     $scanId = "{{ scan_id }}"
     $outputDir = "{{ scc_config.output_dir }}\$scanId"
     $sccPath = "{{ scc_install_path }}\cscc.exe"
     $benchmark = "{{ scc_benchmark }}"
-    $stigContentPath = "{{ stig_content_search.files[0].path | default('') }}"
+    $scapContentFile = "{{ (scap_content_search.files | default([]))[0].path | default('') }}"
 
     # Create output directory
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 
-    # Run SCC - try different argument formats
     $startTime = Get-Date
     $exitCode = 0
     $stdout = ""
     $stderr = ""
 
     try {
-        # SCC typically uses -c for content directory and -o for output
-        # Let's try the documented CLI options
+        # DISA SCC CLI options (from --help):
+        # -u DIRECTORY  : User-specified results directory
+        # -q            : Quiet mode (no GUI)
+        # -isr FILE PROFILE : Install SCAP content, enable profile, run scan
+        # --enableBenchmark BENCHMARK_ID : Enable a specific benchmark
+        #
+        # For automated scanning, we use -isr to install content and run in one step
+        # Or run with no args if content is already configured in options.xml
+
         $args = @()
 
-        # If we have STIG content, point to it
-        if ($stigContentPath -and (Test-Path $stigContentPath)) {
-            $args += "-c"
-            $args += $stigContentPath
+        # Quiet mode for automation
+        $args += "-q"
+
+        # Set custom results directory
+        $args += "-u"
+        $args += $outputDir
+
+        # If we have SCAP content file, use -isr to install and run
+        if ($scapContentFile -and (Test-Path $scapContentFile)) {
+            # -isr requires: FILE PROFILE
+            # We'll use the default profile (usually the STIG profile)
+            $args += "-isr"
+            $args += $scapContentFile
+            # Use empty string for default profile, or specify if known
+            $args += ""
         }
 
-        # Output directory
-        $args += "-o"
-        $args += $outputDir
+        Write-Host "Running: $sccPath $($args -join ' ')"
 
         # Run scan
         $result = & $sccPath @args 2>&1
@@ -72,15 +102,24 @@
 
     # Save output for debugging
     $stdout | Out-File "$outputDir\stdout.txt" -Force
-    $stderr | Out-File "$outputDir\stderr.txt" -Force
+    if ($stderr) { $stderr | Out-File "$outputDir\stderr.txt" -Force }
 
-    # Find result files - search more broadly
-    $xccdfFile = Get-ChildItem -Path $outputDir -Filter "*xccdf*.xml" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    # Find result files
+    # SCC saves results to the -u directory or default locations
+    $xccdfFile = Get-ChildItem -Path $outputDir -Filter "*XCCDF-Results*.xml" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if (-not $xccdfFile) {
-        # Also check SCC's default output location
-        $xccdfFile = Get-ChildItem -Path "$env:USERPROFILE\SCC\Results" -Filter "*xccdf*.xml" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        $xccdfFile = Get-ChildItem -Path $outputDir -Filter "*xccdf*.xml" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     }
-    $htmlFile = Get-ChildItem -Path $outputDir -Filter "*.html" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $xccdfFile) {
+        # Check SCC's default output location
+        $xccdfFile = Get-ChildItem -Path "$env:USERPROFILE\SCC\Results" -Filter "*XCCDF-Results*.xml" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
+
+    # Find HTML summary report
+    $htmlFile = Get-ChildItem -Path $outputDir -Filter "*Summary*.html" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if (-not $htmlFile) {
+        $htmlFile = Get-ChildItem -Path $outputDir -Filter "*.html" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
 
     # Return result
     @{
@@ -90,7 +129,7 @@
         completed = $endTime.ToString("o")
         duration_seconds = [int]($endTime - $startTime).TotalSeconds
         exit_code = $exitCode
-        stdout = $stdout.Substring(0, [Math]::Min($stdout.Length, 1000))
+        stdout = $stdout.Substring(0, [Math]::Min($stdout.Length, 2000))
         stderr = $stderr
         xccdf_result = if ($xccdfFile) { $xccdfFile.FullName } else { $null }
         html_report = if ($htmlFile) { $htmlFile.FullName } else { $null }
