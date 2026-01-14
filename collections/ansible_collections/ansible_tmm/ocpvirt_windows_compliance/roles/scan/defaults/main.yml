@@ -13,6 +13,9 @@ scanner_type: "scc"  # scc | openscap (legacy)
 scan_timeout: 1800  # 30 minutes
 
 # SCC configuration
+# Note: scc_install_path is auto-discovered in preflight.yml
+# These are fallback values if discovery fails
+scc_install_path: "C:\\Program Files\\DISA\\SCC"
 scc_config:
   install_path: "C:\\Program Files\\DISA\\SCC"
   benchmark:

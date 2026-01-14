@@ -2,17 +2,36 @@
 # Scan Role - Preflight Checks
 # Verifies SCC is installed and ready
 
-- name: Check if SCC is installed
-  ansible.windows.win_stat:
-    path: "{{ scc_config.install_path }}\\cscc.exe"
-  register: scc_check
+- name: Search for SCC installation
+  ansible.windows.win_find:
+    paths:
+      - "C:\\Program Files\\SCC"
+      - "C:\\Program Files\\DISA"
+      - "C:\\Program Files\\DISA SCAP Compliance Checker"
+      - "{{ scc_config.install_path }}"
+    patterns: "cscc.exe"
+    recurse: true
+  register: scc_search
 
 - name: Fail if SCC not installed
   ansible.builtin.fail:
     msg: |
-      DISA SCC is not installed at {{ scc_config.install_path }}.
+      DISA SCC is not installed. Searched locations:
+        - C:\Program Files\SCC
+        - C:\Program Files\DISA
+        - C:\Program Files\DISA SCAP Compliance Checker
+        - {{ scc_config.install_path }}
       Run the 'Install-SCC' job template first.
-  when: not scc_check.stat.exists
+  when: scc_search.files | length == 0
+
+- name: Set discovered SCC path
+  ansible.builtin.set_fact:
+    scc_install_path: "{{ scc_search.files[0].path | win_dirname }}"
+  when: scc_search.files | length > 0
+
+- name: Display discovered SCC installation
+  ansible.builtin.debug:
+    msg: "SCC found at: {{ scc_install_path }}"
 
 - name: Get Windows version
   ansible.windows.win_powershell:
