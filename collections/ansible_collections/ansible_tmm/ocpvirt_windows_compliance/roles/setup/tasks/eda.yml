@@ -138,9 +138,27 @@
     var: eda_event_stream_result
     verbosity: 1
 
-- name: Construct event stream webhook URL
+# Retrieve actual webhook URL from event stream info
+# The event_stream module only returns numeric id, but we need the full URL with UUID
+- name: Get event stream info for webhook URL
+  ansible.eda.event_stream_info:
+    name: "{{ eda_event_stream_name }}"
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
+  register: eda_event_stream_info
+
+- name: Debug event stream info
+  ansible.builtin.debug:
+    var: eda_event_stream_info
+    verbosity: 1
+
+- name: Extract webhook URL from event stream info
   ansible.builtin.set_fact:
-    eda_webhook_url: "{{ aap_hostname | regex_replace('/$', '') }}/eda-event-streams/api/eda/v1/external_event_stream/{{ eda_event_stream_result.id }}/post/"
+    eda_webhook_url: "{{ eda_event_stream_info.event_streams[0].url }}"
+  when: eda_event_stream_info.event_streams | length > 0
 
 - name: Display event stream webhook URL
   ansible.builtin.debug:
@@ -153,8 +171,6 @@
       - Headers: {{ eda_headers }}
 
       Alertmanager will be configured to send alerts to this webhook.
-
-      NOTE: Verify the webhook URL matches the event stream details in EDA UI.
 
 # =============================================================================
 # Phase 7: User Story 5 - Rulebook Activation with Event Stream Binding

@@ -15,8 +15,8 @@
 - name: Compliance Auto-Remediation
   hosts: all
   sources:
-    - ansible.eda.pg_listener:
-        name: compliance-alerts
+    - name: compliance-alerts
+      ansible.eda.pg_listener:
 
   rules:
     # Rule 1: CAT II violations - Auto-remediate
