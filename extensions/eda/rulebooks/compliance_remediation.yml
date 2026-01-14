@@ -11,6 +11,9 @@
 # event.payload.alerts[] - array of alert objects
 # event.payload.alerts[].status - "firing" or "resolved"
 # event.payload.alerts[].labels - alert labels (alertname, category, vm_name, etc.)
+#
+# Note: ansible-rulebook conditions use a specific DSL, not Jinja2 filters.
+# Complex array filtering is handled in the action's extra_vars using Jinja2.
 
 - name: Compliance Auto-Remediation
   hosts: all
@@ -19,97 +22,44 @@
       ansible.eda.pg_listener:
 
   rules:
-    # Rule 1: CAT II violations - Auto-remediate
-    - name: Remediate CAT II violations
-      condition: >-
-        event.payload.alerts is defined and
-        event.payload.alerts | selectattr('status', 'equalto', 'firing') |
-        selectattr('labels.category', 'equalto', 'CAT2') | list | length > 0
+    # Rule 1: Process any firing compliance alert
+    # The action extracts category-specific alerts and routes appropriately
+    - name: Process compliance alerts
+      condition: event.payload is defined and event.payload.status == "firing"
       action:
         run_job_template:
           name: Compliance-Remediate
           organization: "{{ eda_organization | default('Default') }}"
           job_args:
             extra_vars:
-              target_vm: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT2') | first).labels.vm_name }}"
-              target_namespace: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT2') | first).labels.namespace }}"
-              control_id: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT2') | first).labels.control_id | default('') }}"
+              target_vm: "{{ event.payload.commonLabels.vm_name | default('') }}"
+              target_namespace: "{{ event.payload.commonLabels.namespace | default('') }}"
+              control_id: "{{ event.payload.commonLabels.control_id | default('') }}"
+              category: "{{ event.payload.commonLabels.category | default('') }}"
+              alertname: "{{ event.payload.commonLabels.alertname | default('') }}"
               trigger_source: "eda"
-              auto_remediate: "{{ auto_remediate_cat2 | default(true) }}"
-              cat_levels:
-                - cat2
-            limit: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT2') | first).labels.vm_name }}"
+              auto_remediate_cat1: "{{ auto_remediate_cat1 | default(false) }}"
+              auto_remediate_cat2: "{{ auto_remediate_cat2 | default(true) }}"
+              auto_remediate_cat3: "{{ auto_remediate_cat3 | default(true) }}"
 
-    # Rule 2: CAT III violations - Auto-remediate
-    - name: Remediate CAT III violations
-      condition: >-
-        event.payload.alerts is defined and
-        event.payload.alerts | selectattr('status', 'equalto', 'firing') |
-        selectattr('labels.category', 'equalto', 'CAT3') | list | length > 0
-      action:
-        run_job_template:
-          name: Compliance-Remediate
-          organization: "{{ eda_organization | default('Default') }}"
-          job_args:
-            extra_vars:
-              target_vm: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT3') | first).labels.vm_name }}"
-              target_namespace: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT3') | first).labels.namespace }}"
-              control_id: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT3') | first).labels.control_id | default('') }}"
-              trigger_source: "eda"
-              auto_remediate: "{{ auto_remediate_cat3 | default(true) }}"
-              cat_levels:
-                - cat3
-            limit: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT3') | first).labels.vm_name }}"
-
-    # Rule 3: CAT I violations - Notify only (no auto-remediation)
-    - name: Notify on CAT I violations
-      condition: >-
-        event.payload.alerts is defined and
-        event.payload.alerts | selectattr('status', 'equalto', 'firing') |
-        selectattr('labels.category', 'equalto', 'CAT1') | list | length > 0
-      action:
-        run_job_template:
-          name: Notify-Compliance-Team
-          organization: "{{ eda_organization | default('Default') }}"
-          job_args:
-            extra_vars:
-              notification_type: "critical"
-              vm_name: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT1') | first).labels.vm_name }}"
-              namespace: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT1') | first).labels.namespace }}"
-              control_id: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT1') | first).labels.control_id | default('') }}"
-              message: "Critical CAT I compliance violation detected. Manual remediation required."
-              auto_remediate: "{{ auto_remediate_cat1 | default(false) }}"
-
-    # Rule 4: Compliance score below threshold
-    - name: Remediate low compliance score
-      condition: >-
-        event.payload.alerts is defined and
-        event.payload.alerts | selectattr('status', 'equalto', 'firing') |
-        selectattr('labels.alertname', 'equalto', 'ComplianceScoreBelowThreshold') | list | length > 0
-      action:
-        run_job_template:
-          name: Compliance-Remediate
-          organization: "{{ eda_organization | default('Default') }}"
-          job_args:
-            extra_vars:
-              target_vm: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.alertname', 'equalto', 'ComplianceScoreBelowThreshold') | first).labels.vm_name }}"
-              target_namespace: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.alertname', 'equalto', 'ComplianceScoreBelowThreshold') | first).labels.namespace }}"
-              trigger_source: "eda"
-              cat_levels:
-                - cat2
-                - cat3
-            limit: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.alertname', 'equalto', 'ComplianceScoreBelowThreshold') | first).labels.vm_name }}"
-
-    # Rule 5: Log all compliance alerts for audit
-    - name: Log all compliance alerts
-      condition: >-
-        event.payload.alerts is defined and
-        event.payload.alerts | length > 0
+    # Rule 2: Log resolved alerts
+    - name: Log resolved compliance alerts
+      condition: event.payload is defined and event.payload.status == "resolved"
       action:
         debug:
           msg: |
-            Compliance Alert Batch Received:
-            - Total Alerts: {{ event.payload.alerts | length }}
-            - Firing: {{ event.payload.alerts | selectattr('status', 'equalto', 'firing') | list | length }}
-            - Resolved: {{ event.payload.alerts | selectattr('status', 'equalto', 'resolved') | list | length }}
-            - Alerts: {{ event.payload.alerts | map(attribute='labels.alertname') | list }}
+            Compliance Alert Resolved:
+            - Alert: {{ event.payload.commonLabels.alertname | default('unknown') }}
+            - VM: {{ event.payload.commonLabels.vm_name | default('unknown') }}
+            - Category: {{ event.payload.commonLabels.category | default('unknown') }}
+
+    # Rule 3: Catch-all for any event (audit logging)
+    - name: Audit log all events
+      condition: event.payload is defined
+      action:
+        debug:
+          msg: |
+            Event Received:
+            - Status: {{ event.payload.status | default('unknown') }}
+            - Receiver: {{ event.payload.receiver | default('unknown') }}
+            - Group Labels: {{ event.payload.groupLabels | default({}) }}
