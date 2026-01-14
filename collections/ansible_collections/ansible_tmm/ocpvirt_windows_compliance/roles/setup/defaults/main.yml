@@ -114,6 +114,13 @@ aap_credential_s3_reports: ""  # Optional: leave empty if not using S3 for repor
 # Inventory for Windows VMs
 aap_inventory_windows: "Windows VMs"
 
+# Playbook path prefix (relative to AAP project root)
+# If your AAP project points to the git repo root, use:
+#   "collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks"
+# If your AAP project points directly to the collection, use:
+#   "playbooks"
+aap_playbook_path_prefix: "collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks"
+
 # Resource labels applied to all created resources
 compliance_labels:
   compliance.ocpvirt/managed: "true"

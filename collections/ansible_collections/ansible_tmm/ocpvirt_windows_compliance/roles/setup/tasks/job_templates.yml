@@ -14,6 +14,7 @@
       Creating AAP Job Templates:
       - Organization: {{ aap_job_template_organization }}
       - Project: {{ aap_job_template_project }}
+      - Playbook Path Prefix: {{ aap_playbook_path_prefix }}
       - OpenShift Credential: {{ aap_credential_openshift }}
       - Windows VM Credential: {{ aap_credential_windows }}
       - Windows Inventory: {{ aap_inventory_windows }}
@@ -28,7 +29,7 @@
     description: "Download and install DISA SCAP Compliance Checker on Windows VMs"
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
-    playbook: "playbooks/install_scc.yml"
+    playbook: "{{ aap_playbook_path_prefix }}/install_scc.yml"
     inventory: "{{ aap_inventory_windows }}"
     credentials:
       - "{{ aap_credential_windows }}"
@@ -45,7 +46,7 @@
     description: "Run compliance scan on Windows VMs using DISA SCC"
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
-    playbook: "playbooks/scan.yml"
+    playbook: "{{ aap_playbook_path_prefix }}/scan.yml"
     inventory: "{{ aap_inventory_windows }}"
     credentials:
       - "{{ aap_credential_windows }}"
@@ -81,7 +82,7 @@
     description: "Apply compliance remediation to Windows VMs"
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
-    playbook: "playbooks/remediate.yml"
+    playbook: "{{ aap_playbook_path_prefix }}/remediate.yml"
     inventory: "{{ aap_inventory_windows }}"
     credentials:
       - "{{ aap_credential_windows }}"
@@ -134,7 +135,7 @@
     description: "Generate compliance audit reports"
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
-    playbook: "playbooks/report.yml"
+    playbook: "{{ aap_playbook_path_prefix }}/report.yml"
     inventory: "localhost"
     credentials: "{{ compliance_report_credentials }}"
     ask_variables_on_launch: true
@@ -174,7 +175,7 @@
     description: "Provision a new Windows VM from a compliant golden image"
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
-    playbook: "playbooks/provision_vm.yml"
+    playbook: "{{ aap_playbook_path_prefix }}/provision_vm.yml"
     inventory: "localhost"
     credentials:
       - "{{ aap_credential_openshift }}"
@@ -207,7 +208,7 @@
     description: "Create a pre-hardened golden image from a base Windows image"
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
-    playbook: "playbooks/create_golden_image.yml"
+    playbook: "{{ aap_playbook_path_prefix }}/create_golden_image.yml"
     inventory: "localhost"
     credentials:
       - "{{ aap_credential_openshift }}"
