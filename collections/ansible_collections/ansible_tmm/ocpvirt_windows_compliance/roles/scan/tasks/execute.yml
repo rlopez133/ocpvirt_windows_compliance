@@ -10,7 +10,7 @@
   ansible.windows.win_shell: |
     $scanId = "{{ scan_id }}"
     $outputDir = "{{ scc_config.output_dir }}\$scanId"
-    $sccPath = "{{ scc_config.install_path }}\cscc.exe"
+    $sccPath = "{{ scc_install_path }}\cscc.exe"
     $benchmark = "{{ scc_benchmark }}"
 
     # Create output directory
