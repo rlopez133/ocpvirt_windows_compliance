@@ -96,6 +96,24 @@ grafana_config:
   dashboard_name: "Windows Compliance"
   datasource: "prometheus"
 
+# =============================================================================
+# AAP Job Template Configuration
+# =============================================================================
+# Enable/disable creation of job templates during setup
+aap_create_job_templates: true
+
+# Organization and Project for job templates
+aap_job_template_organization: "Default"
+aap_job_template_project: "Windows Compliance Collection"
+
+# Credential names (must match existing credentials in AAP)
+aap_credential_openshift: "OpenShift Credential"
+aap_credential_windows: "Win VM"
+aap_credential_s3_reports: ""  # Optional: leave empty if not using S3 for reports
+
+# Inventory for Windows VMs
+aap_inventory_windows: "Windows VMs"
+
 # Resource labels applied to all created resources
 compliance_labels:
   compliance.ocpvirt/managed: "true"
