@@ -3,9 +3,10 @@
 # Deploys Grafana dashboards for compliance visualization
 # Dashboard JSON is stored in files/grafana_dashboards/ to avoid Jinja2 templating issues
 
-- name: Load Grafana dashboard JSON from file
-  ansible.builtin.set_fact:
-    compliance_dashboard_json: "{{ lookup('ansible.builtin.file', 'grafana_dashboards/compliance-dashboard.json') }}"
+- name: Read Grafana dashboard JSON file
+  ansible.builtin.slurp:
+    src: "{{ role_path }}/files/grafana_dashboards/compliance-dashboard.json"
+  register: dashboard_file
 
 - name: Deploy Grafana dashboard ConfigMap
   kubernetes.core.k8s:
@@ -21,7 +22,7 @@
           app.kubernetes.io/name: ocpvirt-windows-compliance
           app.kubernetes.io/component: dashboard
       data:
-        compliance-dashboard.json: "{{ compliance_dashboard_json }}"
+        compliance-dashboard.json: "{{ dashboard_file.content | b64decode }}"
 
 - name: Display dashboard deployment status
   ansible.builtin.debug:
