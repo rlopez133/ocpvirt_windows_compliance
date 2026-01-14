@@ -3,7 +3,7 @@
 # Creates job templates for compliance operations in AAP/Controller
 # Note: Compliance-Setup is skipped as it should be manually created first
 #
-# Uses awx.awx collection for AWX and AAP compatibility
+# Uses ansible.controller collection for AAP 2.5+
 # Authentication is handled via environment variables injected by AAP credential:
 #   CONTROLLER_HOST, CONTROLLER_USERNAME, CONTROLLER_PASSWORD, CONTROLLER_OAUTH_TOKEN
 # Attach an "Ansible Automation Platform" credential to the Compliance-Setup job template
@@ -23,7 +23,7 @@
 # Job Template: Install-SCC
 # =============================================================================
 - name: Create Install-SCC job template
-  awx.awx.job_template:
+  ansible.controller.job_template:
     name: "Install-SCC"
     description: "Download and install DISA SCAP Compliance Checker on Windows VMs"
     organization: "{{ aap_job_template_organization }}"
@@ -40,7 +40,7 @@
 # Job Template: Compliance-Scan
 # =============================================================================
 - name: Create Compliance-Scan job template
-  awx.awx.job_template:
+  ansible.controller.job_template:
     name: "Compliance-Scan"
     description: "Run compliance scan on Windows VMs using DISA SCC"
     organization: "{{ aap_job_template_organization }}"
@@ -76,7 +76,7 @@
 # Job Template: Compliance-Remediate
 # =============================================================================
 - name: Create Compliance-Remediate job template
-  awx.awx.job_template:
+  ansible.controller.job_template:
     name: "Compliance-Remediate"
     description: "Apply compliance remediation to Windows VMs"
     organization: "{{ aap_job_template_organization }}"
@@ -129,7 +129,7 @@
       {{ [aap_credential_openshift] + ([aap_credential_s3_reports] if aap_credential_s3_reports | default('', true) | length > 0 else []) }}
 
 - name: Create Compliance-Report job template
-  awx.awx.job_template:
+  ansible.controller.job_template:
     name: "Compliance-Report"
     description: "Generate compliance audit reports"
     organization: "{{ aap_job_template_organization }}"
@@ -169,7 +169,7 @@
 # Job Template: Provision-Compliant-VM
 # =============================================================================
 - name: Create Provision-Compliant-VM job template
-  awx.awx.job_template:
+  ansible.controller.job_template:
     name: "Provision-Compliant-VM"
     description: "Provision a new Windows VM from a compliant golden image"
     organization: "{{ aap_job_template_organization }}"
@@ -202,7 +202,7 @@
 # Job Template: Create-Golden-Image
 # =============================================================================
 - name: Create Create-Golden-Image job template
-  awx.awx.job_template:
+  ansible.controller.job_template:
     name: "Create-Golden-Image"
     description: "Create a pre-hardened golden image from a base Windows image"
     organization: "{{ aap_job_template_organization }}"
