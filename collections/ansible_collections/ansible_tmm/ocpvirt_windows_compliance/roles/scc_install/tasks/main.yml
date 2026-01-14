@@ -2,10 +2,65 @@
 # SCC Install Role - Main Tasks
 # Downloads and installs DISA SCAP Compliance Checker
 
+- name: Validate SCC installer URL is configured
+  ansible.builtin.assert:
+    that:
+      - scc_installer_url is defined
+      - scc_installer_url | length > 0
+    fail_msg: |
+      scc_installer_url must be set to the full URL of the SCC installer.
+      DISA Cyber Exchange does not provide direct download links.
+
+      Please:
+        1. Download SCC from https://public.cyber.mil/stigs/scap/
+        2. Upload to your S3 bucket or web server
+        3. Set scc_installer_url to the full URL
+
+      Example: scc_installer_url: "https://my-bucket.s3.amazonaws.com/scc-5.13_Windows_bundle.zip"
+
+- name: Detect Windows version
+  ansible.windows.win_shell: |
+    (Get-CimInstance Win32_OperatingSystem).BuildNumber
+  register: windows_build_result
+  changed_when: false
+
+- name: Set detected Windows build number
+  ansible.builtin.set_fact:
+    detected_windows_build: "{{ windows_build_result.stdout | trim }}"
+
+- name: Map build number to friendly version name
+  ansible.builtin.set_fact:
+    detected_windows_version: "{{ _scc_build_to_version[detected_windows_build] | default('unknown') }}"
+
+- name: Set STIG details for detected Windows version
+  ansible.builtin.set_fact:
+    detected_stig_name: "{{ _scc_version_to_name[detected_windows_version] | default('Unknown_Windows_STIG') }}"
+    detected_stig_url: "{{ lookup('vars', 'scc_stig_url_' + detected_windows_version, default='') }}"
+
+- name: Display detected Windows version
+  ansible.builtin.debug:
+    msg: |
+      Detected Windows Build: {{ detected_windows_build }}
+      Detected Version: {{ detected_windows_version }}
+      STIG Profile: {{ detected_stig_name }}
+
+- name: Validate STIG URL is configured for detected Windows version
+  ansible.builtin.assert:
+    that:
+      - detected_stig_url | length > 0
+    fail_msg: |
+      No STIG content URL configured for {{ detected_stig_name }}.
+      Please set: scc_stig_url_{{ detected_windows_version }}
+
+      Example:
+        scc_stig_url_{{ detected_windows_version }}: "https://my-bucket.s3.amazonaws.com/{{ detected_stig_name }}.zip"
+  when: scc_download_stig_content
+
 - name: Display SCC installation information
   ansible.builtin.debug:
     msg: |
       Installing DISA SCC {{ scc_version }}
+      SCC Installer URL: {{ scc_installer_url }}
       Install path: {{ scc_install_path }}
       Download STIG content: {{ scc_download_stig_content }}
 
@@ -24,7 +79,7 @@
 
     - name: Download SCC installer
       ansible.windows.win_get_url:
-        url: "{{ scc_installer_url | default(scc_download_url) }}"
+        url: "{{ scc_installer_url }}"
         dest: "{{ scc_temp_path }}\\{{ scc_installer_filename }}"
         force: false
       register: scc_download
@@ -71,7 +126,7 @@
         remote_src: true
       when: scc_msi_files.files | length == 0
 
-- name: Download STIG content
+- name: Download STIG content for detected Windows version
   when: scc_download_stig_content
   block:
     - name: Create STIG content directory
@@ -79,23 +134,21 @@
         path: "{{ scc_install_path }}\\Resources\\Content"
         state: directory
 
-    - name: Download STIG benchmark content
+    - name: Download STIG benchmark content for {{ detected_stig_name }}
       ansible.windows.win_get_url:
-        url: "{{ item.url }}"
-        dest: "{{ scc_install_path }}\\Resources\\Content\\{{ item.name }}.zip"
+        url: "{{ detected_stig_url }}"
+        dest: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}.zip"
         force: false
-      loop: "{{ scc_stig_content }}"
-      loop_control:
-        label: "{{ item.name }}"
 
     - name: Extract STIG content
       community.windows.win_unzip:
-        src: "{{ scc_install_path }}\\Resources\\Content\\{{ item.name }}.zip"
-        dest: "{{ scc_install_path }}\\Resources\\Content\\{{ item.name }}"
-        creates: "{{ scc_install_path }}\\Resources\\Content\\{{ item.name }}"
-      loop: "{{ scc_stig_content }}"
-      loop_control:
-        label: "{{ item.name }}"
+        src: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}.zip"
+        dest: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}"
+        creates: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}"
+
+    - name: Display STIG content installed
+      ansible.builtin.debug:
+        msg: "Installed STIG content: {{ detected_stig_name }} for Windows build {{ detected_windows_build }}"
 
 - name: Verify SCC installation
   when: scc_verify_install
