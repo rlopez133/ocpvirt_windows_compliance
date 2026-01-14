@@ -9,7 +9,11 @@
   register: xccdf_content
 
 - name: Calculate compliance score
-  when: xccdf_content is defined and xccdf_content.stdout
+  when:
+    - xccdf_content is defined
+    - xccdf_content is not skipped
+    - xccdf_content.stdout is defined
+    - xccdf_content.stdout | length > 0
   ansible.builtin.set_fact:
     parsed_results: "{{ xccdf_content.stdout | ansible_tmm.ocpvirt_windows_compliance.parse_xccdf }}"
 
