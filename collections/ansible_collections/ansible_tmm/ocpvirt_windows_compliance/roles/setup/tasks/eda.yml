@@ -133,21 +133,28 @@
     validate_certs: "{{ aap_validate_certs }}"
   register: eda_event_stream_result
 
+- name: Debug event stream result structure
+  ansible.builtin.debug:
+    var: eda_event_stream_result
+    verbosity: 1
+
 - name: Construct event stream webhook URL
   ansible.builtin.set_fact:
-    eda_webhook_url: "{{ aap_hostname | regex_replace('/$', '') }}/eda-event-streams/api/eda/v1/external_event_stream/{{ eda_event_stream_result.uuid }}/post/"
+    eda_webhook_url: "{{ aap_hostname | regex_replace('/$', '') }}/eda-event-streams/api/eda/v1/external_event_stream/{{ eda_event_stream_result.id }}/post/"
 
 - name: Display event stream webhook URL
   ansible.builtin.debug:
     msg: |
       Event Stream Created:
       - Name: {{ eda_event_stream_name }}
-      - UUID: {{ eda_event_stream_result.uuid | default('N/A') }}
+      - ID: {{ eda_event_stream_result.id | default('N/A') }}
       - Webhook URL: {{ eda_webhook_url }}
       - Forward Events: {{ eda_forward_events }}
       - Headers: {{ eda_headers }}
 
       Alertmanager will be configured to send alerts to this webhook.
+
+      NOTE: Verify the webhook URL matches the event stream details in EDA UI.
 
 # =============================================================================
 # Phase 7: User Story 5 - Rulebook Activation with Event Stream Binding
