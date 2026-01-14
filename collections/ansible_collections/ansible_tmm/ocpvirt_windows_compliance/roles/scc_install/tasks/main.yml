@@ -64,13 +64,29 @@
       Install path: {{ scc_install_path }}
       Download STIG content: {{ scc_download_stig_content }}
 
-- name: Check if SCC is already installed
-  ansible.windows.win_stat:
-    path: "{{ scc_install_path }}\\cscc.exe"
-  register: scc_installed
+- name: Search for existing SCC installation
+  ansible.windows.win_find:
+    paths:
+      - "C:\\Program Files\\SCC"
+      - "C:\\Program Files\\DISA"
+      - "C:\\Program Files\\DISA SCAP Compliance Checker"
+      - "{{ scc_install_path }}"
+    patterns: "cscc.exe"
+    recurse: true
+  register: existing_scc_search
+
+- name: Set SCC installation status
+  ansible.builtin.set_fact:
+    scc_already_installed: "{{ existing_scc_search.files | default([]) | length > 0 }}"
+    scc_install_path: "{{ existing_scc_search.files[0].path | win_dirname if existing_scc_search.files | default([]) | length > 0 else scc_install_path }}"
+
+- name: Display existing SCC installation
+  ansible.builtin.debug:
+    msg: "SCC already installed at: {{ scc_install_path }}"
+  when: scc_already_installed
 
 - name: Install SCC if not present
-  when: not scc_installed.stat.exists
+  when: not scc_already_installed
   block:
     - name: Create temp directory
       ansible.windows.win_file:
@@ -111,12 +127,26 @@
         path: "{{ scc_install_path }}"
         state: directory
 
-    - name: Find SCC installer in extracted files
+    - name: Find MSI installer in extracted files
       ansible.windows.win_find:
         paths: "{{ scc_temp_path }}\\extracted"
         patterns: "*.msi"
         recurse: true
       register: scc_msi_files
+
+    - name: Find EXE installer in extracted files
+      ansible.windows.win_find:
+        paths: "{{ scc_temp_path }}\\extracted"
+        patterns: "*Setup*.exe,*Install*.exe"
+        recurse: true
+      register: scc_exe_files
+      when: scc_msi_files.files | length == 0
+
+    - name: Display found installers
+      ansible.builtin.debug:
+        msg: |
+          MSI files found: {{ scc_msi_files.files | map(attribute='path') | list }}
+          EXE files found: {{ scc_exe_files.files | default([]) | map(attribute='path') | list }}
 
     - name: Install SCC using MSI
       ansible.windows.win_package:
@@ -126,12 +156,44 @@
       when: scc_msi_files.files | length > 0
       register: scc_install_result
 
-    - name: Copy SCC files if no MSI found
+    - name: Install SCC using EXE installer
+      ansible.windows.win_shell: |
+        Start-Process -FilePath "{{ scc_exe_files.files[0].path }}" -ArgumentList "/S" -Wait -PassThru | Select-Object -ExpandProperty ExitCode
+      when:
+        - scc_msi_files.files | length == 0
+        - scc_exe_files.files | default([]) | length > 0
+      register: scc_exe_install_result
+
+    - name: Search for cscc.exe in Program Files after installation
+      ansible.windows.win_find:
+        paths:
+          - "C:\\Program Files\\SCC"
+          - "C:\\Program Files\\DISA"
+          - "C:\\Program Files\\DISA SCAP Compliance Checker"
+          - "{{ scc_install_path }}"
+        patterns: "cscc.exe"
+        recurse: true
+      register: cscc_search_result
+
+    - name: Update scc_install_path to discovered location
+      ansible.builtin.set_fact:
+        scc_install_path: "{{ cscc_search_result.files[0].path | win_dirname }}"
+      when:
+        - cscc_search_result.files | default([]) | length > 0
+
+    - name: Display discovered SCC installation path
+      ansible.builtin.debug:
+        msg: "SCC installed at: {{ scc_install_path }}"
+      when: cscc_search_result.files | default([]) | length > 0
+
+    - name: Copy SCC files if no installer found
       ansible.windows.win_copy:
         src: "{{ scc_temp_path }}\\extracted\\"
         dest: "{{ scc_install_path }}\\"
         remote_src: true
-      when: scc_msi_files.files | length == 0
+      when:
+        - scc_msi_files.files | length == 0
+        - scc_exe_files.files | default([]) | length == 0
 
 - name: Download STIG content for detected Windows version
   when: scc_download_stig_content
