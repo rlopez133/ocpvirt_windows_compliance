@@ -173,6 +173,49 @@
       Alertmanager will be configured to send alerts to this webhook.
 
 # =============================================================================
+# Phase 6: RH AAP Credential for Rulebook Job Template Access
+# =============================================================================
+# Rulebook activations that use run_job_template action require an RH AAP credential
+# to authenticate with the Automation Controller when triggering jobs.
+
+- name: Set RH AAP credential name
+  ansible.builtin.set_fact:
+    eda_aap_credential_name_resolved: >-
+      {{ eda_aap_credential_name if eda_aap_credential_name | length > 0
+         else eda_event_stream_name + '-aap-credential' }}
+
+- name: Create RH AAP credential for rulebook job template access
+  ansible.eda.credential:
+    name: "{{ eda_aap_credential_name_resolved }}"
+    description: "RH AAP credential for {{ eda_event_stream_name }} rulebook to trigger job templates"
+    credential_type_name: "Red Hat Ansible Automation Platform"
+    organization_name: "{{ eda_organization }}"
+    inputs:
+      host: "{{ aap_hostname | regex_replace('/$', '') }}/api/controller/"
+      username: "{{ aap_username | default(omit) }}"
+      password: "{{ aap_password | default(omit) }}"
+      oauth_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+      verify_ssl: "{{ aap_validate_certs }}"
+    state: present
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
+  register: eda_aap_credential_result
+  when: eda_aap_credential_name | length == 0
+
+- name: Display RH AAP credential status
+  ansible.builtin.debug:
+    msg: |
+      RH AAP Credential for Rulebook Activations:
+      - Name: {{ eda_aap_credential_name_resolved }}
+      - ID: {{ eda_aap_credential_result.id | default('Using existing credential') }}
+      - Controller URL: {{ aap_hostname }}/api/controller/
+
+      This credential allows rulebooks to trigger job templates on Automation Controller.
+
+# =============================================================================
 # Phase 7: User Story 5 - Rulebook Activation with Event Stream Binding
 # =============================================================================
 # NOTE: Rulebooks must be at extensions/eda/rulebooks/ at the ROOT of the Git repo.
@@ -188,6 +231,8 @@
     rulebook_name: "{{ eda_rulebook_name }}.yml"
     decision_environment_name: "{{ eda_decision_environment }}"
     organization_name: "{{ eda_organization }}"
+    eda_credentials:
+      - "{{ eda_aap_credential_name_resolved }}"
     event_streams:
       - event_stream: "{{ eda_event_stream_name }}"
         source_name: "compliance-alerts"

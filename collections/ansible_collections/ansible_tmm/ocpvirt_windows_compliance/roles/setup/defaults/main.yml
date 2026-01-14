@@ -48,7 +48,11 @@ eda_project_url: ""  # Git URL for rulebook project (override in job template)
 eda_decision_environment: "Default Decision Environment"
 eda_rulebook_name: "compliance_remediation"
 eda_event_stream_name: "compliance-alerts"
-eda_credential_name: ""  # AAP credential name for controller access (override in job template)
+# RH AAP Credential for Rulebook Activations
+# This credential allows rulebooks to trigger job templates on Automation Controller
+# If empty, setup will create one named "<event_stream_name>-aap-credential"
+# If you have an existing RH AAP credential, provide its name here
+eda_aap_credential_name: ""
 
 # Auto-remediation settings per category
 eda_auto_remediate_cat1: false  # CAT I - Critical, requires manual review
