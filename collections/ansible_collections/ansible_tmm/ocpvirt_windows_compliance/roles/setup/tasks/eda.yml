@@ -98,7 +98,7 @@
     name: "{{ eda_project_name }}"
     organization_name: "{{ eda_organization }}"
     state: present
-    update_project: true
+    sync: true
     controller_host: "{{ aap_hostname }}"
     controller_username: "{{ aap_username | default(omit) }}"
     controller_password: "{{ aap_password | default(omit) }}"
