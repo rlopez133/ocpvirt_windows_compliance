@@ -55,6 +55,15 @@ eda_auto_remediate_cat1: false  # CAT I - Critical, requires manual review
 eda_auto_remediate_cat2: true   # CAT II - Auto-remediate
 eda_auto_remediate_cat3: true   # CAT III - Auto-remediate
 
+# AAP Gateway Connection (required for ansible.eda modules in AAP 2.5+)
+# These can be set via environment variables or passed from AAP credential
+# Environment variables: AAP_HOSTNAME, AAP_USERNAME, AAP_PASSWORD, AAP_TOKEN
+aap_hostname: "{{ lookup('ansible.builtin.env', 'AAP_HOSTNAME', default='') }}"
+aap_username: "{{ lookup('ansible.builtin.env', 'AAP_USERNAME', default='') }}"
+aap_password: "{{ lookup('ansible.builtin.env', 'AAP_PASSWORD', default='') }}"
+aap_token: "{{ lookup('ansible.builtin.env', 'AAP_TOKEN', default='') }}"
+aap_validate_certs: true
+
 # EDA Token and Authentication
 eda_token: ""  # Bearer token for event stream auth (auto-generated if empty)
 eda_token_secret_name: "eda-webhook-token"  # K8s secret name for Alertmanager

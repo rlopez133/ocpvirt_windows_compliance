@@ -4,22 +4,29 @@
 # Must run BEFORE alertmanager.yml to get event stream webhook URL
 #
 # Task order:
-# 1. Token generation (Foundational)
-# 2. Validation (Foundational)
+# 1. Validation (Foundational)
+# 2. Token generation (Foundational)
 # 3. Credential creation (US1)
 # 4. Project creation (US1)
 # 5. Event stream creation (US2)
 # 6. Rulebook activation (US5)
+#
+# Connection: Uses aap_hostname (AAP Gateway URL in AAP 2.5+)
 
 # =============================================================================
-# Phase 2: Foundational - Token Generation and Validation
+# Phase 2: Foundational - Validation and Token Generation
 # =============================================================================
 
-- name: Generate bearer token if not provided
-  ansible.builtin.set_fact:
-    eda_generated_token: >-
-      {{ eda_token if eda_token | length > 0
-         else lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=64') }}
+- name: Validate AAP Gateway connection is configured
+  ansible.builtin.assert:
+    that:
+      - aap_hostname is defined
+      - aap_hostname | length > 0
+    fail_msg: >-
+      aap_hostname must be defined for ansible.eda modules.
+      Set AAP_HOSTNAME environment variable or pass aap_hostname variable.
+      In AAP 2.5+, this should be the AAP Gateway URL.
+    success_msg: "AAP Gateway URL validated: {{ aap_hostname }}"
 
 - name: Validate EDA project URL is defined
   ansible.builtin.assert:
@@ -31,10 +38,17 @@
       Provide the Git repository URL containing your EDA rulebooks.
     success_msg: "EDA project URL validated: {{ eda_project_url }}"
 
+- name: Generate bearer token if not provided
+  ansible.builtin.set_fact:
+    eda_generated_token: >-
+      {{ eda_token if eda_token | length > 0
+         else lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=64') }}
+
 - name: Display EDA configuration
   ansible.builtin.debug:
     msg: |
       Configuring Event-Driven Ansible:
+      - AAP Gateway: {{ aap_hostname }}
       - Organization: {{ eda_organization }}
       - Project: {{ eda_project_name }}
       - Project URL: {{ eda_project_url }}
@@ -57,6 +71,11 @@
     inputs:
       token: "{{ eda_generated_token }}"
     state: present
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
   register: eda_credential_result
 
 - name: Create EDA project
@@ -67,6 +86,11 @@
     scm_branch: "{{ eda_scm_branch }}"
     organization_name: "{{ eda_organization }}"
     state: present
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
   register: eda_project_result
 
 - name: Sync EDA project to fetch rulebooks
@@ -74,7 +98,12 @@
     name: "{{ eda_project_name }}"
     organization_name: "{{ eda_organization }}"
     state: present
-    update_project: true
+    sync: true
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
   register: eda_project_sync_result
 
 - name: Display credential and project creation status
@@ -98,12 +127,16 @@
     forward_events: "{{ eda_forward_events }}"
     headers: "{{ eda_headers }}"
     state: present
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
   register: eda_event_stream_result
 
 - name: Construct event stream webhook URL
   ansible.builtin.set_fact:
-    eda_webhook_url: >-
-      {{ lookup('ansible.builtin.env', 'CONTROLLER_HOST', default='') }}/api/eda/v1/external_event_stream/{{ eda_event_stream_result.id }}/
+    eda_webhook_url: "{{ aap_hostname | regex_replace('/$', '') }}/api/eda/v1/external_event_stream/{{ eda_event_stream_result.id }}/"
 
 - name: Display event stream webhook URL
   ansible.builtin.debug:
@@ -139,6 +172,11 @@
       auto_remediate_cat3: "{{ eda_auto_remediate_cat3 }}"
     enabled: true
     state: present
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
   register: eda_activation_result
 
 - name: Display rulebook activation status
