@@ -146,8 +146,10 @@
     survey_enabled: true
     survey_spec:
       name: "Report Parameters"
+      description: "Configure compliance report generation options"
       spec:
         - question_name: "Report Format"
+          question_description: "Select the output format for the compliance report"
           variable: "report_format"
           type: "multiplechoice"
           choices:
@@ -157,6 +159,7 @@
           default: "html"
           required: true
         - question_name: "Report Template"
+          question_description: "Select the report template style"
           variable: "report_template"
           type: "multiplechoice"
           choices:
@@ -184,16 +187,20 @@
     survey_enabled: true
     survey_spec:
       name: "VM Provisioning Parameters"
+      description: "Configure new Windows VM provisioning options"
       spec:
         - question_name: "VM Name"
+          question_description: "Name for the new virtual machine"
           variable: "vm_name"
           type: "text"
           required: true
         - question_name: "Namespace"
+          question_description: "OpenShift namespace to deploy the VM"
           variable: "vm_namespace"
           type: "text"
           required: true
         - question_name: "Golden Image"
+          question_description: "Name of the compliant golden image to use"
           variable: "golden_image_name"
           type: "text"
           default: "win2022-stig-v1"
@@ -218,12 +225,15 @@
     survey_enabled: true
     survey_spec:
       name: "Golden Image Parameters"
+      description: "Configure golden image creation options"
       spec:
         - question_name: "Image Name"
+          question_description: "Name for the new golden image"
           variable: "image_name"
           type: "text"
           required: true
         - question_name: "Compliance Profile"
+          question_description: "Compliance profile to apply to the image"
           variable: "compliance_profile"
           type: "multiplechoice"
           choices:
@@ -233,6 +243,7 @@
           default: "stig"
           required: true
         - question_name: "Source DataVolume"
+          question_description: "Name of the base Windows DataVolume to use"
           variable: "source_datavolume"
           type: "text"
           default: "windows-2022-base"
