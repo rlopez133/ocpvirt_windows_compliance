@@ -203,7 +203,7 @@
                 "targets": [
                   {
                     "expr": "compliance_score{namespace=\"$namespace\"}",
-                    "legendFormat": "{{ vm_name }}",
+                    "legendFormat": "{{ '{{' }} vm_name {{ '}}' }}",
                     "refId": "A"
                   }
                 ],
