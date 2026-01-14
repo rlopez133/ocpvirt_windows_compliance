@@ -55,7 +55,7 @@
           Target Namespace: {{ golden_image.namespace }}
 
   roles:
-    - role: ansible_tmm.ocpvirt_windows_compliance.golden_image
+    - role: ../roles/golden_image
 
   post_tasks:
     - name: Display completion message

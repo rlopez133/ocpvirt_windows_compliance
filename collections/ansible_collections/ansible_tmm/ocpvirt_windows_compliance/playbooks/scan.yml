@@ -30,7 +30,7 @@
           Profile: {{ compliance_profile }}
 
   roles:
-    - role: ansible_tmm.ocpvirt_windows_compliance.scan
+    - role: ../roles/scan
 
   post_tasks:
     - name: Display scan results

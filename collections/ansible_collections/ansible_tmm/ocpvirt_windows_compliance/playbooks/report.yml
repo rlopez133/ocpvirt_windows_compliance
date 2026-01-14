@@ -32,7 +32,7 @@
           Template: {{ report_template }}
 
   roles:
-    - role: ansible_tmm.ocpvirt_windows_compliance.report
+    - role: ../roles/report
 
   post_tasks:
     - name: Display report location

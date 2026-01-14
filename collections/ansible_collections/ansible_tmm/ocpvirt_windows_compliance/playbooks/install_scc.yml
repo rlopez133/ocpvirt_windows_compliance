@@ -28,7 +28,7 @@
           OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
 
   roles:
-    - role: ansible_tmm.ocpvirt_windows_compliance.scc_install
+    - role: ../roles/scc_install
 
   post_tasks:
     - name: Installation complete
