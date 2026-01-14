@@ -186,7 +186,7 @@
           pluginVersion: "10.0.0"
           targets:
             - expr: 'compliance_score{namespace="$namespace"}'
-              legendFormat: "{% raw %}{{ vm_name }}{% endraw %}"
+              legendFormat: "{{ '{{' }} vm_name {{ '}}' }}"
               refId: A
           title: Compliance Score Over Time
           type: timeseries
