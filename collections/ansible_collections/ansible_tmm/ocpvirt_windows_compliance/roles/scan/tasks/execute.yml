@@ -17,13 +17,18 @@
   ansible.builtin.debug:
     msg: "STIG content directories: {{ stig_content_search.files | map(attribute='path') | list }}"
 
+- name: Set STIG content path variable
+  ansible.builtin.set_fact:
+    stig_content_path: "{{ stig_content_search.files[0].path }}"
+  when: stig_content_search.files | length > 0
+
 - name: Find SCAP content file for benchmark
   ansible.windows.win_find:
-    paths: "{{ stig_content_search.files[0].path | default('C:\\') }}"
+    paths: "{{ stig_content_path }}"
     patterns: "*xccdf*.xml,*Benchmark*.xml"
     recurse: true
   register: scap_content_search
-  when: stig_content_search.files | length > 0
+  when: stig_content_path is defined
 
 - name: Display found SCAP content files
   ansible.builtin.debug:
@@ -34,11 +39,11 @@
   ansible.builtin.fail:
     msg: |
       No STIG content found for benchmark '{{ scc_benchmark }}'.
-      Searched in: {{ scc_install_path }}\Resources\Content
+      Searched in: {{ scc_install_path }}\\Resources\\Content
       Ensure STIG content was downloaded during SCC installation.
       Set scc_download_stig_content: true when running Install-SCC.
   when: >
-    (stig_content_search.files | default([]) | length == 0) or
+    (stig_content_path is not defined) or
     (scap_content_search is not defined) or
     (scap_content_search is skipped) or
     (scap_content_search.files | default([]) | length == 0)
