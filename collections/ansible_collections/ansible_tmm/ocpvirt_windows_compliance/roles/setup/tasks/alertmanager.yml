@@ -20,7 +20,20 @@
 - name: Deploy EDA bearer token secret
   kubernetes.core.k8s:
     state: present
-    definition: "{{ lookup('ansible.builtin.template', 'eda-token-secret.yml.j2') | from_yaml }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ eda_token_secret_name }}"
+        namespace: "{{ tenant_config.namespace }}"
+        labels:
+          app.kubernetes.io/name: "ocpvirt-windows-compliance"
+          app.kubernetes.io/component: "eda-integration"
+          compliance.ocpvirt/managed: "true"
+          compliance.ocpvirt/tenant: "{{ tenant_config.name }}"
+      type: Opaque
+      stringData:
+        token: "{{ eda_generated_token }}"
   when: eda_enabled | default(true)
   register: eda_token_secret_result
 
