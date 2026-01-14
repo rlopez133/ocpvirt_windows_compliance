@@ -121,7 +121,6 @@
 - name: Create event stream for compliance alerts
   ansible.eda.event_stream:
     name: "{{ eda_event_stream_name }}"
-    description: "Receives Prometheus/Alertmanager compliance alerts"
     credential_name: "{{ eda_event_stream_name }}-token"
     organization_name: "{{ eda_organization }}"
     forward_events: "{{ eda_forward_events }}"
