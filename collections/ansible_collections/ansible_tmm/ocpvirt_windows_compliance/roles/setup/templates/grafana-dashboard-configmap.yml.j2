@@ -9,4 +9,4 @@ metadata:
     app.kubernetes.io/component: dashboard
 data:
   compliance-dashboard.json: |
-{{ dashboard_json_content | indent(4, first=True) }}
+{{ dashboard_json_content | to_nice_json | indent(4, first=True) }}
