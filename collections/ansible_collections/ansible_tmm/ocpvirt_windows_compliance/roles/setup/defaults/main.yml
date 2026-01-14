@@ -40,6 +40,29 @@ tenant_config:
       info: 80
     webhook_url: ""  # Override per-tenant
 
+# Event-Driven Ansible (EDA) Configuration
+# EDA is set up first to create event stream, then Alertmanager points to it
+eda_enabled: true
+eda_project_name: "Windows Compliance"
+eda_project_url: ""  # Git URL for rulebook project (override in job template)
+eda_decision_environment: "Default Decision Environment"
+eda_rulebook_name: "compliance_remediation"
+eda_event_stream_name: "compliance-alerts"
+eda_credential_name: ""  # AAP credential name for controller access (override in job template)
+
+# Auto-remediation settings per category
+eda_auto_remediate_cat1: false  # CAT I - Critical, requires manual review
+eda_auto_remediate_cat2: true   # CAT II - Auto-remediate
+eda_auto_remediate_cat3: true   # CAT III - Auto-remediate
+
+# EDA Token and Authentication
+eda_token: ""  # Bearer token for event stream auth (auto-generated if empty)
+eda_token_secret_name: "eda-webhook-token"  # K8s secret name for Alertmanager
+eda_organization: "Default"  # EDA organization name
+eda_scm_branch: "main"  # Git branch for EDA project
+eda_forward_events: true  # Forward events to rulebook activations
+eda_headers: "Authorization,Content-Type"  # Headers to include in event payload
+
 # OpenShift Monitoring Configuration
 ocpvirt_compliance_enable_user_workload_monitoring: true
 ocpvirt_compliance_alertmanager_dedicated: true

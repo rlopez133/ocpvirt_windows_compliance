@@ -1,14 +1,30 @@
 ---
 # Setup Role - Alertmanager Configuration
 # Configures Alertmanager webhook receiver for EDA integration
+# Requires eda.yml to run first to set eda_webhook_url and eda_generated_token facts
+#
+# Task order:
+# 1. Deploy bearer token secret (US3)
+# 2. Deploy AlertmanagerConfig with auth (US3)
+# 3. Display configuration status (US3)
 
-- name: Determine webhook URL
-  ansible.builtin.set_fact:
-    eda_webhook_url: >-
-      {{ tenant_config.alerting.webhook_url | default(eda_config.controller_url + '/api/eda/v1/external_webhook/') }}
-  when: eda_config.enabled | default(true)
+# =============================================================================
+# Phase 5: User Story 3 - Alertmanager Bearer Token Configuration
+# =============================================================================
 
-- name: Deploy AlertmanagerConfig for EDA webhook
+- name: Skip Alertmanager configuration if EDA not enabled
+  ansible.builtin.debug:
+    msg: "Skipping Alertmanager webhook configuration - EDA is not enabled"
+  when: not (eda_enabled | default(true))
+
+- name: Deploy EDA bearer token secret
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('ansible.builtin.template', 'eda-token-secret.yml.j2') | from_yaml }}"
+  when: eda_enabled | default(true)
+  register: eda_token_secret_result
+
+- name: Deploy AlertmanagerConfig for EDA webhook with bearer token auth
   kubernetes.core.k8s:
     state: present
     definition:
@@ -62,6 +78,11 @@
                 sendResolved: true
                 httpConfig:
                   followRedirects: true
+                  authorization:
+                    type: Bearer
+                    credentials:
+                      name: "{{ eda_token_secret_name }}"
+                      key: token
 
           - name: eda-webhook-cat1
             webhookConfigs:
@@ -69,11 +90,21 @@
                 sendResolved: true
                 httpConfig:
                   followRedirects: true
-  when: eda_config.enabled | default(true)
+                  authorization:
+                    type: Bearer
+                    credentials:
+                      name: "{{ eda_token_secret_name }}"
+                      key: token
+  when: eda_enabled | default(true)
 
 - name: Display Alertmanager configuration status
   ansible.builtin.debug:
     msg: |
-      AlertmanagerConfig deployed:
+      AlertmanagerConfig deployed with bearer token authentication:
       - Namespace: {{ tenant_config.namespace }}
       - Webhook URL: {{ eda_webhook_url | default('Not configured') }}
+      - Token Secret: {{ eda_token_secret_name }}
+      - Secret Created: {{ 'Yes' if eda_token_secret_result is defined and eda_token_secret_result.changed else 'Already exists' }}
+
+      Alerts will be sent to EDA event stream with Authorization: Bearer <token> header.
+  when: eda_enabled | default(true)

@@ -1,6 +1,14 @@
 ---
 # Setup Role - Main Task Dispatcher
 # Configures all infrastructure components for compliance management
+#
+# Task Order (EDA-first pattern):
+# 1. EDA Setup (eda.yml) - Creates credential, project, event stream, and rulebook activation
+# 2. Alertmanager (alertmanager.yml) - Deploys token secret and webhook config using EDA URL
+# 3. Monitoring (monitoring.yml) - Enables user workload monitoring
+# 4. Prometheus Rules (prometheus_rules.yml) - Deploys compliance alert rules
+# 5. Grafana (grafana.yml) - Deploys dashboards
+# 6. Storage (storage.yml) - Creates PVCs for reports
 
 - name: Validate required variables
   ansible.builtin.assert:
@@ -15,7 +23,17 @@
     msg: |
       Setting up compliance infrastructure for tenant: {{ tenant_config.name }}
       Namespace: {{ tenant_config.namespace }}
-      Storage backend: {{ tenant_config.storage.backend | default('pvc') }}
+      EDA Enabled: {{ eda_enabled }}
+
+# EDA must be configured FIRST to get the event stream webhook URL
+- name: Configure Event-Driven Ansible
+  ansible.builtin.include_tasks: eda.yml
+  when: eda_enabled | default(true)
+
+# Alertmanager uses the webhook URL from EDA
+- name: Configure Alertmanager
+  ansible.builtin.include_tasks: alertmanager.yml
+  when: ocpvirt_compliance_alertmanager_dedicated | default(true)
 
 - name: Configure user workload monitoring
   ansible.builtin.include_tasks: monitoring.yml
@@ -24,17 +42,9 @@
 - name: Deploy Prometheus rules
   ansible.builtin.include_tasks: prometheus_rules.yml
 
-- name: Configure Alertmanager
-  ansible.builtin.include_tasks: alertmanager.yml
-  when: ocpvirt_compliance_alertmanager_dedicated | default(true)
-
 - name: Deploy Grafana dashboards
   ansible.builtin.include_tasks: grafana.yml
   when: ocpvirt_compliance_grafana_dashboards | default(true)
-
-- name: Configure EDA rulebook activation
-  ansible.builtin.include_tasks: eda.yml
-  when: eda_config.enabled | default(true)
 
 - name: Create storage resources
   ansible.builtin.include_tasks: storage.yml
@@ -44,7 +54,7 @@
     msg: |
       Compliance infrastructure setup complete!
       - Namespace: {{ tenant_config.namespace }}
-      - PrometheusRules: Deployed
+      - EDA: {{ 'Configured' if eda_enabled else 'Skipped' }}
       - Alertmanager: {{ 'Configured' if ocpvirt_compliance_alertmanager_dedicated else 'Skipped' }}
+      - PrometheusRules: Deployed
       - Grafana Dashboards: {{ 'Deployed' if ocpvirt_compliance_grafana_dashboards else 'Skipped' }}
-      - EDA: {{ 'Configured' if eda_config.enabled else 'Skipped' }}

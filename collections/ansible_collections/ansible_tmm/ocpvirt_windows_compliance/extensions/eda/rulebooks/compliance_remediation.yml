@@ -1,103 +1,115 @@
 ---
 # EDA Rulebook: Compliance Auto-Remediation
-# Triggers remediation when compliance alerts are received from Alertmanager
+# Triggers remediation when compliance alerts are received via event streams
+#
+# Event Stream Pattern:
+# - Uses pg_listener source with name matching event stream
+# - Event stream is bound at activation time via source_mappings
+# - Alertmanager payloads arrive as event.payload with alerts array
+#
+# Payload Structure (from Alertmanager):
+# event.payload.alerts[] - array of alert objects
+# event.payload.alerts[].status - "firing" or "resolved"
+# event.payload.alerts[].labels - alert labels (alertname, category, vm_name, etc.)
 
 - name: Compliance Auto-Remediation
   hosts: all
   sources:
-    - ansible.eda.alertmanager:
-        host: 0.0.0.0
-        port: 5001
+    - ansible.eda.pg_listener:
+        name: compliance-alerts
 
   rules:
     # Rule 1: CAT II violations - Auto-remediate
     - name: Remediate CAT II violations
       condition: >-
-        event.alert.status == "firing" and
-        event.alert.labels.category == "CAT2" and
-        event.alert.labels.get("compliance.ocpvirt/eda-enabled", "false") == "true"
+        event.payload.alerts is defined and
+        event.payload.alerts | selectattr('status', 'equalto', 'firing') |
+        selectattr('labels.category', 'equalto', 'CAT2') | list | length > 0
       action:
         run_job_template:
           name: Compliance-Remediate
-          organization: "{{ aap_organization | default('Default') }}"
+          organization: "{{ eda_organization | default('Default') }}"
           job_args:
             extra_vars:
-              target_vm: "{{ event.alert.labels.vm_name }}"
-              target_namespace: "{{ event.alert.labels.namespace }}"
-              control_id: "{{ event.alert.labels.control_id }}"
+              target_vm: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT2') | first).labels.vm_name }}"
+              target_namespace: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT2') | first).labels.namespace }}"
+              control_id: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT2') | first).labels.control_id | default('') }}"
               trigger_source: "eda"
+              auto_remediate: "{{ auto_remediate_cat2 | default(true) }}"
               cat_levels:
                 - cat2
-            limit: "{{ event.alert.labels.vm_name }}"
+            limit: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT2') | first).labels.vm_name }}"
 
     # Rule 2: CAT III violations - Auto-remediate
     - name: Remediate CAT III violations
       condition: >-
-        event.alert.status == "firing" and
-        event.alert.labels.category == "CAT3" and
-        event.alert.labels.get("compliance.ocpvirt/eda-enabled", "false") == "true"
+        event.payload.alerts is defined and
+        event.payload.alerts | selectattr('status', 'equalto', 'firing') |
+        selectattr('labels.category', 'equalto', 'CAT3') | list | length > 0
       action:
         run_job_template:
           name: Compliance-Remediate
-          organization: "{{ aap_organization | default('Default') }}"
+          organization: "{{ eda_organization | default('Default') }}"
           job_args:
             extra_vars:
-              target_vm: "{{ event.alert.labels.vm_name }}"
-              target_namespace: "{{ event.alert.labels.namespace }}"
-              control_id: "{{ event.alert.labels.control_id }}"
+              target_vm: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT3') | first).labels.vm_name }}"
+              target_namespace: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT3') | first).labels.namespace }}"
+              control_id: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT3') | first).labels.control_id | default('') }}"
               trigger_source: "eda"
+              auto_remediate: "{{ auto_remediate_cat3 | default(true) }}"
               cat_levels:
                 - cat3
-            limit: "{{ event.alert.labels.vm_name }}"
+            limit: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT3') | first).labels.vm_name }}"
 
     # Rule 3: CAT I violations - Notify only (no auto-remediation)
     - name: Notify on CAT I violations
       condition: >-
-        event.alert.status == "firing" and
-        event.alert.labels.category == "CAT1"
+        event.payload.alerts is defined and
+        event.payload.alerts | selectattr('status', 'equalto', 'firing') |
+        selectattr('labels.category', 'equalto', 'CAT1') | list | length > 0
       action:
         run_job_template:
           name: Notify-Compliance-Team
-          organization: "{{ aap_organization | default('Default') }}"
+          organization: "{{ eda_organization | default('Default') }}"
           job_args:
             extra_vars:
               notification_type: "critical"
-              vm_name: "{{ event.alert.labels.vm_name }}"
-              namespace: "{{ event.alert.labels.namespace }}"
-              control_id: "{{ event.alert.labels.control_id }}"
+              vm_name: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT1') | first).labels.vm_name }}"
+              namespace: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT1') | first).labels.namespace }}"
+              control_id: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.category', 'equalto', 'CAT1') | first).labels.control_id | default('') }}"
               message: "Critical CAT I compliance violation detected. Manual remediation required."
+              auto_remediate: "{{ auto_remediate_cat1 | default(false) }}"
 
     # Rule 4: Compliance score below threshold
     - name: Remediate low compliance score
       condition: >-
-        event.alert.status == "firing" and
-        event.alert.labels.alertname == "ComplianceScoreBelowThreshold" and
-        event.alert.labels.get("compliance.ocpvirt/eda-enabled", "false") == "true"
+        event.payload.alerts is defined and
+        event.payload.alerts | selectattr('status', 'equalto', 'firing') |
+        selectattr('labels.alertname', 'equalto', 'ComplianceScoreBelowThreshold') | list | length > 0
       action:
         run_job_template:
           name: Compliance-Remediate
-          organization: "{{ aap_organization | default('Default') }}"
+          organization: "{{ eda_organization | default('Default') }}"
           job_args:
             extra_vars:
-              target_vm: "{{ event.alert.labels.vm_name }}"
-              target_namespace: "{{ event.alert.labels.namespace }}"
+              target_vm: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.alertname', 'equalto', 'ComplianceScoreBelowThreshold') | first).labels.vm_name }}"
+              target_namespace: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.alertname', 'equalto', 'ComplianceScoreBelowThreshold') | first).labels.namespace }}"
               trigger_source: "eda"
               cat_levels:
                 - cat2
                 - cat3
-            limit: "{{ event.alert.labels.vm_name }}"
+            limit: "{{ (event.payload.alerts | selectattr('status', 'equalto', 'firing') | selectattr('labels.alertname', 'equalto', 'ComplianceScoreBelowThreshold') | first).labels.vm_name }}"
 
-    # Rule 5: Log all alerts for audit
+    # Rule 5: Log all compliance alerts for audit
     - name: Log all compliance alerts
       condition: >-
-        event.alert.labels.alertname is match("Compliance.*")
+        event.payload.alerts is defined and
+        event.payload.alerts | length > 0
       action:
         debug:
           msg: |
-            Compliance Alert Received:
-            - Alert: {{ event.alert.labels.alertname }}
-            - Status: {{ event.alert.status }}
-            - VM: {{ event.alert.labels.vm_name }}
-            - Namespace: {{ event.alert.labels.namespace }}
-            - Category: {{ event.alert.labels.category }}
-            - Control: {{ event.alert.labels.control_id }}
+            Compliance Alert Batch Received:
+            - Total Alerts: {{ event.payload.alerts | length }}
+            - Firing: {{ event.payload.alerts | selectattr('status', 'equalto', 'firing') | list | length }}
+            - Resolved: {{ event.payload.alerts | selectattr('status', 'equalto', 'resolved') | list | length }}
+            - Alerts: {{ event.payload.alerts | map(attribute='labels.alertname') | list }}

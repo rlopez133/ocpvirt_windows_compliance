@@ -1,69 +1,157 @@
 ---
-# Setup Role - EDA Rulebook Activation
-# Configures Event Driven Ansible for auto-remediation
+# Setup Role - Event-Driven Ansible Configuration
+# Uses ansible.eda collection to configure EDA components
+# Must run BEFORE alertmanager.yml to get event stream webhook URL
+#
+# Task order:
+# 1. Token generation (Foundational)
+# 2. Validation (Foundational)
+# 3. Credential creation (US1)
+# 4. Project creation (US1)
+# 5. Event stream creation (US2)
+# 6. Rulebook activation (US5)
 
-- name: Validate EDA configuration
+# =============================================================================
+# Phase 2: Foundational - Token Generation and Validation
+# =============================================================================
+
+- name: Generate bearer token if not provided
+  ansible.builtin.set_fact:
+    eda_generated_token: >-
+      {{ eda_token if eda_token | length > 0
+         else lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=64') }}
+
+- name: Validate EDA project URL is defined
   ansible.builtin.assert:
     that:
-      - eda_config.controller_url is defined
-      - eda_config.controller_url | length > 0
-    fail_msg: "eda_config.controller_url is required for EDA setup"
+      - eda_project_url is defined
+      - eda_project_url | length > 0
+    fail_msg: >-
+      eda_project_url must be defined when eda_enabled is true.
+      Provide the Git repository URL containing your EDA rulebooks.
+    success_msg: "EDA project URL validated: {{ eda_project_url }}"
 
 - name: Display EDA configuration
   ansible.builtin.debug:
     msg: |
-      Configuring EDA rulebook activation:
-      - Controller URL: {{ eda_config.controller_url }}
-      - Rulebook: {{ eda_config.rulebook_name | default('compliance-auto-remediation') }}
-      - Auto-remediate CAT I: {{ eda_config.auto_remediate_cat1 | default(false) }}
-      - Auto-remediate CAT II: {{ eda_config.auto_remediate_cat2 | default(true) }}
-      - Auto-remediate CAT III: {{ eda_config.auto_remediate_cat3 | default(true) }}
+      Configuring Event-Driven Ansible:
+      - Organization: {{ eda_organization }}
+      - Project: {{ eda_project_name }}
+      - Project URL: {{ eda_project_url }}
+      - Branch: {{ eda_scm_branch }}
+      - Decision Environment: {{ eda_decision_environment }}
+      - Event Stream: {{ eda_event_stream_name }}
+      - Rulebook: {{ eda_rulebook_name }}
+      - Token: {{ 'Provided' if eda_token | length > 0 else 'Auto-generated' }}
 
-# Note: EDA rulebook activation is typically configured through AAP UI or API
-# This task documents the expected configuration
+# =============================================================================
+# Phase 3: User Story 1 - EDA Credential and Project Setup
+# =============================================================================
 
-- name: Create EDA configuration documentation
-  kubernetes.core.k8s:
+- name: Create EDA token credential for event stream
+  ansible.eda.credential:
+    name: "{{ eda_event_stream_name }}-token"
+    description: "Bearer token credential for {{ eda_event_stream_name }} event stream"
+    credential_type_name: "Token Event Stream"
+    organization_name: "{{ eda_organization }}"
+    inputs:
+      token: "{{ eda_generated_token }}"
     state: present
-    definition:
-      apiVersion: v1
-      kind: ConfigMap
-      metadata:
-        name: eda-compliance-config
-        namespace: "{{ tenant_config.namespace }}"
-        labels: "{{ compliance_labels }}"
-      data:
-        eda-config.yaml: |
-          # EDA Rulebook Activation Configuration
-          # Apply this configuration in EDA Controller
+  register: eda_credential_result
 
-          rulebook_activation:
-            name: "{{ eda_config.rulebook_name | default('compliance-auto-remediation') }}"
-            rulebook: compliance_remediation.yml
-            project: Windows Compliance Collection
-            decision_environment: Default Decision Environment
-            enabled: true
+- name: Create EDA project
+  ansible.eda.project:
+    name: "{{ eda_project_name }}"
+    description: "Windows Compliance Collection for STIG remediation"
+    url: "{{ eda_project_url }}"
+    scm_branch: "{{ eda_scm_branch }}"
+    organization_name: "{{ eda_organization }}"
+    state: present
+  register: eda_project_result
 
-            extra_vars:
-              aap_controller_url: "{{ aap_config.controller_url | default('') }}"
-              remediation_job_template: Compliance-Remediate
-              tenant_namespace: "{{ tenant_config.namespace }}"
-              auto_remediate_cat1: {{ eda_config.auto_remediate_cat1 | default(false) }}
-              auto_remediate_cat2: {{ eda_config.auto_remediate_cat2 | default(true) }}
-              auto_remediate_cat3: {{ eda_config.auto_remediate_cat3 | default(true) }}
+- name: Sync EDA project to fetch rulebooks
+  ansible.eda.project:
+    name: "{{ eda_project_name }}"
+    organization_name: "{{ eda_organization }}"
+    state: present
+    update_project: true
+  register: eda_project_sync_result
 
-            sources:
-              - type: alertmanager
-                name: compliance-alerts
-                host: 0.0.0.0
-                port: {{ eda_config.webhook_port | default(5001) }}
-
-- name: Display EDA setup instructions
+- name: Display credential and project creation status
   ansible.builtin.debug:
     msg: |
-      EDA configuration saved to ConfigMap 'eda-compliance-config'.
+      EDA Credential and Project Created:
+      - Credential: {{ eda_event_stream_name }}-token (ID: {{ eda_credential_result.id | default('N/A') }})
+      - Project: {{ eda_project_name }} (ID: {{ eda_project_result.id | default('N/A') }})
+      - Project Sync: {{ 'Complete' if eda_project_sync_result is defined else 'Pending' }}
 
-      Manual steps required in EDA Controller:
-      1. Import the rulebook from the collection
-      2. Create a rulebook activation with the configuration above
-      3. Ensure the decision environment has network access to AAP
+# =============================================================================
+# Phase 4: User Story 2 - Event Stream with Authentication
+# =============================================================================
+
+- name: Create event stream for compliance alerts
+  ansible.eda.event_stream:
+    name: "{{ eda_event_stream_name }}"
+    description: "Receives Prometheus/Alertmanager compliance alerts"
+    credential_name: "{{ eda_event_stream_name }}-token"
+    organization_name: "{{ eda_organization }}"
+    forward_events: "{{ eda_forward_events }}"
+    headers: "{{ eda_headers }}"
+    state: present
+  register: eda_event_stream_result
+
+- name: Construct event stream webhook URL
+  ansible.builtin.set_fact:
+    eda_webhook_url: >-
+      {{ lookup('ansible.builtin.env', 'CONTROLLER_HOST', default='') }}/api/eda/v1/external_event_stream/{{ eda_event_stream_result.id }}/
+
+- name: Display event stream webhook URL
+  ansible.builtin.debug:
+    msg: |
+      Event Stream Created:
+      - Name: {{ eda_event_stream_name }}
+      - ID: {{ eda_event_stream_result.id | default('N/A') }}
+      - Webhook URL: {{ eda_webhook_url }}
+      - Forward Events: {{ eda_forward_events }}
+      - Headers: {{ eda_headers }}
+
+      Alertmanager will be configured to send alerts to this webhook.
+
+# =============================================================================
+# Phase 7: User Story 5 - Rulebook Activation with Event Stream Binding
+# =============================================================================
+
+- name: Create rulebook activation with event stream binding
+  ansible.eda.rulebook_activation:
+    name: "{{ eda_event_stream_name }}-activation"
+    description: "Auto-remediation for Windows compliance violations"
+    project_name: "{{ eda_project_name }}"
+    rulebook_name: "{{ eda_rulebook_name }}.yml"
+    decision_environment_name: "{{ eda_decision_environment }}"
+    organization_name: "{{ eda_organization }}"
+    source_mappings:
+      - source_name: "compliance-alerts"
+        event_stream_name: "{{ eda_event_stream_name }}"
+    extra_vars:
+      tenant_namespace: "{{ tenant_config.namespace }}"
+      auto_remediate_cat1: "{{ eda_auto_remediate_cat1 }}"
+      auto_remediate_cat2: "{{ eda_auto_remediate_cat2 }}"
+      auto_remediate_cat3: "{{ eda_auto_remediate_cat3 }}"
+    enabled: true
+    state: present
+  register: eda_activation_result
+
+- name: Display rulebook activation status
+  ansible.builtin.debug:
+    msg: |
+      Rulebook Activation Created:
+      - Name: {{ eda_event_stream_name }}-activation
+      - ID: {{ eda_activation_result.id | default('N/A') }}
+      - Project: {{ eda_project_name }}
+      - Rulebook: {{ eda_rulebook_name }}.yml
+      - Event Stream Binding: {{ eda_event_stream_name }}
+      - Auto-Remediate CAT I: {{ eda_auto_remediate_cat1 }}
+      - Auto-Remediate CAT II: {{ eda_auto_remediate_cat2 }}
+      - Auto-Remediate CAT III: {{ eda_auto_remediate_cat3 }}
+
+      EDA configuration complete. Alerts will flow from Alertmanager to this rulebook.
