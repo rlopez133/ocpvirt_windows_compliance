@@ -159,6 +159,10 @@
 # =============================================================================
 # Phase 7: User Story 5 - Rulebook Activation with Event Stream Binding
 # =============================================================================
+# NOTE: Rulebooks must be at extensions/eda/rulebooks/ at the ROOT of the Git repo.
+# For Ansible Collections, eda_project_url should point to the collection root:
+#   e.g., https://github.com/org/repo.git with subpath to collection directory
+# Or the collection must be published and extensions/eda/rulebooks at repo root.
 
 - name: Create rulebook activation with event stream binding
   ansible.eda.rulebook_activation:
