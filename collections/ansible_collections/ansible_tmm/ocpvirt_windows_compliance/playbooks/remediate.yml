@@ -39,7 +39,7 @@
           Trigger: {{ trigger_source }}
 
   roles:
-    - role: ansible_tmm.ocpvirt_windows_compliance.remediate
+    - role: ../roles/remediate
 
   post_tasks:
     - name: Display completion message
