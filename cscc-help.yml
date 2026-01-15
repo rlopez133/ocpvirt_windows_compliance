@@ -5,9 +5,9 @@
   
   tasks:
     - name: Run cscc help command
-      win_shell: & 'C:\Program Files\DISA\SCC\cscc.exe' --help
+      ansible.windows.win_shell: & 'C:\Program Files\DISA\SCC\cscc.exe' --help
       register: cscc_output
       
     - name: Display output
-      debug:
+      ansible.builtin.debug:
         var: cscc_output.stdout_lines
