@@ -136,17 +136,22 @@
 
     # =========================================================================
     # Step 4: Restart WinRM to apply changes
+    # Use async "fire and forget" restart to avoid connection drop issues
     # =========================================================================
-    - name: Restart WinRM service to apply changes
-      ansible.windows.win_service:
-        name: WinRM
-        state: restarted
+    - name: Restart WinRM service asynchronously (fire and forget)
+      ansible.windows.win_shell: |
+        # Schedule WinRM restart after a 2-second delay to allow this command to complete
+        Start-Process powershell -ArgumentList '-Command', 'Start-Sleep -Seconds 2; Restart-Service WinRM -Force' -WindowStyle Hidden
       when: disable_basic_client.changed or disable_basic_service.changed
+      async: 10
+      poll: 0
+      register: restart_async
 
-    - name: Wait for WinRM to be ready after restart
+    - name: Wait for WinRM to restart and reconnect
       ansible.builtin.wait_for_connection:
         delay: 5
-        timeout: 60
+        timeout: 120
+        sleep: 5
       when: disable_basic_client.changed or disable_basic_service.changed
 
     # =========================================================================
