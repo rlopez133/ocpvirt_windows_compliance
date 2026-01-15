@@ -67,9 +67,6 @@
           choices:
             - "stig"
             - "stig-minimal"
-            - "cis"
-            - "hipaa"
-            - "pci-dss"
           default: "stig"
           required: true
     state: present
@@ -80,7 +77,7 @@
 - name: Create Compliance-Remediate job template
   ansible.controller.job_template:
     name: "Compliance-Remediate"
-    description: "Apply compliance remediation to Windows VMs"
+    description: "Apply scan-driven CAT I remediation to Windows VMs based on scan results"
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
     playbook: "{{ aap_playbook_path_prefix }}/remediate.yml"
@@ -91,35 +88,10 @@
     ask_limit_on_launch: true
     extra_vars:
       compliance_profile: "stig"
-      cat_levels:
-        - "cat1"
-        - "cat2"
-    survey_enabled: true
-    survey_spec:
-      name: "Remediation Parameters"
-      description: "Configure remediation options"
-      spec:
-        - question_name: "Compliance Profile"
-          variable: "compliance_profile"
-          type: "multiplechoice"
-          choices:
-            - "stig"
-            - "stig-minimal"
-            - "cis"
-            - "hipaa"
-            - "pci-dss"
-          default: "stig"
-          required: true
-        - question_name: "CAT Levels to Apply"
-          question_description: "Select which severity levels to remediate"
-          variable: "cat_levels"
-          type: "multiselect"
-          choices:
-            - "cat1"
-            - "cat2"
-            - "cat3"
-          default: "cat1\ncat2"
-          required: true
+      # failed_cat1_controls should be passed from scan results in a workflow
+      # Example: ["V-205711", "V-205713", "V-205919"]
+      failed_cat1_controls: []
+    survey_enabled: false
     state: present
 
 # =============================================================================
@@ -239,7 +211,6 @@
           choices:
             - "stig"
             - "stig-minimal"
-            - "cis"
           default: "stig"
           required: true
         - question_name: "Source DataVolume"

@@ -1,6 +1,7 @@
 ---
 # Remediate Role Defaults
-# Applies compliance remediation to Windows VMs
+# Applies scan-driven CAT I remediation to Windows VMs
+# Only remediates controls that failed in the scan results
 
 # Target VMs - override with job template variables
 target_vms: []
@@ -10,24 +11,16 @@ target_vms: []
 # Compliance profile
 compliance_profile: "stig"
 
-# Remediation scope
-remediation_scope: "failed_only"  # all | failed_only
+# For scan-driven mode: List of failed control V-IDs from scan results
+# This is populated by the scan role and passed to remediation
+# Example: ["V-205711", "V-205713", "V-205919"]
+failed_cat1_controls: []
 
-# Category levels to remediate
-cat_levels:
-  - cat1
-  - cat2
-  # - cat3  # Uncomment to include low severity
-
-# Specific controls to remediate (empty = all in selected categories)
-specific_controls: []
-
-# Controls to skip
+# Controls to skip (by V-ID)
 skip_controls: []
 
 # Safety settings
 allow_reboot: false
-disruption_high: false
 backup_before_change: true
 dry_run: false
 

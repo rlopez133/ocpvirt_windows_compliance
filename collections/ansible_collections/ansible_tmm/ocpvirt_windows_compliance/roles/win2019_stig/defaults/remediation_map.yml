@@ -1,0 +1,365 @@
+---
+# Windows Server 2019 STIG CAT I Remediation Map
+# Maps V-IDs to remediation actions
+# Used by scan-driven remediation to only fix failed controls
+#
+# Reference: DISA STIG V3R2 (January 2025)
+# Only includes CAT I (High Severity) controls that are automatable
+#
+# Each entry contains:
+#   - v_id: The Vulnerability ID from XCCDF results (V-XXXXXX)
+#   - stig_id: The STIG rule ID (WN19-XX-XXXXXX)
+#   - title: Brief description
+#   - automatable: Whether this can be fixed automatically (true/false)
+#   - remediation_type: registry, security_policy, user_right, powershell, manual
+#   - remediation: The specific fix details
+
+win2019_cat1_remediation_map:
+  # ============================================================================
+  # AutoPlay / AutoRun Controls
+  # ============================================================================
+  - v_id: "V-205804"
+    stig_id: "WN19-CC-000210"
+    title: "AutoPlay must be disabled for non-volume devices"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer"
+      name: "NoAutoplayfornonVolume"
+      value: 1
+      type: dword
+
+  - v_id: "V-205805"
+    stig_id: "WN19-CC-000220"
+    title: "Default AutoRun behavior must be set to not execute commands"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer"
+      name: "NoAutorun"
+      value: 1
+      type: dword
+
+  - v_id: "V-205806"
+    stig_id: "WN19-CC-000230"
+    title: "AutoPlay must be turned off for all drives"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer"
+      name: "NoDriveTypeAutoRun"
+      value: 255
+      type: dword
+
+  # ============================================================================
+  # Windows Installer Control
+  # ============================================================================
+  - v_id: "V-205802"
+    stig_id: "WN19-CC-000430"
+    title: "Windows Installer Always Install Elevated must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer"
+      name: "AlwaysInstallElevated"
+      value: 0
+      type: dword
+
+  # ============================================================================
+  # WinRM Controls - CRITICAL: Handle with care for connectivity
+  # Note: These are handled specially in winrm_migration.yml
+  # ============================================================================
+  - v_id: "V-205711"
+    stig_id: "WN19-CC-000470"
+    title: "WinRM client must not use Basic authentication"
+    automatable: true
+    remediation_type: winrm
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WinRM\\Client"
+      name: "AllowBasic"
+      value: 0
+      type: dword
+    requires_winrm_migration: true
+
+  - v_id: "V-205713"
+    stig_id: "WN19-CC-000500"
+    title: "WinRM service must not use Basic authentication"
+    automatable: true
+    remediation_type: winrm
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WinRM\\Service"
+      name: "AllowBasic"
+      value: 0
+      type: dword
+    requires_winrm_migration: true
+
+  # ============================================================================
+  # Account and Password Controls
+  # ============================================================================
+  - v_id: "V-205653"
+    stig_id: "WN19-AC-000090"
+    title: "Reversible password encryption must be disabled"
+    automatable: true
+    remediation_type: security_policy
+    remediation:
+      section: "System Access"
+      key: "ClearTextPassword"
+      value: 0
+
+  - v_id: "V-205908"
+    stig_id: "WN19-SO-000020"
+    title: "Blank passwords must be prevented from network access"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+      name: "LimitBlankPasswordUse"
+      value: 1
+      type: dword
+
+  # ============================================================================
+  # Anonymous Access Controls
+  # ============================================================================
+  - v_id: "V-205913"
+    stig_id: "WN19-SO-000210"
+    title: "Anonymous SID/Name translation must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+      name: "AnonymousNameLookup"
+      value: 0
+      type: dword
+
+  - v_id: "V-205914"
+    stig_id: "WN19-SO-000220"
+    title: "Anonymous enumeration of SAM accounts must be prevented"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+      name: "RestrictAnonymousSAM"
+      value: 1
+      type: dword
+
+  - v_id: "V-205724"
+    stig_id: "WN19-SO-000230"
+    title: "Anonymous enumeration of shares must be prevented"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+      name: "RestrictAnonymous"
+      value: 1
+      type: dword
+
+  - v_id: "V-205725"
+    stig_id: "WN19-SO-000250"
+    title: "Null session access to shares must be restricted"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+      name: "RestrictNullSessAccess"
+      value: 1
+      type: dword
+
+  # ============================================================================
+  # LAN Manager / NTLM Controls
+  # ============================================================================
+  - v_id: "V-205654"
+    stig_id: "WN19-SO-000300"
+    title: "LAN Manager hash storage must be prevented"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+      name: "NoLMHash"
+      value: 1
+      type: dword
+
+  - v_id: "V-205919"
+    stig_id: "WN19-SO-000310"
+    title: "NTLMv2 must be required and LM/NTLM refused"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+      name: "LmCompatibilityLevel"
+      value: 5
+      type: dword
+
+  # ============================================================================
+  # Credential Guard (Member Servers)
+  # ============================================================================
+  - v_id: "V-205907"
+    stig_id: "WN19-MS-000140"
+    title: "Credential Guard must be enabled"
+    automatable: true
+    remediation_type: registry_multi
+    remediation:
+      - path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard"
+        name: "EnableVirtualizationBasedSecurity"
+        value: 1
+        type: dword
+      - path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard"
+        name: "RequirePlatformSecurityFeatures"
+        value: 1
+        type: dword
+      - path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity"
+        name: "Enabled"
+        value: 1
+        type: dword
+      - path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+        name: "LsaCfgFlags"
+        value: 1
+        type: dword
+
+  # ============================================================================
+  # User Rights Controls
+  # ============================================================================
+  - v_id: "V-205750"
+    stig_id: "WN19-UR-000020"
+    title: "Act as part of OS must be limited to no accounts"
+    automatable: true
+    remediation_type: user_right
+    remediation:
+      right: "SeTcbPrivilege"
+      accounts: []
+
+  - v_id: "V-205753"
+    stig_id: "WN19-UR-000060"
+    title: "Create token object must be limited to no accounts"
+    automatable: true
+    remediation_type: user_right
+    remediation:
+      right: "SeCreateTokenPrivilege"
+      accounts: []
+
+  - v_id: "V-205757"
+    stig_id: "WN19-UR-000100"
+    title: "Debug programs must be limited to Administrators"
+    automatable: true
+    remediation_type: user_right
+    remediation:
+      right: "SeDebugPrivilege"
+      accounts:
+        - "*S-1-5-32-544"
+
+  # ============================================================================
+  # Manual Verification Controls (Cannot be automated)
+  # These are tracked but not auto-remediated
+  # ============================================================================
+  - v_id: "V-205844"
+    stig_id: "WN19-00-000010"
+    title: "Administrative accounts must be separated"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Create separate admin accounts for privileged duties"
+
+  - v_id: "V-205845"
+    stig_id: "WN19-00-000030"
+    title: "Admin accounts must not access internet applications"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Implement policy restricting admin internet access"
+
+  - v_id: "V-205849"
+    stig_id: "WN19-00-000100"
+    title: "System must be at a supported servicing level"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Update Windows Server 2019 to latest servicing level"
+
+  - v_id: "V-205850"
+    stig_id: "WN19-00-000110"
+    title: "Antivirus solution must be installed"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Install Windows Defender or approved antivirus solution"
+
+  - v_id: "V-205663"
+    stig_id: "WN19-00-000130"
+    title: "NTFS file system required for all volumes"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Convert volumes to NTFS or ReFS"
+
+  # ============================================================================
+  # Domain Controller Controls (Manual - require AD verification)
+  # ============================================================================
+  - v_id: "V-205738"
+    stig_id: "WN19-DC-000010"
+    title: "DC must have only domain admins in Administrators"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Review and restrict local Administrators group membership"
+    dc_only: true
+
+  - v_id: "V-205739"
+    stig_id: "WN19-DC-000070"
+    title: "AD data files must have proper permissions"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Set NTDS.dit permissions to SYSTEM and Administrators only"
+    dc_only: true
+
+  - v_id: "V-205740"
+    stig_id: "WN19-DC-000080"
+    title: "SYSVOL must have proper access controls"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Restrict SYSVOL access appropriately"
+    dc_only: true
+
+  - v_id: "V-205741"
+    stig_id: "WN19-DC-000090"
+    title: "GPO permissions must be restricted"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Limit GPO edit permissions to authorized administrators"
+    dc_only: true
+
+  - v_id: "V-205742"
+    stig_id: "WN19-DC-000100"
+    title: "Domain Controllers OU must be protected"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Restrict DC OU permissions to Domain/Enterprise Admins"
+    dc_only: true
+
+  - v_id: "V-205743"
+    stig_id: "WN19-DC-000110"
+    title: "Organization OUs must have proper access controls"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Maintain restrictive OU permissions"
+    dc_only: true
+
+  - v_id: "V-205875"
+    stig_id: "WN19-DC-000150"
+    title: "Anonymous AD access must be prevented"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Verify null session access returns no data"
+    dc_only: true
+
+  - v_id: "V-205746"
+    stig_id: "WN19-MS-000010"
+    title: "Member server must restrict Administrators group"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Review and restrict local Administrators membership"

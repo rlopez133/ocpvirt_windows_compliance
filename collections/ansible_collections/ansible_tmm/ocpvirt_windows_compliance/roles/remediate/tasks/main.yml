@@ -1,22 +1,22 @@
 ---
 # Remediate Role - Main Task Dispatcher
-# Detects OS version and dispatches to appropriate remediation role
+# Scan-driven CAT I remediation only
+# Only fixes controls that failed in the scan results
 
 - name: Validate remediation configuration
   ansible.builtin.assert:
     that:
-      - cat_levels is defined
-      - cat_levels | length > 0
-    fail_msg: "At least one CAT level must be specified for remediation"
+      - failed_cat1_controls is defined
+    fail_msg: "failed_cat1_controls must be provided from scan results"
 
 - name: Display remediation plan
   ansible.builtin.debug:
     msg: |
-      Remediation Configuration
-      =========================
+      Scan-Driven CAT I Remediation
+      =============================
       Profile: {{ compliance_profile }}
-      Scope: {{ remediation_scope }}
-      CAT Levels: {{ cat_levels | join(', ') }}
+      Failed CAT I Controls: {{ failed_cat1_controls | length }}
+      Controls: {{ failed_cat1_controls | join(', ') | default('None') }}
       Allow Reboot: {{ allow_reboot }}
       Dry Run: {{ dry_run }}
       Trigger: {{ trigger_source }}
@@ -61,34 +61,34 @@
 - name: Log remediation start
   ansible.builtin.set_fact:
     remediation_start_time: "{{ ansible_date_time.iso8601 }}"
-    remediation_changes: []
 
-- name: Apply Windows 2022 STIG remediation
-  when: windows_version == '2022'
-  ansible.builtin.include_role:
-    name: ansible_tmm.ocpvirt_windows_compliance.win2022_stig
-  vars:
-    win22stig_cat1_patch: "{{ 'cat1' in cat_levels }}"
-    win22stig_cat2_patch: "{{ 'cat2' in cat_levels }}"
-    win22stig_cat3_patch: "{{ 'cat3' in cat_levels }}"
-    win22stig_disruption_high: "{{ disruption_high }}"
-    win22stig_skip_rules: "{{ skip_controls }}"
-
-- name: Apply Windows 2019 STIG remediation
-  when: windows_version == '2019'
+# ============================================================================
+# Apply scan-driven remediation based on failed controls
+# ============================================================================
+- name: Apply Windows 2019 STIG scan-driven remediation
+  when:
+    - windows_version == '2019'
+    - failed_cat1_controls | length > 0
   ansible.builtin.include_role:
     name: ansible_tmm.ocpvirt_windows_compliance.win2019_stig
+    tasks_from: scan_driven_remediation.yml
   vars:
-    win19stig_cat1_patch: "{{ 'cat1' in cat_levels }}"
-    win19stig_cat2_patch: "{{ 'cat2' in cat_levels }}"
-    win19stig_cat3_patch: "{{ 'cat3' in cat_levels }}"
-    win19stig_disruption_high: "{{ disruption_high }}"
-    win19stig_skip_rules: "{{ skip_controls }}"
+    failed_cat1_controls: "{{ failed_cat1_controls }}"
+
+- name: Skip remediation - no failed CAT I controls
+  when: failed_cat1_controls | length == 0
+  ansible.builtin.debug:
+    msg: "No failed CAT I controls to remediate. System may already be compliant."
 
 - name: Fail if OS not supported
   when: windows_version == 'unknown'
   ansible.builtin.fail:
-    msg: "Unsupported Windows version: {{ os_info.Caption }}. Only Windows Server 2019 and 2022 are supported."
+    msg: "Unsupported Windows version: {{ os_info.Caption }}. Only Windows Server 2019 is currently supported."
+
+- name: Fail if Windows 2022 (not yet implemented)
+  when: windows_version == '2022'
+  ansible.builtin.fail:
+    msg: "Windows Server 2022 scan-driven remediation not yet implemented. Coming soon."
 
 - name: Log remediation completion
   ansible.builtin.set_fact:
@@ -97,9 +97,9 @@
       completed: "{{ ansible_date_time.iso8601 }}"
       os_version: "{{ windows_version }}"
       profile: "{{ compliance_profile }}"
-      cat_levels: "{{ cat_levels }}"
       trigger: "{{ trigger_source }}"
       dry_run: "{{ dry_run }}"
+      failed_cat1_count: "{{ failed_cat1_controls | length }}"
 
 - name: Display remediation summary
   ansible.builtin.debug:
@@ -110,7 +110,7 @@
       Completed: {{ remediation_result.completed }}
       OS Version: Windows Server {{ remediation_result.os_version }}
       Profile: {{ remediation_result.profile }}
-      CAT Levels: {{ remediation_result.cat_levels | join(', ') }}
+      Failed CAT I Controls Processed: {{ remediation_result.failed_cat1_count }}
       Dry Run: {{ remediation_result.dry_run }}
 
       Note: Run a compliance scan to verify remediation effectiveness.

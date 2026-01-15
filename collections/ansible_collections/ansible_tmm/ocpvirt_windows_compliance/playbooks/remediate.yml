@@ -1,21 +1,24 @@
 ---
 # Remediate Playbook
-# Applies compliance remediation to Windows VMs
+# Scan-driven CAT I remediation for Windows VMs
 #
 # This playbook should be run as an AAP Job Template against Windows VMs.
 # Use limit/filter to target specific VMs.
+#
+# Pass failed_cat1_controls from scan results to remediate only failed controls.
+# Example usage (in AAP workflow):
+#   failed_cat1_controls: "{{ scan_result.failed_controls.cat1 }}"
 
-- name: Apply Compliance Remediation
+- name: Apply Scan-Driven CAT I Remediation
   hosts: all
   gather_facts: true
 
   vars:
     compliance_profile: "stig"
-    cat_levels:
-      - cat1
-      - cat2
+    # Pass failed control V-IDs from scan results
+    # Example: ["V-205711", "V-205713", "V-205919"]
+    failed_cat1_controls: []
     allow_reboot: false
-    disruption_high: false
     dry_run: false
     trigger_source: "manual"
 
@@ -29,14 +32,23 @@
     - name: Display remediation plan
       ansible.builtin.debug:
         msg: |
-          Remediation Configuration
-          =========================
+          Scan-Driven CAT I Remediation
+          =============================
           Target: {{ inventory_hostname }}
           Profile: {{ compliance_profile }}
-          CAT Levels: {{ cat_levels | join(', ') }}
+          Failed CAT I Controls: {{ failed_cat1_controls | length }}
+          Controls: {{ failed_cat1_controls | join(', ') | default('None provided') }}
           Allow Reboot: {{ allow_reboot }}
           Dry Run: {{ dry_run }}
           Trigger: {{ trigger_source }}
+
+    - name: Warn if no failed controls provided
+      when: failed_cat1_controls | length == 0
+      ansible.builtin.debug:
+        msg: |
+          WARNING: No failed CAT I controls provided.
+          Pass failed_cat1_controls from scan results to remediate.
+          No remediation will be performed.
 
   roles:
     - role: ../roles/remediate
@@ -49,5 +61,6 @@
           ====================
           Target: {{ inventory_hostname }}
           Profile: {{ compliance_profile }}
+          Failed CAT I Controls Processed: {{ failed_cat1_controls | length }}
 
           Run a compliance scan to verify remediation effectiveness.

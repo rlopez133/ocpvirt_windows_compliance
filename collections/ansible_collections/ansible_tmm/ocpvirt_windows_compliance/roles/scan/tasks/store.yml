@@ -38,6 +38,13 @@
     mode: "0644"
   delegate_to: localhost
 
+- name: Generate scan summary report
+  ansible.builtin.template:
+    src: scan-summary.j2
+    dest: "{{ results_storage.local_path }}/{{ scan_result.scan_id }}/scan-summary.txt"
+    mode: "0644"
+  delegate_to: localhost
+
 - name: Display storage result
   ansible.builtin.debug:
     msg: |
@@ -45,3 +52,8 @@
       - Location: {{ results_storage.local_path }}/{{ scan_result.scan_id }}/
       - XCCDF: {{ 'Stored' if (fetch_xccdf is defined and fetch_xccdf is not skipped) else 'Not available' }}
       - HTML: {{ 'Stored' if (fetch_html is defined and fetch_html is not skipped) else 'Not available' }}
+      - Summary: scan-summary.txt
+
+- name: Display scan summary
+  ansible.builtin.debug:
+    msg: "{{ lookup('template', 'scan-summary.j2') }}"

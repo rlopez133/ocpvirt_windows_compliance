@@ -1,6 +1,7 @@
 ---
 # Scan Role - Collect Results
 # Parses XCCDF results and calculates compliance score
+# Also extracts failed control IDs for scan-driven remediation
 
 - name: Check if XCCDF result file exists
   ansible.builtin.set_fact:
@@ -20,7 +21,8 @@
             not_applicable = 0
             score = 0
             status = "error"
-        } | ConvertTo-Json -Compress
+            failed_controls = @{ cat1 = @(); cat2 = @(); cat3 = @() }
+        } | ConvertTo-Json -Compress -Depth 3
         exit 0
     }
 
@@ -50,7 +52,7 @@
             $results = $xccdf.SelectNodes("//rule-result")
         }
 
-        # Count results by status
+        # Count results by status and collect failed control IDs
         $passed = 0
         $failed = 0
         $notApplicable = 0
@@ -59,25 +61,56 @@
         $cat2Failed = 0
         $cat3Failed = 0
 
+        # Lists to hold failed control IDs by severity
+        $cat1FailedIds = @()
+        $cat2FailedIds = @()
+        $cat3FailedIds = @()
+
         foreach ($result in $results) {
             $status = $result.result
             $ruleId = $result.idref
             $severity = $result.severity
 
+            # Extract V-ID from rule ID (e.g., "xccdf_mil.disa.stig_rule_SV-205711r569188_rule" -> "V-205711")
+            $vulnId = ""
+            if ($ruleId -match "SV-(\d+)") {
+                $vulnId = "V-$($Matches[1])"
+            } elseif ($ruleId -match "(V-\d+)") {
+                $vulnId = $Matches[1]
+            }
+
             switch ($status) {
                 "pass" { $passed++ }
                 "fail" {
                     $failed++
-                    # Categorize by severity
+                    # Categorize by severity and collect IDs
                     switch ($severity) {
-                        "high" { $cat1Failed++ }
-                        "medium" { $cat2Failed++ }
-                        "low" { $cat3Failed++ }
+                        "high" {
+                            $cat1Failed++
+                            if ($vulnId) { $cat1FailedIds += $vulnId }
+                        }
+                        "medium" {
+                            $cat2Failed++
+                            if ($vulnId) { $cat2FailedIds += $vulnId }
+                        }
+                        "low" {
+                            $cat3Failed++
+                            if ($vulnId) { $cat3FailedIds += $vulnId }
+                        }
                         default {
                             # Try to detect from rule ID
-                            if ($ruleId -match "CAT.?I[^I]|high") { $cat1Failed++ }
-                            elseif ($ruleId -match "CAT.?II|medium") { $cat2Failed++ }
-                            else { $cat3Failed++ }
+                            if ($ruleId -match "CAT.?I[^I]|high") {
+                                $cat1Failed++
+                                if ($vulnId) { $cat1FailedIds += $vulnId }
+                            }
+                            elseif ($ruleId -match "CAT.?II|medium") {
+                                $cat2Failed++
+                                if ($vulnId) { $cat2FailedIds += $vulnId }
+                            }
+                            else {
+                                $cat3Failed++
+                                if ($vulnId) { $cat3FailedIds += $vulnId }
+                            }
                         }
                     }
                 }
@@ -113,7 +146,12 @@
             cat1_failed = $cat1Failed
             cat2_failed = $cat2Failed
             cat3_failed = $cat3Failed
-        } | ConvertTo-Json -Compress
+            failed_controls = @{
+                cat1 = $cat1FailedIds
+                cat2 = $cat2FailedIds
+                cat3 = $cat3FailedIds
+            }
+        } | ConvertTo-Json -Compress -Depth 3
     } catch {
         @{
             error = $_.Exception.Message
@@ -122,7 +160,8 @@
             failed = 0
             score = 0
             status = "error"
-        } | ConvertTo-Json -Compress
+            failed_controls = @{ cat1 = @(); cat2 = @(); cat3 = @() }
+        } | ConvertTo-Json -Compress -Depth 3
     }
   register: score_result
 
@@ -142,6 +181,13 @@
       not_checked: 0
       score: 0
       status: "no_results"
+      cat1_failed: 0
+      cat2_failed: 0
+      cat3_failed: 0
+      failed_controls:
+        cat1: []
+        cat2: []
+        cat3: []
 
 - name: Build scan result object
   ansible.builtin.set_fact:
@@ -155,6 +201,7 @@
       duration_seconds: "{{ scc_scan_output.duration_seconds }}"
       score: "{{ calculated_score }}"
       status: "{{ calculated_score.status }}"
+      failed_controls: "{{ calculated_score.failed_controls | default({'cat1': [], 'cat2': [], 'cat3': []}) }}"
       artifacts:
         xccdf_result: "{{ scc_scan_output.xccdf_result | default(None) }}"
         html_report: "{{ scc_scan_output.html_report | default(None) }}"
@@ -175,3 +222,4 @@
       - CAT3 Failed: {{ scan_result.score.cat3_failed | default(0) }}
       - Score: {{ scan_result.score.score | default(0) }}%
       - Status: {{ scan_result.status }}
+      - Failed CAT1 Controls: {{ scan_result.failed_controls.cat1 | join(', ') | default('None') }}
