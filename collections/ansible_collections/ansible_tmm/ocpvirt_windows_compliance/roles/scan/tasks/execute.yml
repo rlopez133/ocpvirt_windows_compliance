@@ -1,184 +1,215 @@
 ---
 # Scan Role - Execute Scan
-# Runs DISA SCC scan using correct CLI syntax
+# Configures SCC to enable only the target benchmark, then runs scan
+# Refactored into discrete Ansible tasks for readability and maintainability
 
 - name: Generate scan ID
   ansible.builtin.set_fact:
     scan_id: "scan-{{ ansible_date_time.epoch }}"
+    scan_start_time: "{{ ansible_date_time.iso8601 }}"
 
-- name: Find STIG content path
-  ansible.windows.win_find:
-    paths: "{{ scc_install_path }}\\Resources\\Content"
-    patterns: "{{ scc_benchmark }}*"
-    file_type: directory
-  register: stig_content_search
-
-- name: Display found STIG content
-  ansible.builtin.debug:
-    msg: "STIG content directories: {{ stig_content_search.files | map(attribute='path') | list }}"
-
-- name: Set STIG content path variable
+- name: Set scan paths
   ansible.builtin.set_fact:
-    stig_content_path: "{{ stig_content_search.files[0].path }}"
-  when: stig_content_search.files | length > 0
-
-- name: Find SCAP content file for benchmark
-  ansible.windows.win_find:
-    paths: "{{ stig_content_path }}"
-    patterns: "*xccdf*.xml,*Benchmark*.xml"
-    recurse: true
-  register: scap_content_search
-  when: stig_content_path is defined
-
-- name: Display found SCAP content files
-  ansible.builtin.debug:
-    msg: "SCAP content files: {{ scap_content_search.files | default([]) | map(attribute='path') | list }}"
-  when: scap_content_search is defined and scap_content_search is not skipped
-
-- name: Set SCAP content file variable
-  ansible.builtin.set_fact:
-    scap_content_file: "{{ scap_content_search.files[0].path }}"
-  when:
-    - scap_content_search is defined
-    - scap_content_search is not skipped
-    - scap_content_search.files | length > 0
-
-- name: Fail if no STIG content found
-  ansible.builtin.fail:
-    msg: |
-      No STIG content found for benchmark '{{ scc_benchmark }}'.
-      Searched in: {{ scc_install_path }}\\Resources\\Content
-      Ensure STIG content was downloaded during SCC installation.
-      Set scc_download_stig_content: true when running Install-SCC.
-  when: scap_content_file is not defined
+    scan_output_dir: "{{ scc_config.output_dir }}\\{{ scan_id }}"
+    scc_exe: "{{ scc_install_path }}\\cscc.exe"
+    scc_results_dir: "{{ ansible_env.USERPROFILE }}\\SCC\\Results"
 
 - name: Display scan configuration
   ansible.builtin.debug:
     msg: |
       Starting SCC Scan
       - Scan ID: {{ scan_id }}
-      - SCC Path: {{ scc_install_path }}
-      - SCAP Content: {{ scap_content_file }}
-      - Output Dir: {{ scc_config.output_dir }}
+      - SCC Path: {{ scc_exe }}
+      - Target Benchmark: {{ scc_benchmark }}
+      - Output Dir: {{ scan_output_dir }}
 
-- name: Copy STIG content to SCAP12_Content directory
-  ansible.windows.win_copy:
-    src: "{{ scap_content_file }}"
-    dest: "{{ scc_install_path }}\\Resources\\Content\\SCAP12_Content\\"
-    remote_src: true
-  register: copy_stig_content
-  ignore_errors: true
+- name: Create scan output directory
+  ansible.windows.win_file:
+    path: "{{ scan_output_dir }}"
+    state: directory
 
+# --- Step 1: List all benchmarks ---
+- name: List all benchmarks
+  ansible.windows.win_command: "{{ scc_exe }} --listAllBenchmarks"
+  register: all_benchmarks_result
+  changed_when: false
+
+- name: Display all benchmarks
+  ansible.builtin.debug:
+    msg: "{{ all_benchmarks_result.stdout_lines }}"
+    verbosity: 1
+
+# --- Step 2: Parse enabled benchmarks ---
+- name: Parse enabled benchmark names
+  ansible.builtin.set_fact:
+    enabled_benchmarks: >-
+      {{
+        all_benchmarks_result.stdout_lines
+        | select('match', '^\s*Enabled\s+')
+        | map('regex_replace', '^\s*Enabled\s+(.+?)\s+version:.*$', '\1')
+        | list
+      }}
+
+- name: Display enabled benchmarks
+  ansible.builtin.debug:
+    msg: "Currently enabled benchmarks: {{ enabled_benchmarks }}"
+
+# --- Step 3: Disable all enabled benchmarks ---
+- name: Disable all enabled benchmarks
+  ansible.windows.win_command: "{{ scc_exe }} --disableBenchmark \"{{ item }}\""
+  loop: "{{ enabled_benchmarks }}"
+  register: disable_results
+  changed_when: true
+  when: enabled_benchmarks | length > 0
+
+- name: Display disable results
+  ansible.builtin.debug:
+    msg: "Disabled {{ enabled_benchmarks | length }} benchmarks"
+  when: enabled_benchmarks | length > 0
+
+# --- Step 4: Enable target benchmark ---
+- name: Enable target benchmark
+  ansible.windows.win_command: "{{ scc_exe }} --enableBenchmark \"{{ scc_benchmark }}\""
+  register: enable_result
+
+- name: Display enable result
+  ansible.builtin.debug:
+    msg: "Enable benchmark result: {{ enable_result.stdout | default('OK') }}"
+
+# --- Step 5: Verify benchmark is enabled ---
+- name: List enabled benchmarks for verification
+  ansible.windows.win_command: "{{ scc_exe }} --listBenchmarks"
+  register: enabled_check
+  changed_when: false
+
+- name: Check if target benchmark is enabled
+  ansible.builtin.set_fact:
+    benchmark_enabled: "{{ enabled_check.stdout is search(scc_benchmark) }}"
+
+- name: Display enabled benchmarks after configuration
+  ansible.builtin.debug:
+    msg: |
+      Enabled benchmarks:
+      {{ enabled_check.stdout }}
+      Target benchmark '{{ scc_benchmark }}' enabled: {{ benchmark_enabled }}
+
+- name: Warn if benchmark not enabled
+  ansible.builtin.debug:
+    msg: "WARNING: Target benchmark '{{ scc_benchmark }}' may not be enabled. Scan may not produce expected results."
+  when: not benchmark_enabled
+
+# --- Step 6: Run the scan ---
 - name: Execute SCC scan
-  ansible.windows.win_shell: |
-    $scanId = "{{ scan_id }}"
-    $outputDir = "{{ scc_config.output_dir }}\$scanId"
-    $sccPath = "{{ scc_install_path }}\cscc.exe"
-    $scapContentFile = "{{ scap_content_file }}"
-    $scap12Dir = "{{ scc_install_path }}\Resources\Content\SCAP12_Content"
-
-    # Create output directory
-    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
-
-    $startTime = Get-Date
-    $exitCode = 0
-    $stdout = ""
-    $stderr = ""
-
-    try {
-        # Get the benchmark filename (without extension for benchmark ID)
-        $benchmarkFile = Split-Path $scapContentFile -Leaf
-        $benchmarkId = [System.IO.Path]::GetFileNameWithoutExtension($benchmarkFile)
-
-        # Step 1: List available benchmarks to find the correct ID
-        $listArgs = @("--listBenchmarks")
-        $listResult = & $sccPath @listArgs 2>&1
-        $stdout = "AVAILABLE BENCHMARKS:`n" + ($listResult | Out-String) + "`n"
-
-        # Step 2: Enable the Windows Server 2019 benchmark
-        # Try to find a matching benchmark ID from the list
-        $benchmarkLines = $listResult | Where-Object { $_ -match "Windows.*2019|2019.*STIG" }
-        if ($benchmarkLines) {
-            $stdout += "Found matching benchmarks: $benchmarkLines`n"
-        }
-
-        # Step 3: Run scan with quiet mode and output directory
-        # SCC scans all enabled benchmarks
-        $scanArgs = @("-q", "-u", $outputDir)
-        $scanResult = & $sccPath @scanArgs 2>&1
-        $stdout += "SCAN OUTPUT:`n" + ($scanResult | Out-String)
-        $exitCode = $LASTEXITCODE
-    } catch {
-        $exitCode = 1
-        $stderr = $_.Exception.Message
-    }
-    $endTime = Get-Date
-
-    # Save output for debugging
-    $stdout | Out-File "$outputDir\stdout.txt" -Force
-    if ($stderr) { $stderr | Out-File "$outputDir\stderr.txt" -Force }
-
-    # Find result files in output directory
-    $xccdfFile = Get-ChildItem -Path $outputDir -Filter "*XCCDF-Results*.xml" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if (-not $xccdfFile) {
-        $xccdfFile = Get-ChildItem -Path $outputDir -Filter "*xccdf*.xml" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    }
-    # Also check SCC default location
-    if (-not $xccdfFile) {
-        $xccdfFile = Get-ChildItem -Path "$env:USERPROFILE\SCC\Results" -Filter "*XCCDF-Results*.xml" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    }
-
-    # Find HTML report
-    $htmlFile = Get-ChildItem -Path $outputDir -Filter "*Summary*.html" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if (-not $htmlFile) {
-        $htmlFile = Get-ChildItem -Path $outputDir -Filter "*.html" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    }
-
-    # Return JSON result
-    @{
-        scan_id = $scanId
-        output_dir = $outputDir
-        started = $startTime.ToString("o")
-        completed = $endTime.ToString("o")
-        duration_seconds = [int]($endTime - $startTime).TotalSeconds
-        exit_code = $exitCode
-        scc_stdout = $stdout.Substring(0, [Math]::Min($stdout.Length, 2000))
-        scc_stderr = $stderr
-        xccdf_result = if ($xccdfFile) { $xccdfFile.FullName } else { $null }
-        html_report = if ($htmlFile) { $htmlFile.FullName } else { $null }
-    } | ConvertTo-Json -Compress
-  register: scc_scan_raw
+  ansible.windows.win_command: "{{ scc_exe }} -q"
+  register: scan_result
   async: "{{ scan_timeout }}"
   poll: 30
 
-- name: Debug raw scan output
+- name: Display scan command result
   ansible.builtin.debug:
     msg: |
-      Raw scan result:
-      - stdout length: {{ scc_scan_raw.stdout | default('') | length }}
-      - stdout: {{ scc_scan_raw.stdout | default('EMPTY') }}
-      - stderr: {{ scc_scan_raw.stderr | default('NONE') }}
-      - rc: {{ scc_scan_raw.rc | default('N/A') }}
+      Scan completed
+      - Return code: {{ scan_result.rc }}
+      - Output: {{ scan_result.stdout | default('') | truncate(500) }}
 
-- name: Fail if scan produced no output
-  ansible.builtin.fail:
-    msg: |
-      SCC scan produced no output.
-      - Return code: {{ scc_scan_raw.rc | default('N/A') }}
-      - Stderr: {{ scc_scan_raw.stderr | default('None') }}
-  when: scc_scan_raw.stdout is not defined or scc_scan_raw.stdout | length == 0
+# --- Step 7: Wait for result files ---
+- name: Wait for result files to be written
+  ansible.builtin.pause:
+    seconds: 3
 
-- name: Parse scan output
+# --- Step 8: Find XCCDF result file ---
+- name: Find XCCDF result files in SCC Results directory
+  ansible.windows.win_find:
+    paths: "{{ scc_results_dir }}"
+    patterns: "*XCCDF-Results*.xml"
+    recurse: true
+    age: "-5m"
+  register: xccdf_files
+
+- name: Find any XML files if no XCCDF found
+  ansible.windows.win_find:
+    paths: "{{ scc_results_dir }}"
+    patterns: "*.xml"
+    recurse: true
+    age: "-5m"
+  register: xml_files
+  when: xccdf_files.files | length == 0
+
+- name: Set XCCDF result path
   ansible.builtin.set_fact:
-    scc_scan_output: "{{ scc_scan_raw.stdout | from_json }}"
+    xccdf_result_file: >-
+      {%- if xccdf_files.files | length > 0 -%}
+        {{ (xccdf_files.files | sort(attribute='lastwritetime', reverse=true) | first).path }}
+      {%- elif xml_files.files is defined and xml_files.files | length > 0 -%}
+        {{ (xml_files.files | sort(attribute='lastwritetime', reverse=true) | first).path }}
+      {%- else -%}
+      {%- endif -%}
+
+- name: Display found XCCDF file
+  ansible.builtin.debug:
+    msg: "XCCDF result file: {{ xccdf_result_file | default('Not found') }}"
+
+# --- Step 9: Find HTML report ---
+- name: Find HTML report files
+  ansible.windows.win_find:
+    paths: "{{ scc_results_dir }}"
+    patterns: "*.html"
+    recurse: true
+    age: "-5m"
+  register: html_files
+
+- name: Set HTML report path
+  ansible.builtin.set_fact:
+    html_report_file: >-
+      {%- if html_files.files | length > 0 -%}
+        {{ (html_files.files | sort(attribute='lastwritetime', reverse=true) | first).path }}
+      {%- else -%}
+      {%- endif -%}
+
+- name: Display found HTML file
+  ansible.builtin.debug:
+    msg: "HTML report file: {{ html_report_file | default('Not found') }}"
+
+# --- Step 10: Copy results to output directory ---
+- name: Copy XCCDF result to output directory
+  ansible.windows.win_copy:
+    src: "{{ xccdf_result_file }}"
+    dest: "{{ scan_output_dir }}\\"
+    remote_src: true
+  when: xccdf_result_file | length > 0
+  register: copy_xccdf
+
+- name: Copy HTML report to output directory
+  ansible.windows.win_copy:
+    src: "{{ html_report_file }}"
+    dest: "{{ scan_output_dir }}\\"
+    remote_src: true
+  when: html_report_file | length > 0
+  register: copy_html
+
+# --- Step 11: Build scan output object ---
+- name: Build scan output object
+  ansible.builtin.set_fact:
+    scc_scan_output:
+      scan_id: "{{ scan_id }}"
+      output_dir: "{{ scan_output_dir }}"
+      target_benchmark: "{{ scc_benchmark }}"
+      started: "{{ scan_start_time }}"
+      completed: "{{ ansible_date_time.iso8601 }}"
+      duration_seconds: "{{ (ansible_date_time.epoch | int) - (scan_id | regex_replace('scan-', '') | int) }}"
+      exit_code: "{{ scan_result.rc }}"
+      xccdf_result: "{{ xccdf_result_file | default(None) }}"
+      html_report: "{{ html_report_file | default(None) }}"
+      scc_results_dir: "{{ scc_results_dir }}"
+      benchmark_enabled: "{{ benchmark_enabled }}"
 
 - name: Display scan execution result
   ansible.builtin.debug:
     msg: |
       Scan Execution Complete
       - Scan ID: {{ scc_scan_output.scan_id }}
-      - Duration: {{ scc_scan_output.duration_seconds }} seconds
+      - Target Benchmark: {{ scc_scan_output.target_benchmark }}
+      - Benchmark Enabled: {{ scc_scan_output.benchmark_enabled }}
       - Exit Code: {{ scc_scan_output.exit_code }}
       - XCCDF Result: {{ scc_scan_output.xccdf_result | default('Not found') }}
       - HTML Report: {{ scc_scan_output.html_report | default('Not found') }}
-      - SCC Output: {{ scc_scan_output.scc_stdout | default('') | truncate(500) }}
