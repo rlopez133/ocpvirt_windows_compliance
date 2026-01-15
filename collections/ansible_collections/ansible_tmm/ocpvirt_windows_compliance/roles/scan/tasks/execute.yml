@@ -143,6 +143,29 @@
   async: "{{ scan_timeout }}"
   poll: 30
 
+- name: Debug raw scan output
+  ansible.builtin.debug:
+    msg: |
+      Raw scan result keys: {{ scc_scan_raw.keys() | list }}
+      stdout present: {{ scc_scan_raw.stdout is defined }}
+      stdout length: {{ scc_scan_raw.stdout | default('') | length }}
+      stdout content: {{ scc_scan_raw.stdout | default('EMPTY') }}
+      stderr: {{ scc_scan_raw.stderr | default('NONE') }}
+      rc: {{ scc_scan_raw.rc | default('N/A') }}
+
+- name: Fail if scan produced no output
+  ansible.builtin.fail:
+    msg: |
+      SCC scan produced no output. This usually means:
+      1. The scan command failed to execute
+      2. PowerShell encountered an error before returning JSON
+
+      Debug info:
+      - Return code: {{ scc_scan_raw.rc | default('N/A') }}
+      - Stderr: {{ scc_scan_raw.stderr | default('None') }}
+      - Stdout: {{ scc_scan_raw.stdout | default('Empty') }}
+  when: scc_scan_raw.stdout is not defined or scc_scan_raw.stdout | length == 0
+
 - name: Parse scan output
   ansible.builtin.set_fact:
     scc_scan_output: "{{ scc_scan_raw.stdout | from_json }}"
@@ -155,3 +178,4 @@
       - Duration: {{ scc_scan_output.duration_seconds }} seconds
       - Exit Code: {{ scc_scan_output.exit_code }}
       - XCCDF Result: {{ scc_scan_output.xccdf_result | default('Not found') }}
+      - Stdout snippet: {{ scc_scan_output.stdout | default('') | truncate(500) }}
