@@ -9,18 +9,6 @@
       - failed_cat1_controls is defined
     fail_msg: "failed_cat1_controls must be provided from scan results"
 
-- name: Display remediation plan
-  ansible.builtin.debug:
-    msg: |
-      Scan-Driven CAT I Remediation
-      =============================
-      Profile: {{ compliance_profile }}
-      Failed CAT I Controls: {{ failed_cat1_controls | length }}
-      Controls: {{ failed_cat1_controls | join(', ') | default('None') }}
-      Allow Reboot: {{ allow_reboot }}
-      Dry Run: {{ dry_run }}
-      Trigger: {{ trigger_source }}
-
 - name: Gather Windows facts
   ansible.windows.win_powershell:
     script: |
@@ -47,10 +35,6 @@
       {%- else -%}
         unknown
       {%- endif -%}
-
-- name: Display detected OS
-  ansible.builtin.debug:
-    msg: "Detected Windows Server {{ windows_version }} (Build {{ os_info.BuildNumber }})"
 
 - name: Create system restore point
   when: remediation.create_restore_point | default(true) and not dry_run
@@ -100,17 +84,12 @@
       trigger: "{{ trigger_source }}"
       dry_run: "{{ dry_run }}"
       failed_cat1_count: "{{ failed_cat1_controls | length }}"
-
-- name: Display remediation summary
-  ansible.builtin.debug:
-    msg: |
-      Remediation Complete
-      ====================
-      Started: {{ remediation_result.started }}
-      Completed: {{ remediation_result.completed }}
-      OS Version: Windows Server {{ remediation_result.os_version }}
-      Profile: {{ remediation_result.profile }}
-      Failed CAT I Controls Processed: {{ remediation_result.failed_cat1_count }}
-      Dry Run: {{ remediation_result.dry_run }}
-
-      Note: Run a compliance scan to verify remediation effectiveness.
+      # Include scan-driven results if available
+      automatable_controls: "{{ automatable_controls | default([]) }}"
+      manual_controls: "{{ manual_controls | default([]) }}"
+      unknown_v_ids: "{{ unknown_v_ids | default([]) }}"
+      registry_changed: "{{ registry_changed_count | default(0) }}"
+      multi_registry_changed: "{{ multi_registry_changed_count | default(0) }}"
+      security_policy_changed: "{{ security_policy_changed_count | default(0) }}"
+      user_rights_changed: "{{ user_rights_changed_count | default(0) }}"
+      winrm_in_manual: "{{ winrm_in_manual | default(false) }}"
