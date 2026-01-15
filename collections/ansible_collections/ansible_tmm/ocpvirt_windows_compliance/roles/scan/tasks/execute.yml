@@ -83,7 +83,7 @@
     msg: "SCC Results directory: {{ scc_dir_contents.stdout }}"
 
 # --- Find XCCDF result file ---
-- name: Find XCCDF result files
+- name: Find all XCCDF result files
   ansible.windows.win_find:
     paths:
       - "{{ scc_results_dir }}"
@@ -97,14 +97,30 @@
   register: xccdf_files
   ignore_errors: true
 
-- name: Display found XCCDF files
+- name: Display all found XCCDF files
   ansible.builtin.debug:
     msg: "Found {{ xccdf_files.files | default([]) | length }} XCCDF files: {{ xccdf_files.files | default([]) | map(attribute='path') | list }}"
 
-- name: Set XCCDF result path
+- name: Filter for target benchmark XCCDF file
+  ansible.builtin.set_fact:
+    matching_xccdf_files: "{{ xccdf_files.files | default([]) | selectattr('path', 'search', scc_benchmark | replace('_', '.?')) | list }}"
+  when: xccdf_files.files | default([]) | length > 0
+
+- name: Display matching benchmark files
+  ansible.builtin.debug:
+    msg: "Matching {{ scc_benchmark }} files: {{ matching_xccdf_files | default([]) | map(attribute='path') | list }}"
+
+- name: Set XCCDF result path from matching files
+  ansible.builtin.set_fact:
+    xccdf_result_file: "{{ (matching_xccdf_files | sort(attribute='lastwritetime', reverse=true) | first).path }}"
+  when: matching_xccdf_files | default([]) | length > 0
+
+- name: Fallback to any XCCDF file if no benchmark match
   ansible.builtin.set_fact:
     xccdf_result_file: "{{ (xccdf_files.files | sort(attribute='lastwritetime', reverse=true) | first).path | default('') }}"
-  when: xccdf_files.files | default([]) | length > 0
+  when:
+    - xccdf_files.files | default([]) | length > 0
+    - matching_xccdf_files | default([]) | length == 0
 
 - name: Set empty XCCDF path if not found
   ansible.builtin.set_fact:
