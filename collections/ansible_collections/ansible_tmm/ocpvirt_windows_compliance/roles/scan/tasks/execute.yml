@@ -93,9 +93,7 @@
             $args += ""
         }
 
-        Write-Host "Running: $sccPath $($args -join ' ')"
-
-        # Run scan
+        # Run scan (no Write-Host to keep stdout clean for JSON parsing)
         $result = & $sccPath @args 2>&1
         $stdout = $result | Out-String
         $exitCode = $LASTEXITCODE
@@ -126,7 +124,7 @@
         $htmlFile = Get-ChildItem -Path $outputDir -Filter "*.html" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     }
 
-    # Return result
+    # Return ONLY JSON (no other output to stdout)
     @{
         scan_id = $scanId
         output_dir = $outputDir
@@ -134,8 +132,8 @@
         completed = $endTime.ToString("o")
         duration_seconds = [int]($endTime - $startTime).TotalSeconds
         exit_code = $exitCode
-        stdout = $stdout.Substring(0, [Math]::Min($stdout.Length, 2000))
-        stderr = $stderr
+        scc_stdout = $stdout.Substring(0, [Math]::Min($stdout.Length, 2000))
+        scc_stderr = $stderr
         xccdf_result = if ($xccdfFile) { $xccdfFile.FullName } else { $null }
         html_report = if ($htmlFile) { $htmlFile.FullName } else { $null }
     } | ConvertTo-Json -Compress
@@ -178,4 +176,5 @@
       - Duration: {{ scc_scan_output.duration_seconds }} seconds
       - Exit Code: {{ scc_scan_output.exit_code }}
       - XCCDF Result: {{ scc_scan_output.xccdf_result | default('Not found') }}
-      - Stdout snippet: {{ scc_scan_output.stdout | default('') | truncate(500) }}
+      - HTML Report: {{ scc_scan_output.html_report | default('Not found') }}
+      - SCC Output: {{ scc_scan_output.scc_stdout | default('') | truncate(500) }}
