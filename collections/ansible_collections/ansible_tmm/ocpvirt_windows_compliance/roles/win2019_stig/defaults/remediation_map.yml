@@ -66,32 +66,36 @@ win2019_cat1_remediation_map:
       type: dword
 
   # ============================================================================
-  # WinRM Controls - CRITICAL: Handle with care for connectivity
-  # Note: These are handled specially in winrm_migration.yml
+  # WinRM Controls - MANUAL: Cannot be auto-remediated during AAP jobs
+  # Restarting WinRM drops the active AAP connection.
+  # Operator must: 1) Switch inventory to NTLM transport, 2) Verify connectivity,
+  # 3) Run the dedicated migrate_winrm_auth.yml playbook
   # ============================================================================
   - v_id: "V-205711"
     stig_id: "WN19-CC-000470"
     title: "WinRM client must not use Basic authentication"
-    automatable: true
-    remediation_type: winrm
+    automatable: false
+    remediation_type: manual
     remediation:
-      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WinRM\\Client"
-      name: "AllowBasic"
-      value: 0
-      type: dword
-    requires_winrm_migration: true
+      guidance: |
+        This control cannot be auto-remediated during AAP job execution.
+        To remediate:
+        1. Update your AAP inventory to use ansible_winrm_transport: ntlm
+        2. Verify connectivity with win_ping
+        3. Run the migrate_winrm_auth.yml playbook to disable Basic auth
 
   - v_id: "V-205713"
     stig_id: "WN19-CC-000500"
     title: "WinRM service must not use Basic authentication"
-    automatable: true
-    remediation_type: winrm
+    automatable: false
+    remediation_type: manual
     remediation:
-      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WinRM\\Service"
-      name: "AllowBasic"
-      value: 0
-      type: dword
-    requires_winrm_migration: true
+      guidance: |
+        This control cannot be auto-remediated during AAP job execution.
+        To remediate:
+        1. Update your AAP inventory to use ansible_winrm_transport: ntlm
+        2. Verify connectivity with win_ping
+        3. Run the migrate_winrm_auth.yml playbook to disable Basic auth
 
   # ============================================================================
   # Account and Password Controls

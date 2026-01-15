@@ -47,30 +47,20 @@
   ansible.builtin.set_fact:
     automatable_controls: "{{ controls_to_remediate | selectattr('automatable', 'equalto', true) | list }}"
     manual_controls: "{{ controls_to_remediate | selectattr('automatable', 'equalto', false) | list }}"
-    winrm_controls: "{{ controls_to_remediate | selectattr('requires_winrm_migration', 'defined') | selectattr('requires_winrm_migration', 'equalto', true) | list }}"
 
 - name: Display remediation breakdown
   ansible.builtin.debug:
     msg: |
       Remediation Breakdown:
       - Automatable controls: {{ automatable_controls | length }}
-      - WinRM controls (special handling): {{ winrm_controls | length }}
       - Manual controls (report only): {{ manual_controls | length }}
-
-# ============================================================================
-# Handle WinRM migration first if WinRM controls are in the failed list
-# ============================================================================
-- name: Handle WinRM migration
-  when: winrm_controls | length > 0
-  ansible.builtin.include_tasks:
-    file: "{{ playbook_dir }}/../roles/win2019_stig/tasks/winrm_migration.yml"
 
 # ============================================================================
 # Apply registry-based remediations
 # ============================================================================
 - name: Get registry controls
   ansible.builtin.set_fact:
-    registry_controls: "{{ automatable_controls | selectattr('remediation_type', 'equalto', 'registry') | rejectattr('requires_winrm_migration', 'defined') | list }}"
+    registry_controls: "{{ automatable_controls | selectattr('remediation_type', 'equalto', 'registry') | list }}"
 
 - name: Apply registry remediations
   when: registry_controls | length > 0
@@ -176,6 +166,10 @@
         security_policy: "{{ security_policy_changed_count | int }}"
         user_rights: "{{ user_rights_changed_count | int }}"
 
+- name: Check if WinRM controls are in manual list
+  ansible.builtin.set_fact:
+    winrm_in_manual: "{{ manual_controls | selectattr('v_id', 'in', ['V-205711', 'V-205713']) | list | length > 0 }}"
+
 - name: Display remediation summary
   ansible.builtin.debug:
     msg: |
@@ -196,6 +190,14 @@
       {% for control in manual_controls %}
         - {{ control.v_id }}: {{ control.title }}
       {% endfor %}
+      {% endif %}
+      {% if winrm_in_manual %}
+
+      WinRM Authentication Controls (V-205711, V-205713):
+        These controls require a separate migration process:
+        1. Update your inventory: ansible_winrm_transport: ntlm
+        2. Verify connectivity: ansible -m win_ping <host>
+        3. Run: ansible-playbook migrate_winrm_auth.yml
       {% endif %}
       {% if unknown_v_ids | default([]) | length > 0 %}
 
