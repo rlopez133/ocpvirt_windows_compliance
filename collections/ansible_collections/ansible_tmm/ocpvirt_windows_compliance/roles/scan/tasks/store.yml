@@ -2,9 +2,17 @@
 # Scan Role - Store Results
 # Stores scan results to configured storage
 
+- name: Create local results directory
+  ansible.builtin.file:
+    path: "{{ results_storage.local_path }}/{{ scan_result.scan_id }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+
 - name: Fetch XCCDF result to controller
   when:
     - scc_scan_output.xccdf_result is defined
+    - scc_scan_output.xccdf_result is not none
     - scc_scan_output.xccdf_result | length > 0
   ansible.builtin.fetch:
     src: "{{ scc_scan_output.xccdf_result }}"
@@ -15,6 +23,7 @@
 - name: Fetch HTML report to controller
   when:
     - scc_scan_output.html_report is defined
+    - scc_scan_output.html_report is not none
     - scc_scan_output.html_report | length > 0
   ansible.builtin.fetch:
     src: "{{ scc_scan_output.html_report }}"
@@ -26,6 +35,7 @@
   ansible.builtin.copy:
     content: "{{ scan_result | to_nice_json }}"
     dest: "{{ results_storage.local_path }}/{{ scan_result.scan_id }}/summary.json"
+    mode: "0644"
   delegate_to: localhost
 
 - name: Display storage result
@@ -33,5 +43,5 @@
     msg: |
       Results Stored
       - Location: {{ results_storage.local_path }}/{{ scan_result.scan_id }}/
-      - XCCDF: {{ 'Stored' if fetch_xccdf is defined else 'Not available' }}
-      - HTML: {{ 'Stored' if fetch_html is defined else 'Not available' }}
+      - XCCDF: {{ 'Stored' if (fetch_xccdf is defined and fetch_xccdf is not skipped) else 'Not available' }}
+      - HTML: {{ 'Stored' if (fetch_html is defined and fetch_html is not skipped) else 'Not available' }}
