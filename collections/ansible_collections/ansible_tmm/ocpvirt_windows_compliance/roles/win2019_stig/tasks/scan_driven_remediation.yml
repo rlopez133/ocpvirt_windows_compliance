@@ -5,9 +5,11 @@
 # Required variables:
 #   - failed_cat1_controls: List of V-IDs that failed the scan (e.g., ["V-205711", "V-205713"])
 
+# Load remediation map from the win2019_stig role defaults
+# Path is relative to playbook_dir (../roles/win2019_stig/defaults from playbooks/)
 - name: Load remediation map
   ansible.builtin.include_vars:
-    file: remediation_map.yml
+    file: "{{ playbook_dir }}/../roles/win2019_stig/defaults/remediation_map.yml"
 
 - name: Display scan-driven remediation plan
   ansible.builtin.debug:
@@ -60,7 +62,8 @@
 # ============================================================================
 - name: Handle WinRM migration
   when: winrm_controls | length > 0
-  ansible.builtin.include_tasks: winrm_migration.yml
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/win2019_stig/tasks/winrm_migration.yml"
 
 # ============================================================================
 # Apply registry-based remediations
