@@ -113,7 +113,7 @@
 
 - name: Apply security policy remediations
   when: security_policy_controls | length > 0
-  ansible.windows.win_security_policy:
+  community.windows.win_security_policy:
     section: "{{ item.remediation.section }}"
     key: "{{ item.remediation.key }}"
     value: "{{ item.remediation.value }}"
@@ -131,7 +131,7 @@
 
 - name: Apply user rights remediations
   when: user_rights_controls | length > 0
-  ansible.windows.win_user_right:
+  community.windows.win_user_right:
     name: "{{ item.remediation.right }}"
     users: "{{ item.remediation.accounts }}"
     action: set
