@@ -34,7 +34,11 @@
       Scan Complete
       =============
       Target: {{ inventory_hostname }}
-      Score: {{ scan_result.score.total | default('N/A') }}%
+      Score: {{ scan_result.score.score | default('N/A') }}%
       Status: {{ scan_result.status | default('unknown') }}
+      Total Controls: {{ scan_result.score.total | default(0) }}
       Passed: {{ scan_result.score.passed | default(0) }}
       Failed: {{ scan_result.score.failed | default(0) }}
+      CAT I (High): {{ scan_result.score.cat1_failed | default(0) }}
+      CAT II (Medium): {{ scan_result.score.cat2_failed | default(0) }}
+      CAT III (Low): {{ scan_result.score.cat3_failed | default(0) }}
