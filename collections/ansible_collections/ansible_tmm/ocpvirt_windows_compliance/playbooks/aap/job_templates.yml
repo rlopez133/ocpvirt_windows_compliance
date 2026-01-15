@@ -99,6 +99,31 @@
     survey_enabled: false
     state: present
 
+- name: Create WinRM-Auth-Migration job template
+  ansible.platform.job_template:
+    controller_host: "{{ controller_host }}"
+    controller_username: "{{ controller_username }}"
+    controller_password: "{{ controller_password }}"
+    validate_certs: "{{ controller_validate_certs }}"
+    name: "WinRM-Auth-Migration"
+    description: |
+      Migrate WinRM from Basic to NTLM authentication (V-205711, V-205713).
+      PREREQUISITE: Inventory must already use ansible_winrm_transport: ntlm.
+      This job will fail if inventory still uses Basic auth transport.
+    organization: "{{ aap_organization }}"
+    project: "Windows Compliance Collection"
+    playbook: "playbooks/migrate_winrm_auth.yml"
+    inventory: "{{ windows_vm_inventory }}"
+    credentials:
+      - "windows-winrm"
+    ask_variables_on_launch: true
+    ask_limit_on_launch: true
+    extra_vars:
+      # Set to true only if you understand the risks of running with Basic auth
+      force_migration: false
+    survey_enabled: false
+    state: present
+
 - name: Create Compliance-Report job template
   ansible.platform.job_template:
     controller_host: "{{ controller_host }}"
