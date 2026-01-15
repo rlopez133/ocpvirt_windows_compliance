@@ -3,16 +3,20 @@
 # Stores scan results to configured storage
 
 - name: Fetch XCCDF result to controller
-  when: scc_scan_output.xccdf_result is defined
-  ansible.windows.win_fetch:
+  when:
+    - scc_scan_output.xccdf_result is defined
+    - scc_scan_output.xccdf_result | length > 0
+  ansible.builtin.fetch:
     src: "{{ scc_scan_output.xccdf_result }}"
     dest: "{{ results_storage.local_path }}/{{ scan_result.scan_id }}/"
     flat: false
   register: fetch_xccdf
 
 - name: Fetch HTML report to controller
-  when: scc_scan_output.html_report is defined
-  ansible.windows.win_fetch:
+  when:
+    - scc_scan_output.html_report is defined
+    - scc_scan_output.html_report | length > 0
+  ansible.builtin.fetch:
     src: "{{ scc_scan_output.html_report }}"
     dest: "{{ results_storage.local_path }}/{{ scan_result.scan_id }}/"
     flat: false

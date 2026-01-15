@@ -83,19 +83,20 @@
         $args += "-u"
         $args += $outputDir
 
-        # If we have SCAP content file, use -isr to install and run
+        # If we have SCAP content file, install content first, then run scan
         if ($scapContentFile -and (Test-Path $scapContentFile)) {
-            # -isr requires: FILE PROFILE
-            # We'll use the default profile (usually the STIG profile)
-            $args += "-isr"
-            $args += $scapContentFile
-            # Use empty string for default profile, or specify if known
-            $args += ""
+            # First, install the SCAP content using -is (install stream)
+            $installArgs = @("-is", $scapContentFile)
+            $installResult = & $sccPath @installArgs 2>&1
+            $stdout = "Install: " + ($installResult | Out-String) + "`n"
+
+            # Now run the scan (SCC will use the installed/enabled content)
+            # The content should now be registered in options.xml
         }
 
-        # Run scan (no Write-Host to keep stdout clean for JSON parsing)
+        # Run the actual scan with quiet mode and output directory
         $result = & $sccPath @args 2>&1
-        $stdout = $result | Out-String
+        $stdout += "Scan: " + ($result | Out-String)
         $exitCode = $LASTEXITCODE
     } catch {
         $exitCode = 1
