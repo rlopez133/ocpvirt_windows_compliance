@@ -70,9 +70,8 @@
   when:
     - windows_version == '2019'
     - failed_cat1_controls | length > 0
-  ansible.builtin.include_role:
-    name: ansible_tmm.ocpvirt_windows_compliance.win2019_stig
-    tasks_from: scan_driven_remediation.yml
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/win2019_stig/tasks/scan_driven_remediation.yml"
   vars:
     failed_cat1_controls: "{{ failed_cat1_controls }}"
 
