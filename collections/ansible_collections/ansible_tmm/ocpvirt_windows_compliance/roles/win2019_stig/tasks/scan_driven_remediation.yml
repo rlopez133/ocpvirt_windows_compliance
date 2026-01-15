@@ -11,14 +11,6 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/../roles/win2019_stig/defaults/remediation_map.yml"
 
-- name: Display scan-driven remediation plan
-  ansible.builtin.debug:
-    msg: |
-      Scan-Driven CAT I Remediation for Windows Server 2019
-      ======================================================
-      Failed CAT I Controls: {{ failed_cat1_controls | length }}
-      Controls to remediate: {{ failed_cat1_controls | join(', ') }}
-
 - name: Filter remediation map for failed controls
   ansible.builtin.set_fact:
     controls_to_remediate: >-
@@ -33,27 +25,10 @@
   ansible.builtin.set_fact:
     unknown_v_ids: "{{ failed_cat1_controls | difference(known_v_ids) }}"
 
-- name: Warn about unknown V-IDs
-  when: unknown_v_ids | length > 0
-  ansible.builtin.debug:
-    msg: |
-      WARNING: The following V-IDs are not in the remediation map:
-      {{ unknown_v_ids | join(', ') }}
-
-      These controls cannot be automatically remediated.
-      They may be new STIG controls or require manual review.
-
 - name: Separate automatable and manual controls
   ansible.builtin.set_fact:
     automatable_controls: "{{ controls_to_remediate | selectattr('automatable', 'equalto', true) | list }}"
     manual_controls: "{{ controls_to_remediate | selectattr('automatable', 'equalto', false) | list }}"
-
-- name: Display remediation breakdown
-  ansible.builtin.debug:
-    msg: |
-      Remediation Breakdown:
-      - Automatable controls: {{ automatable_controls | length }}
-      - Manual controls (report only): {{ manual_controls | length }}
 
 # ============================================================================
 # Apply registry-based remediations
@@ -131,20 +106,8 @@
   register: user_rights_changes
 
 # ============================================================================
-# Report manual controls
-# ============================================================================
-- name: Report manual controls requiring attention
-  when: manual_controls | length > 0
-  ansible.builtin.debug:
-    msg: |
-      The following CAT I controls require manual remediation:
-      {% for control in manual_controls %}
-      - {{ control.v_id }} ({{ control.stig_id }}): {{ control.title }}
-        Guidance: {{ control.remediation.guidance }}
-      {% endfor %}
-
-# ============================================================================
 # Build remediation summary
+# Manual controls are reported in the final consolidated summary at the playbook level
 # ============================================================================
 - name: Count changes made
   ansible.builtin.set_fact:
@@ -170,39 +133,4 @@
   ansible.builtin.set_fact:
     winrm_in_manual: "{{ manual_controls | selectattr('v_id', 'in', ['V-205711', 'V-205713']) | list | length > 0 }}"
 
-- name: Display remediation summary
-  ansible.builtin.debug:
-    msg: |
-      Scan-Driven Remediation Complete
-      =================================
-      Failed Controls Analyzed: {{ failed_cat1_controls | length }}
-      Automatable Controls: {{ automatable_controls | length }}
-      Unknown Controls (skipped): {{ unknown_v_ids | default([]) | length }}
-      Changes Applied:
-        - Registry settings: {{ registry_changed_count }}
-        - Multi-registry settings: {{ multi_registry_changed_count }}
-        - Security policies: {{ security_policy_changed_count }}
-        - User rights: {{ user_rights_changed_count }}
-      Manual Controls (require review): {{ manual_controls | length }}
-      {% if manual_controls | length > 0 %}
-
-      Manual Controls Requiring Attention:
-      {% for control in manual_controls %}
-        - {{ control.v_id }}: {{ control.title }}
-      {% endfor %}
-      {% endif %}
-      {% if winrm_in_manual %}
-
-      WinRM Authentication Controls (V-205711, V-205713):
-        These controls require a separate migration process:
-        1. Update your inventory: ansible_winrm_transport: ntlm
-        2. Verify connectivity: ansible -m win_ping <host>
-        3. Run: ansible-playbook migrate_winrm_auth.yml
-      {% endif %}
-      {% if unknown_v_ids | default([]) | length > 0 %}
-
-      Unknown V-IDs (not in remediation map):
-        {{ unknown_v_ids | join(', ') }}
-      {% endif %}
-
-      Run a compliance scan to verify remediation effectiveness.
+# Summary output moved to playbooks/remediate.yml post_tasks for consolidated output

@@ -54,13 +54,62 @@
     - role: ../roles/remediate
 
   post_tasks:
-    - name: Display completion message
+    - name: Display final remediation summary
       ansible.builtin.debug:
         msg: |
-          Remediation Complete
-          ====================
-          Target: {{ inventory_hostname }}
-          Profile: {{ compliance_profile }}
-          Failed CAT I Controls Processed: {{ failed_cat1_controls | length }}
+          ================================================================================
+                              COMPLIANCE REMEDIATION SUMMARY
+          ================================================================================
 
+          Target:     {{ inventory_hostname }}
+          OS:         Windows Server {{ remediation_result.os_version | default('Unknown') }}
+          Profile:    {{ remediation_result.profile | default(compliance_profile) }}
+          Started:    {{ remediation_result.started | default('N/A') }}
+          Completed:  {{ remediation_result.completed | default('N/A') }}
+          Dry Run:    {{ remediation_result.dry_run | default(dry_run) }}
+
+          --------------------------------------------------------------------------------
+          CONTROLS PROCESSED
+          --------------------------------------------------------------------------------
+          Failed CAT I Controls Analyzed:  {{ failed_cat1_controls | length }}
+          Automatable Controls:            {{ remediation_result.automatable_controls | default([]) | length }}
+          Manual Controls (require review): {{ remediation_result.manual_controls | default([]) | length }}
+          Unknown Controls (skipped):      {{ remediation_result.unknown_v_ids | default([]) | length }}
+
+          --------------------------------------------------------------------------------
+          CHANGES APPLIED
+          --------------------------------------------------------------------------------
+          Registry settings:       {{ remediation_result.registry_changed | default(0) }}
+          Multi-registry settings: {{ remediation_result.multi_registry_changed | default(0) }}
+          Security policies:       {{ remediation_result.security_policy_changed | default(0) }}
+          User rights:             {{ remediation_result.user_rights_changed | default(0) }}
+          {% if remediation_result.manual_controls | default([]) | length > 0 %}
+
+          --------------------------------------------------------------------------------
+          MANUAL CONTROLS REQUIRING ATTENTION
+          --------------------------------------------------------------------------------
+          {% for control in remediation_result.manual_controls | default([]) %}
+          - {{ control.v_id }}: {{ control.title }}
+          {% endfor %}
+          {% endif %}
+          {% if remediation_result.winrm_in_manual | default(false) %}
+
+          --------------------------------------------------------------------------------
+          WINRM AUTHENTICATION CONTROLS (V-205711, V-205713)
+          --------------------------------------------------------------------------------
+          These controls require a separate migration process:
+            1. Update your inventory: ansible_winrm_transport: ntlm
+            2. Verify connectivity: ansible -m win_ping <host>
+            3. Run the WinRM-Auth-Migration job template (or migrate_winrm_auth.yml)
+          {% endif %}
+          {% if remediation_result.unknown_v_ids | default([]) | length > 0 %}
+
+          --------------------------------------------------------------------------------
+          UNKNOWN V-IDs (not in remediation map)
+          --------------------------------------------------------------------------------
+          {{ remediation_result.unknown_v_ids | join(', ') }}
+          {% endif %}
+
+          ================================================================================
           Run a compliance scan to verify remediation effectiveness.
+          ================================================================================
