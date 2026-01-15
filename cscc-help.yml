@@ -1,0 +1,13 @@
+---
+- name: Get CSCC help
+  hosts: all
+  gather_facts: no
+  
+  tasks:
+    - name: Run cscc help command
+      win_shell: & 'C:\Program Files\DISA\SCC\cscc.exe' --help
+      register: cscc_output
+      
+    - name: Display output
+      debug:
+        var: cscc_output.stdout_lines
