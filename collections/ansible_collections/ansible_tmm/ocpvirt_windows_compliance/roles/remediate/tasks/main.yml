@@ -29,12 +29,13 @@
         Caption = $os.Caption
         Version = $os.Version
         BuildNumber = $os.BuildNumber
-      } | ConvertTo-Json
+      } | ConvertTo-Json -Compress
   register: os_info_raw
 
 - name: Parse OS information
   ansible.builtin.set_fact:
-    os_info: "{{ os_info_raw.output | from_json }}"
+    # win_powershell.output is a list, join it to get the JSON string
+    os_info: "{{ (os_info_raw.output | join('')) | from_json }}"
 
 - name: Determine Windows version
   ansible.builtin.set_fact:
