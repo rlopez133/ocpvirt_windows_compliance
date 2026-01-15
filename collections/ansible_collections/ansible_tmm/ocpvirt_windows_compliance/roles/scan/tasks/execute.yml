@@ -30,7 +30,7 @@
 
 # --- Step 1: List all benchmarks ---
 - name: List all benchmarks
-  ansible.windows.win_command: "{{ scc_exe }} --listAllBenchmarks"
+  ansible.windows.win_shell: "& '{{ scc_exe }}' --listAllBenchmarks"
   register: all_benchmarks_result
   changed_when: false
 
@@ -56,7 +56,7 @@
 
 # --- Step 3: Disable all enabled benchmarks ---
 - name: Disable all enabled benchmarks
-  ansible.windows.win_command: "{{ scc_exe }} --disableBenchmark \"{{ item }}\""
+  ansible.windows.win_shell: "& '{{ scc_exe }}' --disableBenchmark '{{ item }}'"
   loop: "{{ enabled_benchmarks }}"
   register: disable_results
   changed_when: true
@@ -69,7 +69,7 @@
 
 # --- Step 4: Enable target benchmark ---
 - name: Enable target benchmark
-  ansible.windows.win_command: "{{ scc_exe }} --enableBenchmark \"{{ scc_benchmark }}\""
+  ansible.windows.win_shell: "& '{{ scc_exe }}' --enableBenchmark '{{ scc_benchmark }}'"
   register: enable_result
 
 - name: Display enable result
@@ -78,7 +78,7 @@
 
 # --- Step 5: Verify benchmark is enabled ---
 - name: List enabled benchmarks for verification
-  ansible.windows.win_command: "{{ scc_exe }} --listBenchmarks"
+  ansible.windows.win_shell: "& '{{ scc_exe }}' --listBenchmarks"
   register: enabled_check
   changed_when: false
 
@@ -100,7 +100,7 @@
 
 # --- Step 6: Run the scan ---
 - name: Execute SCC scan
-  ansible.windows.win_command: "{{ scc_exe }} -q"
+  ansible.windows.win_shell: "& '{{ scc_exe }}' -q"
   register: scan_result
   async: "{{ scan_timeout }}"
   poll: 30
