@@ -4,10 +4,10 @@
   gather_facts: no
   
   tasks:
-    - name: Run cscc help command
-      ansible.windows.win_shell: & 'C:\Program Files\DISA\SCC\cscc.exe' --help
+    - name: Read cscc help file
+      ansible.windows.win_command: powershell.exe -Command "Get-Content C:\Temp\cscc-help.txt"
       register: cscc_output
       
     - name: Display output
-      ansible.builtin.debug:
+      debug:
         var: cscc_output.stdout_lines
