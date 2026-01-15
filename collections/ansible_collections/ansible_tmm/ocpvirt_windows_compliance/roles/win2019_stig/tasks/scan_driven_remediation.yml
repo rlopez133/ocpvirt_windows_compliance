@@ -1,0 +1,203 @@
+---
+# Windows Server 2019 STIG - Scan-Driven CAT I Remediation
+# Only remediates failed controls identified in scan results
+#
+# Required variables:
+#   - failed_cat1_controls: List of V-IDs that failed the scan (e.g., ["V-205711", "V-205713"])
+
+- name: Load remediation map
+  ansible.builtin.include_vars:
+    file: remediation_map.yml
+
+- name: Display scan-driven remediation plan
+  ansible.builtin.debug:
+    msg: |
+      Scan-Driven CAT I Remediation for Windows Server 2019
+      ======================================================
+      Failed CAT I Controls: {{ failed_cat1_controls | length }}
+      Controls to remediate: {{ failed_cat1_controls | join(', ') }}
+
+- name: Filter remediation map for failed controls
+  ansible.builtin.set_fact:
+    controls_to_remediate: >-
+      {{ win2019_cat1_remediation_map | selectattr('v_id', 'in', failed_cat1_controls) | list }}
+
+# Edge case: Identify V-IDs not found in the remediation map
+- name: Identify known V-IDs in remediation map
+  ansible.builtin.set_fact:
+    known_v_ids: "{{ win2019_cat1_remediation_map | map(attribute='v_id') | list }}"
+
+- name: Find unknown V-IDs not in remediation map
+  ansible.builtin.set_fact:
+    unknown_v_ids: "{{ failed_cat1_controls | difference(known_v_ids) }}"
+
+- name: Warn about unknown V-IDs
+  when: unknown_v_ids | length > 0
+  ansible.builtin.debug:
+    msg: |
+      WARNING: The following V-IDs are not in the remediation map:
+      {{ unknown_v_ids | join(', ') }}
+
+      These controls cannot be automatically remediated.
+      They may be new STIG controls or require manual review.
+
+- name: Separate automatable and manual controls
+  ansible.builtin.set_fact:
+    automatable_controls: "{{ controls_to_remediate | selectattr('automatable', 'equalto', true) | list }}"
+    manual_controls: "{{ controls_to_remediate | selectattr('automatable', 'equalto', false) | list }}"
+    winrm_controls: "{{ controls_to_remediate | selectattr('requires_winrm_migration', 'defined') | selectattr('requires_winrm_migration', 'equalto', true) | list }}"
+
+- name: Display remediation breakdown
+  ansible.builtin.debug:
+    msg: |
+      Remediation Breakdown:
+      - Automatable controls: {{ automatable_controls | length }}
+      - WinRM controls (special handling): {{ winrm_controls | length }}
+      - Manual controls (report only): {{ manual_controls | length }}
+
+# ============================================================================
+# Handle WinRM migration first if WinRM controls are in the failed list
+# ============================================================================
+- name: Handle WinRM migration
+  when: winrm_controls | length > 0
+  ansible.builtin.include_tasks: winrm_migration.yml
+
+# ============================================================================
+# Apply registry-based remediations
+# ============================================================================
+- name: Get registry controls
+  ansible.builtin.set_fact:
+    registry_controls: "{{ automatable_controls | selectattr('remediation_type', 'equalto', 'registry') | rejectattr('requires_winrm_migration', 'defined') | list }}"
+
+- name: Apply registry remediations
+  when: registry_controls | length > 0
+  ansible.windows.win_regedit:
+    path: "{{ item.remediation.path }}"
+    name: "{{ item.remediation.name }}"
+    data: "{{ item.remediation.value }}"
+    type: "{{ item.remediation.type }}"
+  loop: "{{ registry_controls }}"
+  loop_control:
+    label: "{{ item.v_id }} - {{ item.title }}"
+  register: registry_changes
+
+# ============================================================================
+# Apply multi-registry remediations (e.g., Credential Guard)
+# ============================================================================
+- name: Get multi-registry controls
+  ansible.builtin.set_fact:
+    registry_multi_controls: "{{ automatable_controls | selectattr('remediation_type', 'equalto', 'registry_multi') | list }}"
+
+- name: Apply multi-registry remediations
+  when: registry_multi_controls | length > 0
+  ansible.windows.win_regedit:
+    path: "{{ reg_item.path }}"
+    name: "{{ reg_item.name }}"
+    data: "{{ reg_item.value }}"
+    type: "{{ reg_item.type }}"
+  loop: "{{ registry_multi_controls | map(attribute='remediation') | flatten }}"
+  loop_control:
+    loop_var: reg_item
+    label: "{{ reg_item.path }}\\{{ reg_item.name }}"
+  register: multi_registry_changes
+
+# ============================================================================
+# Apply security policy remediations
+# ============================================================================
+- name: Get security policy controls
+  ansible.builtin.set_fact:
+    security_policy_controls: "{{ automatable_controls | selectattr('remediation_type', 'equalto', 'security_policy') | list }}"
+
+- name: Apply security policy remediations
+  when: security_policy_controls | length > 0
+  ansible.windows.win_security_policy:
+    section: "{{ item.remediation.section }}"
+    key: "{{ item.remediation.key }}"
+    value: "{{ item.remediation.value }}"
+  loop: "{{ security_policy_controls }}"
+  loop_control:
+    label: "{{ item.v_id }} - {{ item.title }}"
+  register: security_policy_changes
+
+# ============================================================================
+# Apply user rights remediations
+# ============================================================================
+- name: Get user rights controls
+  ansible.builtin.set_fact:
+    user_rights_controls: "{{ automatable_controls | selectattr('remediation_type', 'equalto', 'user_right') | list }}"
+
+- name: Apply user rights remediations
+  when: user_rights_controls | length > 0
+  ansible.windows.win_user_right:
+    name: "{{ item.remediation.right }}"
+    users: "{{ item.remediation.accounts }}"
+    action: set
+  loop: "{{ user_rights_controls }}"
+  loop_control:
+    label: "{{ item.v_id }} - {{ item.title }}"
+  register: user_rights_changes
+
+# ============================================================================
+# Report manual controls
+# ============================================================================
+- name: Report manual controls requiring attention
+  when: manual_controls | length > 0
+  ansible.builtin.debug:
+    msg: |
+      The following CAT I controls require manual remediation:
+      {% for control in manual_controls %}
+      - {{ control.v_id }} ({{ control.stig_id }}): {{ control.title }}
+        Guidance: {{ control.remediation.guidance }}
+      {% endfor %}
+
+# ============================================================================
+# Build remediation summary
+# ============================================================================
+- name: Count changes made
+  ansible.builtin.set_fact:
+    registry_changed_count: "{{ registry_changes.results | default([]) | selectattr('changed', 'defined') | selectattr('changed', 'equalto', true) | list | length }}"
+    multi_registry_changed_count: "{{ multi_registry_changes.results | default([]) | selectattr('changed', 'defined') | selectattr('changed', 'equalto', true) | list | length }}"
+    security_policy_changed_count: "{{ security_policy_changes.results | default([]) | selectattr('changed', 'defined') | selectattr('changed', 'equalto', true) | list | length }}"
+    user_rights_changed_count: "{{ user_rights_changes.results | default([]) | selectattr('changed', 'defined') | selectattr('changed', 'equalto', true) | list | length }}"
+
+- name: Build scan-driven remediation result
+  ansible.builtin.set_fact:
+    scan_driven_result:
+      controls_analyzed: "{{ failed_cat1_controls | length }}"
+      controls_remediated: "{{ automatable_controls | map(attribute='v_id') | list }}"
+      controls_skipped: "{{ unknown_v_ids | default([]) }}"
+      controls_manual: "{{ manual_controls | map(attribute='v_id') | list }}"
+      changes_applied:
+        registry: "{{ registry_changed_count | int }}"
+        multi_registry: "{{ multi_registry_changed_count | int }}"
+        security_policy: "{{ security_policy_changed_count | int }}"
+        user_rights: "{{ user_rights_changed_count | int }}"
+
+- name: Display remediation summary
+  ansible.builtin.debug:
+    msg: |
+      Scan-Driven Remediation Complete
+      =================================
+      Failed Controls Analyzed: {{ failed_cat1_controls | length }}
+      Automatable Controls: {{ automatable_controls | length }}
+      Unknown Controls (skipped): {{ unknown_v_ids | default([]) | length }}
+      Changes Applied:
+        - Registry settings: {{ registry_changed_count }}
+        - Multi-registry settings: {{ multi_registry_changed_count }}
+        - Security policies: {{ security_policy_changed_count }}
+        - User rights: {{ user_rights_changed_count }}
+      Manual Controls (require review): {{ manual_controls | length }}
+      {% if manual_controls | length > 0 %}
+
+      Manual Controls Requiring Attention:
+      {% for control in manual_controls %}
+        - {{ control.v_id }}: {{ control.title }}
+      {% endfor %}
+      {% endif %}
+      {% if unknown_v_ids | default([]) | length > 0 %}
+
+      Unknown V-IDs (not in remediation map):
+        {{ unknown_v_ids | join(', ') }}
+      {% endif %}
+
+      Run a compliance scan to verify remediation effectiveness.

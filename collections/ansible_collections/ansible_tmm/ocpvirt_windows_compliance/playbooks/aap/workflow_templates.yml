@@ -1,6 +1,12 @@
 ---
 # AAP Workflow Templates Configuration
 # Creates workflow templates for multi-step compliance operations
+#
+# Scan-Driven Remediation Workflow:
+# 1. Scan job outputs failed_cat1_controls as set_stats
+# 2. Remediate job receives failed_cat1_controls from scan output
+# 3. Rescan verifies remediation effectiveness
+# 4. Report generates final compliance report
 
 - name: Create Compliance-Full-Cycle workflow
   ansible.platform.workflow_job_template:
@@ -9,7 +15,7 @@
     controller_password: "{{ controller_password }}"
     validate_certs: "{{ controller_validate_certs }}"
     name: "Compliance-Full-Cycle"
-    description: "Complete compliance cycle: Scan → Remediate → Rescan → Report"
+    description: "Scan-driven compliance cycle: Scan → Remediate Failed CAT I → Rescan → Report"
     organization: "{{ aap_organization }}"
     ask_variables_on_launch: true
     ask_limit_on_launch: true
@@ -23,9 +29,6 @@
           choices:
             - "stig"
             - "stig-minimal"
-            - "cis"
-            - "hipaa"
-            - "pci-dss"
           default: "stig"
           required: true
     state: present

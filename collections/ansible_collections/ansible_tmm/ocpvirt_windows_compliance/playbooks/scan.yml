@@ -43,3 +43,15 @@
           Status: {{ scan_result.status | default('unknown') }}
           Passed: {{ scan_result.score.passed | default(0) }}
           Failed: {{ scan_result.score.failed | default(0) }}
+          CAT I Failed: {{ scan_result.score.cat1_failed | default(0) }}
+          Failed CAT I V-IDs: {{ scan_result.failed_controls.cat1 | default([]) | join(', ') | default('None') }}
+
+    # Set stats for AAP workflow to pass failed_cat1_controls to remediate job
+    - name: Set workflow stats for scan-driven remediation
+      ansible.builtin.set_stats:
+        data:
+          failed_cat1_controls: "{{ scan_result.failed_controls.cat1 | default([]) }}"
+          scan_score: "{{ scan_result.score.score | default(0) }}"
+          scan_status: "{{ scan_result.status | default('unknown') }}"
+          scan_id: "{{ scan_result.scan_id | default('') }}"
+        aggregate: false

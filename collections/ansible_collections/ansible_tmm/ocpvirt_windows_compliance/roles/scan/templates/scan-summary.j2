@@ -1,0 +1,78 @@
+================================================================================
+                      COMPLIANCE SCAN SUMMARY
+================================================================================
+
+Target VM:          {{ scan_result.vm_name }}
+Namespace:          {{ scan_result.namespace | default('N/A') }}
+Profile:            {{ scan_result.profile }}
+OS Version:         Windows Server {{ scan_result.os_version }}
+Scan ID:            {{ scan_result.scan_id }}
+Timestamp:          {{ scan_result.timestamp }}
+Duration:           {{ scan_result.duration_seconds }}s
+
+================================================================================
+                           COMPLIANCE SCORE
+================================================================================
+
+Total Controls:     {{ scan_result.score.total }}
+Passed:             {{ scan_result.score.passed }}
+Failed:             {{ scan_result.score.failed }}
+Not Applicable:     {{ scan_result.score.not_applicable | default(0) }}
+Not Checked:        {{ scan_result.score.not_checked | default(0) }}
+
+OVERALL SCORE:      {{ scan_result.score.score }}%
+STATUS:             {{ scan_result.status | upper }}
+
+================================================================================
+                         FAILED CONTROLS BY SEVERITY
+================================================================================
+
+CAT I (High - Critical Security):
+  Count: {{ scan_result.score.cat1_failed | default(0) }}
+{% if scan_result.failed_controls.cat1 | default([]) | length > 0 %}
+  V-IDs: {{ scan_result.failed_controls.cat1 | join(', ') }}
+{% else %}
+  V-IDs: None (Compliant)
+{% endif %}
+
+CAT II (Medium - Significant Security):
+  Count: {{ scan_result.score.cat2_failed | default(0) }}
+{% if scan_result.failed_controls.cat2 | default([]) | length > 0 %}
+  V-IDs: {{ scan_result.failed_controls.cat2 | join(', ') }}
+{% else %}
+  V-IDs: None (Compliant)
+{% endif %}
+
+CAT III (Low - Minor Security):
+  Count: {{ scan_result.score.cat3_failed | default(0) }}
+{% if scan_result.failed_controls.cat3 | default([]) | length > 0 %}
+  V-IDs: {{ scan_result.failed_controls.cat3 | join(', ') }}
+{% else %}
+  V-IDs: None (Compliant)
+{% endif %}
+
+================================================================================
+                              ARTIFACTS
+================================================================================
+
+XCCDF Result:       {{ scan_result.artifacts.xccdf_result | default('N/A') }}
+HTML Report:        {{ scan_result.artifacts.html_report | default('N/A') }}
+
+================================================================================
+                          NEXT STEPS
+================================================================================
+{% if scan_result.score.cat1_failed | default(0) > 0 %}
+CRITICAL: {{ scan_result.score.cat1_failed }} CAT I control(s) failed.
+Run remediation with failed_cat1_controls: {{ scan_result.failed_controls.cat1 | to_json }}
+
+Example AAP workflow:
+  1. Run Compliance-Scan (this job)
+  2. Run Compliance-Remediate with failed_cat1_controls from scan output
+  3. Run Compliance-Scan again to verify
+{% elif scan_result.score.score < 100 %}
+INFO: No CAT I failures. Review CAT II/III findings for additional hardening.
+{% else %}
+SUCCESS: System is fully compliant with {{ scan_result.profile | upper }} profile.
+{% endif %}
+
+================================================================================
