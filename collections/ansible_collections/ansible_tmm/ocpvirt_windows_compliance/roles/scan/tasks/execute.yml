@@ -61,12 +61,21 @@
       - SCAP Content: {{ scap_content_file }}
       - Output Dir: {{ scc_config.output_dir }}
 
+- name: Copy STIG content to SCAP12_Content directory
+  ansible.windows.win_copy:
+    src: "{{ scap_content_file }}"
+    dest: "{{ scc_install_path }}\\Resources\\Content\\SCAP12_Content\\"
+    remote_src: true
+  register: copy_stig_content
+  ignore_errors: true
+
 - name: Execute SCC scan
   ansible.windows.win_shell: |
     $scanId = "{{ scan_id }}"
     $outputDir = "{{ scc_config.output_dir }}\$scanId"
     $sccPath = "{{ scc_install_path }}\cscc.exe"
     $scapContentFile = "{{ scap_content_file }}"
+    $scap12Dir = "{{ scc_install_path }}\Resources\Content\SCAP12_Content"
 
     # Create output directory
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
@@ -77,15 +86,27 @@
     $stderr = ""
 
     try {
-        # Step 1: Install the SCAP content using -is (install stream)
-        $installArgs = @("-is", $scapContentFile)
-        $installResult = & $sccPath @installArgs 2>&1
-        $stdout = "INSTALL: " + ($installResult | Out-String)
+        # Get the benchmark filename (without extension for benchmark ID)
+        $benchmarkFile = Split-Path $scapContentFile -Leaf
+        $benchmarkId = [System.IO.Path]::GetFileNameWithoutExtension($benchmarkFile)
 
-        # Step 2: Run the scan with quiet mode and output directory
+        # Step 1: List available benchmarks to find the correct ID
+        $listArgs = @("--listBenchmarks")
+        $listResult = & $sccPath @listArgs 2>&1
+        $stdout = "AVAILABLE BENCHMARKS:`n" + ($listResult | Out-String) + "`n"
+
+        # Step 2: Enable the Windows Server 2019 benchmark
+        # Try to find a matching benchmark ID from the list
+        $benchmarkLines = $listResult | Where-Object { $_ -match "Windows.*2019|2019.*STIG" }
+        if ($benchmarkLines) {
+            $stdout += "Found matching benchmarks: $benchmarkLines`n"
+        }
+
+        # Step 3: Run scan with quiet mode and output directory
+        # SCC scans all enabled benchmarks
         $scanArgs = @("-q", "-u", $outputDir)
         $scanResult = & $sccPath @scanArgs 2>&1
-        $stdout += "SCAN: " + ($scanResult | Out-String)
+        $stdout += "SCAN OUTPUT:`n" + ($scanResult | Out-String)
         $exitCode = $LASTEXITCODE
     } catch {
         $exitCode = 1

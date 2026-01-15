@@ -2,25 +2,146 @@
 # Scan Role - Collect Results
 # Parses XCCDF results and calculates compliance score
 
-- name: Read XCCDF result file
-  when: scc_scan_output.xccdf_result is defined and scc_scan_output.xccdf_result
+- name: Check if XCCDF result file exists
+  ansible.builtin.set_fact:
+    has_xccdf_result: "{{ scc_scan_output.xccdf_result is defined and scc_scan_output.xccdf_result | length > 0 }}"
+
+- name: Parse XCCDF and calculate score
+  when: has_xccdf_result
   ansible.windows.win_shell: |
-    Get-Content -Path "{{ scc_scan_output.xccdf_result }}" -Raw
-  register: xccdf_content
+    $xccdfPath = "{{ scc_scan_output.xccdf_result }}"
 
-- name: Calculate compliance score
-  when:
-    - xccdf_content is defined
-    - xccdf_content is not skipped
-    - xccdf_content.stdout is defined
-    - xccdf_content.stdout | length > 0
-  ansible.builtin.set_fact:
-    parsed_results: "{{ xccdf_content.stdout | ansible_tmm.ocpvirt_windows_compliance.parse_xccdf }}"
+    if (-not (Test-Path $xccdfPath)) {
+        @{
+            error = "XCCDF file not found: $xccdfPath"
+            total = 0
+            passed = 0
+            failed = 0
+            not_applicable = 0
+            score = 0
+            status = "error"
+        } | ConvertTo-Json -Compress
+        exit 0
+    }
 
-- name: Calculate score from parsed results
-  when: parsed_results is defined
+    try {
+        [xml]$xccdf = Get-Content $xccdfPath -Raw
+
+        # Define namespace manager for XCCDF
+        $nsManager = New-Object System.Xml.XmlNamespaceManager($xccdf.NameTable)
+
+        # Try XCCDF 1.2 namespace first
+        $ns = "http://checklists.nist.gov/xccdf/1.2"
+        $nsManager.AddNamespace("xccdf", $ns)
+
+        # Find rule-result elements
+        $results = $xccdf.SelectNodes("//xccdf:rule-result", $nsManager)
+
+        if ($results.Count -eq 0) {
+            # Try XCCDF 1.1 namespace
+            $ns = "http://checklists.nist.gov/xccdf/1.1"
+            $nsManager = New-Object System.Xml.XmlNamespaceManager($xccdf.NameTable)
+            $nsManager.AddNamespace("xccdf", $ns)
+            $results = $xccdf.SelectNodes("//xccdf:rule-result", $nsManager)
+        }
+
+        if ($results.Count -eq 0) {
+            # Try without namespace (some exports)
+            $results = $xccdf.SelectNodes("//rule-result")
+        }
+
+        # Count results by status
+        $passed = 0
+        $failed = 0
+        $notApplicable = 0
+        $notChecked = 0
+        $cat1Failed = 0
+        $cat2Failed = 0
+        $cat3Failed = 0
+
+        foreach ($result in $results) {
+            $status = $result.result
+            $ruleId = $result.idref
+            $severity = $result.severity
+
+            switch ($status) {
+                "pass" { $passed++ }
+                "fail" {
+                    $failed++
+                    # Categorize by severity
+                    switch ($severity) {
+                        "high" { $cat1Failed++ }
+                        "medium" { $cat2Failed++ }
+                        "low" { $cat3Failed++ }
+                        default {
+                            # Try to detect from rule ID
+                            if ($ruleId -match "CAT.?I[^I]|high") { $cat1Failed++ }
+                            elseif ($ruleId -match "CAT.?II|medium") { $cat2Failed++ }
+                            else { $cat3Failed++ }
+                        }
+                    }
+                }
+                "notapplicable" { $notApplicable++ }
+                { $_ -in "notchecked", "notselected", "informational" } { $notChecked++ }
+            }
+        }
+
+        $total = $results.Count
+        $applicable = $passed + $failed
+        $score = if ($applicable -gt 0) { [math]::Round(($passed / $applicable) * 100, 2) } else { 0 }
+
+        # Determine status
+        $complianceStatus = "unknown"
+        if ($cat1Failed -gt 0) {
+            $complianceStatus = "critical"
+        } elseif ($score -lt 80) {
+            $complianceStatus = "warning"
+        } elseif ($score -lt 95) {
+            $complianceStatus = "info"
+        } else {
+            $complianceStatus = "compliant"
+        }
+
+        @{
+            total = $total
+            passed = $passed
+            failed = $failed
+            not_applicable = $notApplicable
+            not_checked = $notChecked
+            score = $score
+            status = $complianceStatus
+            cat1_failed = $cat1Failed
+            cat2_failed = $cat2Failed
+            cat3_failed = $cat3Failed
+        } | ConvertTo-Json -Compress
+    } catch {
+        @{
+            error = $_.Exception.Message
+            total = 0
+            passed = 0
+            failed = 0
+            score = 0
+            status = "error"
+        } | ConvertTo-Json -Compress
+    }
+  register: score_result
+
+- name: Parse score result
+  when: has_xccdf_result and score_result.stdout is defined
   ansible.builtin.set_fact:
-    calculated_score: "{{ parsed_results | ansible_tmm.ocpvirt_windows_compliance.calculate_score(scan_thresholds) }}"
+    calculated_score: "{{ score_result.stdout | from_json }}"
+
+- name: Set empty score if no results
+  when: not has_xccdf_result or calculated_score is not defined
+  ansible.builtin.set_fact:
+    calculated_score:
+      total: 0
+      passed: 0
+      failed: 0
+      not_applicable: 0
+      not_checked: 0
+      score: 0
+      status: "no_results"
 
 - name: Build scan result object
   ansible.builtin.set_fact:
@@ -32,8 +153,8 @@
       profile: "{{ compliance_profile }}"
       os_version: "{{ windows_version }}"
       duration_seconds: "{{ scc_scan_output.duration_seconds }}"
-      score: "{{ calculated_score | default({}) }}"
-      status: "{{ calculated_score.status | default('unknown') }}"
+      score: "{{ calculated_score }}"
+      status: "{{ calculated_score.status }}"
       artifacts:
         xccdf_result: "{{ scc_scan_output.xccdf_result | default(None) }}"
         html_report: "{{ scc_scan_output.html_report | default(None) }}"
@@ -49,5 +170,8 @@
       - Total Controls: {{ scan_result.score.total | default(0) }}
       - Passed: {{ scan_result.score.passed | default(0) }}
       - Failed: {{ scan_result.score.failed | default(0) }}
+      - CAT1 Failed: {{ scan_result.score.cat1_failed | default(0) }}
+      - CAT2 Failed: {{ scan_result.score.cat2_failed | default(0) }}
+      - CAT3 Failed: {{ scan_result.score.cat3_failed | default(0) }}
       - Score: {{ scan_result.score.score | default(0) }}%
       - Status: {{ scan_result.status }}
