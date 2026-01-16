@@ -93,3 +93,40 @@
       security_policy_changed: "{{ security_policy_changed_count | default(0) }}"
       user_rights_changed: "{{ user_rights_changed_count | default(0) }}"
       winrm_in_manual: "{{ winrm_in_manual | default(false) }}"
+
+# ============================================================================
+# Push remediation metrics to Prometheus
+# ============================================================================
+- name: Build remediation metrics payload
+  ansible.builtin.set_fact:
+    remediation_metrics_payload: |
+      # HELP compliance_remediations_total Total remediation operations
+      # TYPE compliance_remediations_total counter
+      compliance_remediations_total{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}",trigger="{{ trigger_source | default('manual') }}",result="{{ 'success' if (automatable_controls | default([]) | length) > 0 else 'skipped' }}"} 1
+
+      # HELP compliance_remediation_controls_attempted Number of controls attempted to remediate
+      # TYPE compliance_remediation_controls_attempted gauge
+      compliance_remediation_controls_attempted{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}"} {{ automatable_controls | default([]) | length }}
+
+      # HELP compliance_remediation_controls_manual Number of controls requiring manual remediation
+      # TYPE compliance_remediation_controls_manual gauge
+      compliance_remediation_controls_manual{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}"} {{ manual_controls | default([]) | length }}
+
+      # HELP compliance_remediation_last_timestamp Timestamp of last remediation
+      # TYPE compliance_remediation_last_timestamp gauge
+      compliance_remediation_last_timestamp{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}"} {{ ansible_date_time.epoch }}
+  when: not dry_run
+
+- name: Push remediation metrics to Pushgateway
+  when:
+    - not dry_run
+    - metrics_config.pushgateway_url | default('') | length > 0
+  ansible.builtin.uri:
+    url: "{{ metrics_config.pushgateway_url }}/metrics/job/compliance_remediation/instance/{{ inventory_hostname }}"
+    method: POST
+    body: "{{ remediation_metrics_payload }}"
+    headers:
+      Content-Type: text/plain
+    status_code: [200, 202]
+  delegate_to: localhost
+  ignore_errors: true

@@ -8,9 +8,15 @@
 # - Alertmanager payloads arrive as event.payload with alerts array
 #
 # Payload Structure (from Alertmanager):
+# event.payload.status - "firing" or "resolved"
 # event.payload.alerts[] - array of alert objects
-# event.payload.alerts[].status - "firing" or "resolved"
-# event.payload.alerts[].labels - alert labels (alertname, category, vm_name, etc.)
+# event.payload.alerts[].labels - alert labels (alertname, category, vm_name, control_id, etc.)
+# event.payload.commonLabels - labels common to all alerts in group
+#
+# Auto-Remediation Toggles:
+# - auto_remediate_cat1: false (CRITICAL - disabled by default, requires security review)
+# - auto_remediate_cat2: false (disabled until CAT II remediations available)
+# - auto_remediate_cat3: false (disabled until CAT III remediations available)
 #
 # Note: ansible-rulebook conditions use a specific DSL, not Jinja2 filters.
 # Complex array filtering is handled in the action's extra_vars using Jinja2.
@@ -22,44 +28,161 @@
       ansible.eda.pg_listener:
 
   rules:
-    # Rule 1: Process any firing compliance alert
-    # The action extracts category-specific alerts and routes appropriately
-    - name: Process compliance alerts
-      condition: event.payload is defined and event.payload.status == "firing"
+    # ==========================================================================
+    # CAT I Auto-Remediation (CRITICAL - Disabled by Default)
+    # ==========================================================================
+    # Only triggers if auto_remediate_cat1 is explicitly set to true
+    - name: CAT I Auto-Remediation (when enabled)
+      condition: >
+        event.payload is defined and
+        event.payload.status == "firing" and
+        event.payload.commonLabels.category == "CAT1"
       action:
         run_job_template:
-          name: Compliance-Remediate
+          name: "{{ remediation_job_template | default('Compliance-Remediate') }}"
           organization: "{{ eda_organization | default('Default') }}"
           job_args:
             extra_vars:
               target_vm: "{{ event.payload.commonLabels.vm_name | default('') }}"
               target_namespace: "{{ event.payload.commonLabels.namespace | default('') }}"
-              control_id: "{{ event.payload.commonLabels.control_id | default('') }}"
-              category: "{{ event.payload.commonLabels.category | default('') }}"
+              category: "CAT1"
               alertname: "{{ event.payload.commonLabels.alertname | default('') }}"
               trigger_source: "eda"
+              # Extract all CAT I control IDs from the alerts array
+              failed_cat1_controls: >-
+                {{ event.payload.alerts | selectattr('labels.category', 'equalto', 'CAT1') | map(attribute='labels.control_id') | select('defined') | list }}
+              # Pass toggle state for job template to verify
               auto_remediate_cat1: "{{ auto_remediate_cat1 | default(false) }}"
-              auto_remediate_cat2: "{{ auto_remediate_cat2 | default(true) }}"
-              auto_remediate_cat3: "{{ auto_remediate_cat3 | default(true) }}"
+      enabled: "{{ auto_remediate_cat1 | default(false) }}"
 
-    # Rule 2: Log resolved alerts
+    # Log when CAT I alert received but auto-remediation is disabled
+    - name: CAT I Alert - Auto-Remediation Disabled
+      condition: >
+        event.payload is defined and
+        event.payload.status == "firing" and
+        event.payload.commonLabels.category == "CAT1"
+      action:
+        debug:
+          msg: |
+            CAT I ALERT RECEIVED - AUTO-REMEDIATION DISABLED
+            ================================================
+            VM: {{ event.payload.commonLabels.vm_name | default('unknown') }}
+            Namespace: {{ event.payload.commonLabels.namespace | default('unknown') }}
+            Control ID: {{ event.payload.commonLabels.control_id | default('unknown') }}
+            Alert: {{ event.payload.commonLabels.alertname | default('unknown') }}
+
+            ACTION REQUIRED: Manual remediation needed.
+            To enable CAT I auto-remediation, set auto_remediate_cat1: true
+            in the EDA Rulebook Activation extra_vars.
+
+            WARNING: Review security implications before enabling CAT I auto-remediation.
+      enabled: "{{ not (auto_remediate_cat1 | default(false)) }}"
+
+    # ==========================================================================
+    # CAT II Auto-Remediation (Disabled by Default)
+    # ==========================================================================
+    - name: CAT II Auto-Remediation (when enabled)
+      condition: >
+        event.payload is defined and
+        event.payload.status == "firing" and
+        event.payload.commonLabels.category == "CAT2"
+      action:
+        run_job_template:
+          name: "{{ remediation_job_template | default('Compliance-Remediate') }}"
+          organization: "{{ eda_organization | default('Default') }}"
+          job_args:
+            extra_vars:
+              target_vm: "{{ event.payload.commonLabels.vm_name | default('') }}"
+              target_namespace: "{{ event.payload.commonLabels.namespace | default('') }}"
+              category: "CAT2"
+              alertname: "{{ event.payload.commonLabels.alertname | default('') }}"
+              trigger_source: "eda"
+              failed_cat2_controls: >-
+                {{ event.payload.alerts | selectattr('labels.category', 'equalto', 'CAT2') | map(attribute='labels.control_id') | select('defined') | list }}
+              auto_remediate_cat2: "{{ auto_remediate_cat2 | default(false) }}"
+      enabled: "{{ auto_remediate_cat2 | default(false) }}"
+
+    - name: CAT II Alert - Auto-Remediation Disabled
+      condition: >
+        event.payload is defined and
+        event.payload.status == "firing" and
+        event.payload.commonLabels.category == "CAT2"
+      action:
+        debug:
+          msg: |
+            CAT II Alert Received - Auto-Remediation Disabled
+            VM: {{ event.payload.commonLabels.vm_name | default('unknown') }}
+            Control ID: {{ event.payload.commonLabels.control_id | default('unknown') }}
+            To enable, set auto_remediate_cat2: true in EDA Activation extra_vars.
+      enabled: "{{ not (auto_remediate_cat2 | default(false)) }}"
+
+    # ==========================================================================
+    # CAT III Auto-Remediation (Disabled by Default)
+    # ==========================================================================
+    - name: CAT III Auto-Remediation (when enabled)
+      condition: >
+        event.payload is defined and
+        event.payload.status == "firing" and
+        event.payload.commonLabels.category == "CAT3"
+      action:
+        run_job_template:
+          name: "{{ remediation_job_template | default('Compliance-Remediate') }}"
+          organization: "{{ eda_organization | default('Default') }}"
+          job_args:
+            extra_vars:
+              target_vm: "{{ event.payload.commonLabels.vm_name | default('') }}"
+              target_namespace: "{{ event.payload.commonLabels.namespace | default('') }}"
+              category: "CAT3"
+              alertname: "{{ event.payload.commonLabels.alertname | default('') }}"
+              trigger_source: "eda"
+              failed_cat3_controls: >-
+                {{ event.payload.alerts | selectattr('labels.category', 'equalto', 'CAT3') | map(attribute='labels.control_id') | select('defined') | list }}
+              auto_remediate_cat3: "{{ auto_remediate_cat3 | default(false) }}"
+      enabled: "{{ auto_remediate_cat3 | default(false) }}"
+
+    - name: CAT III Alert - Auto-Remediation Disabled
+      condition: >
+        event.payload is defined and
+        event.payload.status == "firing" and
+        event.payload.commonLabels.category == "CAT3"
+      action:
+        debug:
+          msg: |
+            CAT III Alert Received - Auto-Remediation Disabled
+            VM: {{ event.payload.commonLabels.vm_name | default('unknown') }}
+            Control ID: {{ event.payload.commonLabels.control_id | default('unknown') }}
+            To enable, set auto_remediate_cat3: true in EDA Activation extra_vars.
+      enabled: "{{ not (auto_remediate_cat3 | default(false)) }}"
+
+    # ==========================================================================
+    # Resolved Alert Handling
+    # ==========================================================================
     - name: Log resolved compliance alerts
       condition: event.payload is defined and event.payload.status == "resolved"
       action:
         debug:
           msg: |
-            Compliance Alert Resolved:
-            - Alert: {{ event.payload.commonLabels.alertname | default('unknown') }}
-            - VM: {{ event.payload.commonLabels.vm_name | default('unknown') }}
-            - Category: {{ event.payload.commonLabels.category | default('unknown') }}
+            Compliance Alert Resolved
+            ========================
+            Alert: {{ event.payload.commonLabels.alertname | default('unknown') }}
+            VM: {{ event.payload.commonLabels.vm_name | default('unknown') }}
+            Category: {{ event.payload.commonLabels.category | default('unknown') }}
+            Control ID: {{ event.payload.commonLabels.control_id | default('unknown') }}
 
-    # Rule 3: Catch-all for any event (audit logging)
-    - name: Audit log all events
+    # ==========================================================================
+    # Audit Logging (All Events)
+    # ==========================================================================
+    - name: Audit log all compliance events
       condition: event.payload is defined
       action:
         debug:
           msg: |
-            Event Received:
-            - Status: {{ event.payload.status | default('unknown') }}
-            - Receiver: {{ event.payload.receiver | default('unknown') }}
-            - Group Labels: {{ event.payload.groupLabels | default({}) }}
+            [AUDIT] Compliance Event Received
+            Time: {{ ansible_date_time.iso8601 | default('N/A') }}
+            Status: {{ event.payload.status | default('unknown') }}
+            Category: {{ event.payload.commonLabels.category | default('unknown') }}
+            VM: {{ event.payload.commonLabels.vm_name | default('unknown') }}
+            Namespace: {{ event.payload.commonLabels.namespace | default('unknown') }}
+            Alert: {{ event.payload.commonLabels.alertname | default('unknown') }}
+            Control: {{ event.payload.commonLabels.control_id | default('N/A') }}
+            Alert Count: {{ event.payload.alerts | default([]) | length }}
