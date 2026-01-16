@@ -61,6 +61,20 @@
       {{ cat2_failed_metrics | default('') }}
       {{ cat3_failed_metrics | default('') }}
 
+- name: Delete old metrics from Pushgateway (triggers alert resolve)
+  when: metrics_config.pushgateway_url | default('') | length > 0
+  ansible.builtin.uri:
+    url: "{{ metrics_config.pushgateway_url }}/metrics/job/compliance_scan/instance/{{ scan_result.vm_name }}"
+    method: DELETE
+    status_code: [200, 202, 204]
+  delegate_to: localhost
+  ignore_errors: true
+
+- name: Wait for metrics deletion to propagate
+  when: metrics_config.pushgateway_url | default('') | length > 0
+  ansible.builtin.pause:
+    seconds: 2
+
 - name: Push metrics to Pushgateway
   when: metrics_config.pushgateway_url | default('') | length > 0
   ansible.builtin.uri:
