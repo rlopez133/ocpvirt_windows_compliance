@@ -70,10 +70,11 @@
   delegate_to: localhost
   ignore_errors: true
 
-- name: Wait for metrics deletion to propagate
+- name: Wait for Prometheus to scrape deleted state (triggers alert resolve)
   when: metrics_config.pushgateway_url | default('') | length > 0
   ansible.builtin.pause:
-    seconds: 2
+    seconds: "{{ metrics_config.scrape_interval_wait | default(45) }}"
+    prompt: "Waiting {{ metrics_config.scrape_interval_wait | default(45) }}s for Prometheus to detect metrics deletion..."
 
 - name: Push metrics to Pushgateway
   when: metrics_config.pushgateway_url | default('') | length > 0
