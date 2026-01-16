@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "description": "Windows VM STIG Compliance Dashboard - Real-time visibility into compliance scores, violations, and audit history",
+  "description": "Windows VM STIG Compliance Dashboard - Real-time visibility into compliance scores, violations, and audit history. Thresholds: Green ≥70% (no CAT I), Yellow 50-69%, Red <50% or any CAT I.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -30,11 +30,11 @@
               },
               {
                 "color": "yellow",
-                "value": 80
+                "value": 50
               },
               {
                 "color": "green",
-                "value": 95
+                "value": 70
               }
             ]
           },
@@ -43,7 +43,7 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 6,
+        "w": 5,
         "x": 0,
         "y": 0
       },
@@ -65,7 +65,7 @@
           "refId": "A"
         }
       ],
-      "title": "Average Compliance Score",
+      "title": "Avg Compliance Score",
       "type": "gauge"
     },
     {
@@ -92,8 +92,8 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 4,
-        "x": 6,
+        "w": 3,
+        "x": 5,
         "y": 0
       },
       "id": 2,
@@ -148,7 +148,7 @@
       "gridPos": {
         "h": 6,
         "w": 4,
-        "x": 10,
+        "x": 8,
         "y": 0
       },
       "id": 3,
@@ -207,7 +207,7 @@
       "gridPos": {
         "h": 6,
         "w": 4,
-        "x": 14,
+        "x": 12,
         "y": 0
       },
       "id": 5,
@@ -262,7 +262,7 @@
       "gridPos": {
         "h": 6,
         "w": 4,
-        "x": 18,
+        "x": 16,
         "y": 0
       },
       "id": 6,
@@ -312,8 +312,8 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 2,
-        "x": 22,
+        "w": 4,
+        "x": 20,
         "y": 0
       },
       "id": 7,
@@ -332,11 +332,11 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(compliance_score{namespace=~\"$namespace\"} >= 95) or vector(0)",
+          "expr": "count(compliance_score{namespace=~\"$namespace\"} >= 70) or vector(0)",
           "refId": "A"
         }
       ],
-      "title": "Compliant VMs",
+      "title": "Compliant VMs (≥70%)",
       "type": "stat"
     },
     {
@@ -391,11 +391,11 @@
               },
               {
                 "color": "yellow",
-                "value": 80
+                "value": 50
               },
               {
                 "color": "green",
-                "value": 95
+                "value": 70
               }
             ]
           },
@@ -482,11 +482,11 @@
                     },
                     {
                       "color": "yellow",
-                      "value": 80
+                      "value": 50
                     },
                     {
                       "color": "green",
-                      "value": 95
+                      "value": 70
                     }
                   ]
                 }
@@ -647,7 +647,41 @@
               "__name__ 2": true,
               "__name__ 3": true,
               "__name__ 4": true,
+              "container": true,
+              "container 1": true,
+              "container 2": true,
+              "container 3": true,
+              "container 4": true,
+              "endpoint": true,
+              "endpoint 1": true,
+              "endpoint 2": true,
+              "endpoint 3": true,
+              "endpoint 4": true,
+              "exported_instance": true,
+              "exported_instance 1": true,
+              "exported_instance 2": true,
+              "exported_instance 3": true,
+              "exported_instance 4": true,
+              "exported_job": true,
+              "exported_job 1": true,
+              "exported_job 2": true,
+              "exported_job 3": true,
+              "exported_job 4": true,
+              "exported_namespace": true,
+              "exported_namespace 1": true,
+              "exported_namespace 2": true,
+              "exported_namespace 3": true,
+              "exported_namespace 4": true,
               "framework": true,
+              "framework 1": true,
+              "framework 2": true,
+              "framework 3": true,
+              "framework 4": true,
+              "instance": true,
+              "instance 1": true,
+              "instance 2": true,
+              "instance 3": true,
+              "instance 4": true,
               "job": true,
               "job 1": true,
               "job 2": true,
@@ -657,7 +691,26 @@
               "namespace 2": true,
               "namespace 3": true,
               "namespace 4": true,
-              "profile": true
+              "pod": true,
+              "pod 1": true,
+              "pod 2": true,
+              "pod 3": true,
+              "pod 4": true,
+              "profile": true,
+              "profile 1": true,
+              "profile 2": true,
+              "profile 3": true,
+              "profile 4": true,
+              "prometheus": true,
+              "prometheus 1": true,
+              "prometheus 2": true,
+              "prometheus 3": true,
+              "prometheus 4": true,
+              "service": true,
+              "service 1": true,
+              "service 2": true,
+              "service 3": true,
+              "service 4": true
             },
             "indexByName": {
               "vm_name": 0,
@@ -1076,11 +1129,11 @@
               },
               {
                 "color": "yellow",
-                "value": 80
+                "value": 50
               },
               {
                 "color": "green",
-                "value": 95
+                "value": 70
               }
             ]
           },
@@ -1159,6 +1212,6 @@
   "timezone": "",
   "title": "Windows Compliance Dashboard",
   "uid": "windows-compliance",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

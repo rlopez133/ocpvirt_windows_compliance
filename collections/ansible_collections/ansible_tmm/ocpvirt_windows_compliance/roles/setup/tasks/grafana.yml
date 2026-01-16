@@ -1,9 +1,147 @@
 ---
-# Setup Role - Grafana Dashboard Deployment
-# Deploys Grafana dashboards for compliance visualization
-# Dashboard JSON is stored in files/grafana_dashboards/ to avoid Jinja2 templating issues
-# Uses kubectl/oc to apply the ConfigMap with JSON as literal string
+# Setup Role - Grafana Deployment
+# Deploys Grafana instance, datasource, and compliance dashboard
+# Requires: Grafana Operator installed in openshift-operators namespace
+#
+# Components deployed:
+# 1. ServiceAccount with cluster-monitoring-view role for Prometheus access
+# 2. Grafana CR - Creates the Grafana instance with route
+# 3. ConfigMap - Dashboard JSON content
+# 4. GrafanaDatasource CR - Prometheus datasource with bearer token auth
+# 5. GrafanaDashboard CR - References the ConfigMap
 
+- name: Check if Grafana Operator is installed
+  kubernetes.core.k8s_info:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: grafanas.grafana.integreatly.org
+  register: grafana_crd_check
+
+- name: Fail if Grafana Operator not installed
+  ansible.builtin.fail:
+    msg: |
+      Grafana Operator is not installed. Please install it from OperatorHub:
+      - Navigate to Operators > OperatorHub
+      - Search for "Grafana Operator" (by grafana-operator)
+      - Install with default settings (All namespaces)
+  when: grafana_crd_check.resources | length == 0
+
+# =============================================================================
+# ServiceAccount for Prometheus Access
+# =============================================================================
+- name: Create ServiceAccount for Grafana Prometheus access
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: grafana-prometheus
+        namespace: "{{ tenant_config.namespace }}"
+        labels:
+          app.kubernetes.io/name: grafana-prometheus
+          app.kubernetes.io/component: monitoring
+
+- name: Grant cluster-monitoring-view role to ServiceAccount
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: "grafana-prometheus-{{ tenant_config.namespace }}"
+        labels:
+          app.kubernetes.io/name: grafana-prometheus
+          app.kubernetes.io/component: monitoring
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: cluster-monitoring-view
+      subjects:
+        - kind: ServiceAccount
+          name: grafana-prometheus
+          namespace: "{{ tenant_config.namespace }}"
+
+- name: Create long-lived token for ServiceAccount
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-prometheus-token
+        namespace: "{{ tenant_config.namespace }}"
+        annotations:
+          kubernetes.io/service-account.name: grafana-prometheus
+        labels:
+          app.kubernetes.io/name: grafana-prometheus
+          app.kubernetes.io/component: monitoring
+      type: kubernetes.io/service-account-token
+
+- name: Wait for token to be populated
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: grafana-prometheus-token
+    namespace: "{{ tenant_config.namespace }}"
+  register: token_secret
+  until: >
+    token_secret.resources | length > 0 and
+    token_secret.resources[0].data is defined and
+    token_secret.resources[0].data.token is defined
+  retries: 10
+  delay: 2
+
+- name: Extract bearer token
+  ansible.builtin.set_fact:
+    grafana_bearer_token: "{{ token_secret.resources[0].data.token | b64decode }}"
+
+# =============================================================================
+# Grafana Instance
+# =============================================================================
+- name: Deploy Grafana instance
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: grafana.integreatly.org/v1beta1
+      kind: Grafana
+      metadata:
+        name: grafana
+        namespace: "{{ tenant_config.namespace }}"
+        labels:
+          dashboards: grafana
+          app.kubernetes.io/name: grafana
+          app.kubernetes.io/component: monitoring
+      spec:
+        config:
+          auth:
+            disable_login_form: "false"
+          auth.anonymous:
+            enabled: "true"
+          security:
+            admin_user: "{{ grafana_admin_user | default('admin') }}"
+            admin_password: "{{ grafana_admin_password | default('admin') }}"
+        route:
+          enabled: true
+  register: grafana_instance
+
+- name: Wait for Grafana to be ready
+  kubernetes.core.k8s_info:
+    api_version: grafana.integreatly.org/v1beta1
+    kind: Grafana
+    name: grafana
+    namespace: "{{ tenant_config.namespace }}"
+  register: grafana_status
+  until: >
+    grafana_status.resources | length > 0 and
+    grafana_status.resources[0].status is defined and
+    grafana_status.resources[0].status.stage | default('') == 'complete'
+  retries: 30
+  delay: 10
+
+# =============================================================================
+# Dashboard ConfigMap
+# =============================================================================
 - name: Read Grafana dashboard JSON file
   ansible.builtin.slurp:
     src: "{{ role_path }}/files/grafana_dashboards/compliance-dashboard.json"
@@ -27,6 +165,92 @@
     path: /tmp/grafana-dashboard-configmap.yml
     state: absent
 
-- name: Display dashboard deployment status
+# =============================================================================
+# Prometheus Datasource with Bearer Token Auth
+# =============================================================================
+- name: Deploy Prometheus datasource with authentication
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: grafana.integreatly.org/v1beta1
+      kind: GrafanaDatasource
+      metadata:
+        name: prometheus
+        namespace: "{{ tenant_config.namespace }}"
+      spec:
+        instanceSelector:
+          matchLabels:
+            dashboards: grafana
+        datasource:
+          name: prometheus
+          type: prometheus
+          uid: prometheus
+          access: proxy
+          url: "{{ grafana_prometheus_url | default('https://thanos-querier.openshift-monitoring.svc:9091') }}"
+          isDefault: true
+          editable: true
+          jsonData:
+            httpHeaderName1: Authorization
+            tlsSkipVerify: true
+          secureJsonData:
+            httpHeaderValue1: "Bearer {{ grafana_bearer_token }}"
+
+# =============================================================================
+# Dashboard CR
+# =============================================================================
+- name: Deploy Grafana dashboard CR
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: grafana.integreatly.org/v1beta1
+      kind: GrafanaDashboard
+      metadata:
+        name: compliance-dashboard
+        namespace: "{{ tenant_config.namespace }}"
+      spec:
+        instanceSelector:
+          matchLabels:
+            dashboards: grafana
+        configMapRef:
+          name: compliance-dashboard
+          key: compliance-dashboard.json
+
+# =============================================================================
+# Get Route URL
+# =============================================================================
+- name: Get Grafana route
+  kubernetes.core.k8s_info:
+    api_version: route.openshift.io/v1
+    kind: Route
+    namespace: "{{ tenant_config.namespace }}"
+    label_selectors:
+      - "app=grafana"
+  register: grafana_route
+  ignore_errors: true
+
+- name: Get Grafana route by name (fallback)
+  kubernetes.core.k8s_info:
+    api_version: route.openshift.io/v1
+    kind: Route
+    namespace: "{{ tenant_config.namespace }}"
+    name: grafana-route
+  register: grafana_route_fallback
+  when: grafana_route.resources | default([]) | length == 0
+
+- name: Set Grafana URL fact
+  ansible.builtin.set_fact:
+    grafana_url: "{{ grafana_route.resources[0].spec.host if grafana_route.resources | default([]) | length > 0 else (grafana_route_fallback.resources[0].spec.host | default('Check routes in namespace')) }}"
+
+- name: Display Grafana deployment status
   ansible.builtin.debug:
-    msg: "Grafana dashboard ConfigMap deployed to {{ tenant_config.namespace }}"
+    msg: |
+      Grafana deployment complete!
+
+      Instance: grafana ({{ tenant_config.namespace }})
+      Datasource: prometheus (thanos-querier with bearer token auth)
+      Dashboard: compliance-dashboard
+      Route: https://{{ grafana_url }}
+      Login: {{ grafana_admin_user | default('admin') }} / {{ grafana_admin_password | default('admin') }}
+
+      ServiceAccount: grafana-prometheus (cluster-monitoring-view)
+      Token Secret: grafana-prometheus-token

@@ -103,6 +103,14 @@ prometheus_config:
     app.kubernetes.io/name: "ocpvirt-windows-compliance"
     app.kubernetes.io/component: "monitoring"
 
+# Grafana Instance Configuration
+# Requires Grafana Operator to be installed in openshift-operators namespace
+grafana_admin_user: "admin"
+grafana_admin_password: "admin"  # Override in production with vault or credential
+# OpenShift monitoring uses thanos-querier with HTTPS and bearer token auth
+# The setup role creates a ServiceAccount with cluster-monitoring-view role
+grafana_prometheus_url: "https://thanos-querier.openshift-monitoring.svc:9091"
+
 # Grafana Dashboard Configuration
 grafana_config:
   namespace: "{{ tenant_config.namespace }}"
