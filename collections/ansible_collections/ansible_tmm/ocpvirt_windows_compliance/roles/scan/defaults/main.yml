@@ -32,7 +32,11 @@ results_storage:
 # Metrics
 push_metrics: true
 metrics_config:
-  pushgateway_url: ""  # If using Prometheus Pushgateway
+  # Pushgateway URL for pushing scan metrics to Prometheus
+  # Default uses in-cluster service discovery. Override for external access.
+  pushgateway_url: "http://pushgateway.{{ tenant_config.namespace | default('compliance') }}.svc:9091"
+  # Metrics retention in Prometheus (days)
+  metrics_retention_days: 30
 
 # Thresholds for status determination
 scan_thresholds:

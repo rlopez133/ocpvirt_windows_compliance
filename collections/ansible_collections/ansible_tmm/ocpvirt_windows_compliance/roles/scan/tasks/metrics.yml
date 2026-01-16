@@ -1,10 +1,11 @@
 ---
 # Scan Role - Push Metrics
 # Pushes compliance metrics to Prometheus
+# Includes both aggregate metrics and per-control status for EDA alerting
 
-- name: Build metrics payload
+- name: Build aggregate metrics payload
   ansible.builtin.set_fact:
-    metrics_payload: |
+    aggregate_metrics: |
       # HELP compliance_score Current compliance score percentage
       # TYPE compliance_score gauge
       compliance_score{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",profile="{{ scan_result.profile }}",framework="stig"} {{ scan_result.score.score | default(0) }}
@@ -25,6 +26,41 @@
       # TYPE compliance_scan_duration_seconds gauge
       compliance_scan_duration_seconds{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} {{ scan_result.duration_seconds }}
 
+      # HELP compliance_scans_total Total number of compliance scans
+      # TYPE compliance_scans_total counter
+      compliance_scans_total{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",result="{{ 'success' if scan_result.status != 'error' else 'failed' }}"} 1
+
+- name: Build per-control metrics for failed CAT I controls
+  ansible.builtin.set_fact:
+    cat1_failed_metrics: |
+      {% for control_id in scan_result.failed_controls.cat1 | default([]) %}
+      compliance_control_status{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",control_id="{{ control_id }}",category="CAT1",status="fail",profile="{{ scan_result.profile }}"} 1
+      {% endfor %}
+
+- name: Build per-control metrics for failed CAT II controls
+  ansible.builtin.set_fact:
+    cat2_failed_metrics: |
+      {% for control_id in scan_result.failed_controls.cat2 | default([]) %}
+      compliance_control_status{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",control_id="{{ control_id }}",category="CAT2",status="fail",profile="{{ scan_result.profile }}"} 1
+      {% endfor %}
+
+- name: Build per-control metrics for failed CAT III controls
+  ansible.builtin.set_fact:
+    cat3_failed_metrics: |
+      {% for control_id in scan_result.failed_controls.cat3 | default([]) %}
+      compliance_control_status{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",control_id="{{ control_id }}",category="CAT3",status="fail",profile="{{ scan_result.profile }}"} 1
+      {% endfor %}
+
+- name: Combine all metrics into payload
+  ansible.builtin.set_fact:
+    metrics_payload: |
+      {{ aggregate_metrics }}
+      # HELP compliance_control_status Control compliance status (1=fail, 0=pass)
+      # TYPE compliance_control_status gauge
+      {{ cat1_failed_metrics | default('') }}
+      {{ cat2_failed_metrics | default('') }}
+      {{ cat3_failed_metrics | default('') }}
+
 - name: Push metrics to Pushgateway
   when: metrics_config.pushgateway_url | default('') | length > 0
   ansible.builtin.uri:
@@ -35,18 +71,36 @@
       Content-Type: text/plain
     status_code: [200, 202]
   delegate_to: localhost
+  register: pushgateway_result
   ignore_errors: true
 
-- name: Store metrics for ServiceMonitor collection
+- name: Warn if Pushgateway is unavailable
+  when:
+    - metrics_config.pushgateway_url | default('') | length > 0
+    - pushgateway_result is defined
+    - pushgateway_result.failed | default(false)
+  ansible.builtin.debug:
+    msg: |
+      WARNING: Failed to push metrics to Pushgateway
+      URL: {{ metrics_config.pushgateway_url }}
+      Error: {{ pushgateway_result.msg | default('Unknown error') }}
+      Metrics stored locally at: {{ results_storage.local_path }}/{{ scan_result.scan_id }}/metrics.prom
+
+- name: Store metrics locally (fallback and backup)
   ansible.builtin.copy:
     content: "{{ metrics_payload }}"
     dest: "{{ results_storage.local_path }}/{{ scan_result.scan_id }}/metrics.prom"
+    mode: "0644"
   delegate_to: localhost
 
 - name: Display metrics status
   ansible.builtin.debug:
     msg: |
-      Metrics Recorded
+      Metrics Pushed to Prometheus
       - Score: {{ scan_result.score.score | default(0) }}%
       - Passed: {{ scan_result.score.passed | default(0) }}
       - Failed: {{ scan_result.score.failed | default(0) }}
+      - CAT I Failed: {{ scan_result.failed_controls.cat1 | default([]) | length }}
+      - CAT II Failed: {{ scan_result.failed_controls.cat2 | default([]) | length }}
+      - CAT III Failed: {{ scan_result.failed_controls.cat3 | default([]) | length }}
+      - Pushgateway URL: {{ metrics_config.pushgateway_url | default('Not configured') }}

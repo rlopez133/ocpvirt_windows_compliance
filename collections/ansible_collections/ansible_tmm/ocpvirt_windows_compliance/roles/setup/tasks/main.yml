@@ -39,6 +39,10 @@
   ansible.builtin.include_tasks: monitoring.yml
   when: ocpvirt_compliance_enable_user_workload_monitoring | default(true)
 
+- name: Deploy Pushgateway for metrics collection
+  ansible.builtin.include_tasks: pushgateway.yml
+  when: pushgateway_enabled | default(true)
+
 - name: Deploy Prometheus rules
   ansible.builtin.include_tasks: prometheus_rules.yml
 
@@ -60,6 +64,7 @@
       - Namespace: {{ tenant_config.namespace }}
       - EDA: {{ 'Configured' if eda_enabled else 'Skipped' }}
       - Alertmanager: {{ 'Configured' if ocpvirt_compliance_alertmanager_dedicated else 'Skipped' }}
+      - Pushgateway: {{ 'Deployed' if pushgateway_enabled | default(true) else 'Skipped' }}
       - PrometheusRules: Deployed
       - Grafana Dashboards: {{ 'Deployed' if ocpvirt_compliance_grafana_dashboards else 'Skipped' }}
       - AAP Job Templates: {{ 'Created' if aap_create_job_templates | default(true) else 'Skipped' }}

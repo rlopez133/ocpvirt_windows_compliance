@@ -55,9 +55,10 @@ eda_event_stream_name: "compliance-alerts"
 eda_aap_credential_name: ""
 
 # Auto-remediation settings per category
-eda_auto_remediate_cat1: false  # CAT I - Critical, requires manual review
-eda_auto_remediate_cat2: true   # CAT II - Auto-remediate
-eda_auto_remediate_cat3: true   # CAT III - Auto-remediate
+# ALL DISABLED BY DEFAULT for security - enable only after implementing remediations
+eda_auto_remediate_cat1: false  # CAT I - Critical, requires security review before enabling
+eda_auto_remediate_cat2: false  # CAT II - Disabled until CAT II remediations available
+eda_auto_remediate_cat3: false  # CAT III - Disabled until CAT III remediations available
 
 # AAP Gateway Connection (required for ansible.eda modules in AAP 2.5+)
 # These can be set via environment variables or passed from AAP credential
@@ -75,6 +76,18 @@ eda_organization: "Default"  # EDA organization name
 eda_scm_branch: "main"  # Git branch for EDA project
 eda_forward_events: true  # Forward events to rulebook activations
 eda_headers: "Authorization,Content-Type"  # Headers to include in event payload
+
+# Pushgateway Configuration
+# Pushgateway allows batch jobs (scan playbooks) to push metrics to Prometheus
+pushgateway_enabled: true
+pushgateway_image: "prom/pushgateway:v1.6.2"
+pushgateway_resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "100m"
 
 # OpenShift Monitoring Configuration
 ocpvirt_compliance_enable_user_workload_monitoring: true

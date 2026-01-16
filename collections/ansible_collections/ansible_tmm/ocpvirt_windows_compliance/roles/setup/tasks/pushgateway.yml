@@ -1,0 +1,134 @@
+---
+# Setup Role - Pushgateway Deployment
+# Deploys Prometheus Pushgateway for scan metrics collection
+#
+# Pushgateway allows batch jobs (like Ansible scans) to push metrics
+# that Prometheus can then scrape. This is required for compliance
+# metrics from scan playbooks.
+
+- name: Skip Pushgateway deployment if not enabled
+  ansible.builtin.debug:
+    msg: "Skipping Pushgateway deployment - pushgateway_enabled is false"
+  when: not (pushgateway_enabled | default(true))
+
+- name: Create Pushgateway Deployment
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: pushgateway
+        namespace: "{{ tenant_config.namespace }}"
+        labels:
+          app.kubernetes.io/name: pushgateway
+          app.kubernetes.io/component: metrics
+          compliance.ocpvirt/managed: "true"
+          compliance.ocpvirt/tenant: "{{ tenant_config.name }}"
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: pushgateway
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: pushgateway
+              app.kubernetes.io/component: metrics
+          spec:
+            containers:
+              - name: pushgateway
+                image: "{{ pushgateway_image | default('prom/pushgateway:v1.6.2') }}"
+                ports:
+                  - containerPort: 9091
+                    name: http
+                    protocol: TCP
+                resources:
+                  requests:
+                    memory: "64Mi"
+                    cpu: "50m"
+                  limits:
+                    memory: "128Mi"
+                    cpu: "100m"
+                livenessProbe:
+                  httpGet:
+                    path: /-/healthy
+                    port: 9091
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+                readinessProbe:
+                  httpGet:
+                    path: /-/ready
+                    port: 9091
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+  when: pushgateway_enabled | default(true)
+  register: pushgateway_deployment
+
+- name: Create Pushgateway Service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: pushgateway
+        namespace: "{{ tenant_config.namespace }}"
+        labels:
+          app.kubernetes.io/name: pushgateway
+          app.kubernetes.io/component: metrics
+          compliance.ocpvirt/managed: "true"
+      spec:
+        type: ClusterIP
+        ports:
+          - port: 9091
+            targetPort: 9091
+            protocol: TCP
+            name: http
+        selector:
+          app.kubernetes.io/name: pushgateway
+  when: pushgateway_enabled | default(true)
+  register: pushgateway_service
+
+- name: Create ServiceMonitor for Pushgateway
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: monitoring.coreos.com/v1
+      kind: ServiceMonitor
+      metadata:
+        name: pushgateway
+        namespace: "{{ tenant_config.namespace }}"
+        labels:
+          app.kubernetes.io/name: pushgateway
+          compliance.ocpvirt/managed: "true"
+      spec:
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: pushgateway
+        endpoints:
+          - port: http
+            interval: 30s
+            honorLabels: true
+        namespaceSelector:
+          matchNames:
+            - "{{ tenant_config.namespace }}"
+  when: pushgateway_enabled | default(true)
+
+- name: Set Pushgateway URL fact
+  ansible.builtin.set_fact:
+    pushgateway_url: "http://pushgateway.{{ tenant_config.namespace }}.svc:9091"
+  when: pushgateway_enabled | default(true)
+
+- name: Display Pushgateway deployment status
+  ansible.builtin.debug:
+    msg: |
+      Pushgateway Deployment Status:
+      - Namespace: {{ tenant_config.namespace }}
+      - Deployment: {{ 'Created/Updated' if pushgateway_deployment is defined and pushgateway_deployment.changed else 'Already exists' }}
+      - Service: {{ 'Created/Updated' if pushgateway_service is defined and pushgateway_service.changed else 'Already exists' }}
+      - URL: {{ pushgateway_url | default('http://pushgateway.' + tenant_config.namespace + '.svc:9091') }}
+
+      Metrics can be pushed to:
+        POST {{ pushgateway_url | default('http://pushgateway.' + tenant_config.namespace + '.svc:9091') }}/metrics/job/compliance_scan/instance/<vm_name>
+  when: pushgateway_enabled | default(true)

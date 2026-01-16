@@ -17,11 +17,12 @@
       Enabled: Yes
 
       Extra Variables:
-        aap_controller_url: {{ controller_host }}
+        eda_organization: Default
         remediation_job_template: Compliance-Remediate
-        auto_remediate_cat1: false
-        auto_remediate_cat2: true
-        auto_remediate_cat3: true
+        # Auto-remediation toggles - ALL disabled by default for security
+        auto_remediate_cat1: false  # CRITICAL - requires security review before enabling
+        auto_remediate_cat2: false  # Disabled until CAT II remediations available
+        auto_remediate_cat3: false  # Disabled until CAT III remediations available
 
       Source Configuration:
         Type: alertmanager
@@ -58,11 +59,12 @@
           decision_environment: Default Decision Environment
           enabled: true
           extra_vars:
-            aap_controller_url: "{{ controller_host }}"
+            eda_organization: Default
             remediation_job_template: Compliance-Remediate
-            auto_remediate_cat1: false
-            auto_remediate_cat2: true
-            auto_remediate_cat3: true
+            # Auto-remediation toggles - ALL disabled by default
+            auto_remediate_cat1: false  # CRITICAL - requires security review
+            auto_remediate_cat2: false  # Disabled until remediations available
+            auto_remediate_cat3: false  # Disabled until remediations available
   ignore_errors: true
 
 - name: EDA configuration complete
