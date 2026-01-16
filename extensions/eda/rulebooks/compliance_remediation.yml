@@ -29,26 +29,6 @@
 
   rules:
     # ==========================================================================
-    # DEBUG: Dump raw event structure to understand payload format
-    # ==========================================================================
-    - name: Debug - Dump raw event structure
-      condition: event is defined
-      action:
-        debug:
-          msg: |
-            ========== RAW EVENT STRUCTURE ==========
-            Full Event: {{ event }}
-            Event Keys: {{ event.keys() | list if event.keys is defined else 'N/A' }}
-            Event Type: {{ event | type_debug if event is defined else 'N/A' }}
-            ---
-            Has payload: {{ 'yes' if event.payload is defined else 'no' }}
-            Has body: {{ 'yes' if event.body is defined else 'no' }}
-            ---
-            Payload (if exists): {{ event.payload | default('NOT FOUND') }}
-            Body (if exists): {{ event.body | default('NOT FOUND') }}
-            ==========================================
-
-    # ==========================================================================
     # CAT I Auto-Remediation (CRITICAL - Disabled by Default)
     # ==========================================================================
     # Only triggers if auto_remediate_cat1 is explicitly set to true
