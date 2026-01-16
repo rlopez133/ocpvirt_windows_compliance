@@ -13,6 +13,13 @@ win19stig_disruption_high: false
 # Skip specific rules (by rule ID)
 win19stig_skip_rules: []
 
+# Administrator Protection - Controls that MUST be skipped to preserve automation access
+# These controls are automatically excluded regardless of skip_rules setting (FR-009)
+win19stig_administrator_protected:
+  - WN19-SO-000200  # Rename Administrator account - breaks WinRM access
+  - WN19-SO-000210  # Disable Administrator account - breaks all access
+  - WN19-AC-000020  # Administrator account lockout - could lock out automation
+
 # Backup settings before changes
 win19stig_backup: true
 

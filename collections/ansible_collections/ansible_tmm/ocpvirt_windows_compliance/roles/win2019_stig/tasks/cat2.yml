@@ -165,3 +165,251 @@
   tags:
     - cat2
     - WN19-EP-000010
+
+# ============================================================================
+# Easy CAT II Controls - Feature 005-easy-stig-remediations
+# Low-risk controls safe for automated remediation
+# ============================================================================
+
+# --- Audit Policy Controls (Low Risk) ---
+
+# WN19-AU-000050 - Security Group Management
+- name: "CAT2 | WN19-AU-000050 | Configure audit policy - Security Group Management"
+  when: "'WN19-AU-000050' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Security Group Management
+    audit_type: "{{ win19stig_audit_policy.security_group_management }}"
+  tags:
+    - cat2
+    - WN19-AU-000050
+
+# WN19-AU-000060 - Computer Account Management
+- name: "CAT2 | WN19-AU-000060 | Configure audit policy - Computer Account Management"
+  when: "'WN19-AU-000060' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Computer Account Management
+    audit_type: "{{ win19stig_audit_policy.computer_account_management }}"
+  tags:
+    - cat2
+    - WN19-AU-000060
+
+# WN19-AU-000070 - Logoff
+- name: "CAT2 | WN19-AU-000070 | Configure audit policy - Logoff"
+  when: "'WN19-AU-000070' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Logoff
+    audit_type: "{{ win19stig_audit_policy.logoff }}"
+  tags:
+    - cat2
+    - WN19-AU-000070
+
+# WN19-AU-000080 - Special Logon
+- name: "CAT2 | WN19-AU-000080 | Configure audit policy - Special Logon"
+  when: "'WN19-AU-000080' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Special Logon
+    audit_type: "{{ win19stig_audit_policy.special_logon }}"
+  tags:
+    - cat2
+    - WN19-AU-000080
+
+# WN19-AU-000090 - Removable Storage
+- name: "CAT2 | WN19-AU-000090 | Configure audit policy - Removable Storage"
+  when: "'WN19-AU-000090' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Removable Storage
+    audit_type: "{{ win19stig_audit_policy.removable_storage }}"
+  tags:
+    - cat2
+    - WN19-AU-000090
+
+# WN19-AU-000100 - Audit Policy Change
+- name: "CAT2 | WN19-AU-000100 | Configure audit policy - Audit Policy Change"
+  when: "'WN19-AU-000100' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Audit Policy Change
+    audit_type: "{{ win19stig_audit_policy.audit_policy_change }}"
+  tags:
+    - cat2
+    - WN19-AU-000100
+
+# WN19-AU-000110 - Authentication Policy Change
+- name: "CAT2 | WN19-AU-000110 | Configure audit policy - Authentication Policy Change"
+  when: "'WN19-AU-000110' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Authentication Policy Change
+    audit_type: "{{ win19stig_audit_policy.authentication_policy_change }}"
+  tags:
+    - cat2
+    - WN19-AU-000110
+
+# WN19-AU-000120 - Sensitive Privilege Use
+- name: "CAT2 | WN19-AU-000120 | Configure audit policy - Sensitive Privilege Use"
+  when: "'WN19-AU-000120' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Sensitive Privilege Use
+    audit_type: "{{ win19stig_audit_policy.sensitive_privilege_use }}"
+  tags:
+    - cat2
+    - WN19-AU-000120
+
+# WN19-AU-000130 - IPsec Driver
+- name: "CAT2 | WN19-AU-000130 | Configure audit policy - IPsec Driver"
+  when: "'WN19-AU-000130' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: IPsec Driver
+    audit_type: "{{ win19stig_audit_policy.ipsec_driver }}"
+  tags:
+    - cat2
+    - WN19-AU-000130
+
+# WN19-AU-000140 - Security State Change
+- name: "CAT2 | WN19-AU-000140 | Configure audit policy - Security State Change"
+  when: "'WN19-AU-000140' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: Security State Change
+    audit_type: "{{ win19stig_audit_policy.security_state_change }}"
+  tags:
+    - cat2
+    - WN19-AU-000140
+
+# WN19-AU-000150 - System Integrity
+- name: "CAT2 | WN19-AU-000150 | Configure audit policy - System Integrity"
+  when: "'WN19-AU-000150' not in win19stig_skip_rules"
+  community.windows.win_audit_policy_system:
+    subcategory: System Integrity
+    audit_type: "{{ win19stig_audit_policy.system_integrity }}"
+  tags:
+    - cat2
+    - WN19-AU-000150
+
+# --- Registry-Based Security Controls (Low Risk) ---
+
+# WN19-SO-000130 - Disable null session fallback
+- name: "CAT2 | WN19-SO-000130 | Disable null session fallback for named pipes"
+  when: "'WN19-SO-000130' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0
+    name: AllowNullSessionFallback
+    data: 0
+    type: dword
+  tags:
+    - cat2
+    - WN19-SO-000130
+
+# WN19-SO-000140 - Restrict null session shares
+- name: "CAT2 | WN19-SO-000140 | Restrict null session access to shares"
+  when: "'WN19-SO-000140' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters
+    name: RestrictNullSessAccess
+    data: 1
+    type: dword
+  tags:
+    - cat2
+    - WN19-SO-000140
+
+# WN19-SO-000150 - Named pipe access restriction
+- name: "CAT2 | WN19-SO-000150 | Restrict anonymous access to named pipes"
+  when: "'WN19-SO-000150' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters
+    name: NullSessionPipes
+    data: ""
+    type: multistring
+  tags:
+    - cat2
+    - WN19-SO-000150
+
+# WN19-SO-000160 - Remote registry access restriction
+- name: "CAT2 | WN19-SO-000160 | Restrict anonymous access to registry"
+  when: "'WN19-SO-000160' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Control\SecurePipeServers\winreg
+    name: Description
+    data: "Registry Server"
+    type: string
+  tags:
+    - cat2
+    - WN19-SO-000160
+
+# WN19-CC-000080 - Command line in process creation events
+- name: "CAT2 | WN19-CC-000080 | Include command line in process creation events"
+  when: "'WN19-CC-000080' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit
+    name: ProcessCreationIncludeCmdLine_Enabled
+    data: 1
+    type: dword
+  tags:
+    - cat2
+    - WN19-CC-000080
+
+# WN19-CC-000090 - PowerShell script block logging
+- name: "CAT2 | WN19-CC-000090 | Enable PowerShell script block logging"
+  when: "'WN19-CC-000090' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging
+    name: EnableScriptBlockLogging
+    data: 1
+    type: dword
+  tags:
+    - cat2
+    - WN19-CC-000090
+
+# WN19-CC-000100 - Early Launch Antimalware boot-start driver policy
+- name: "CAT2 | WN19-CC-000100 | Configure Early Launch Antimalware boot-start driver policy"
+  when: "'WN19-CC-000100' not in win19stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Policies\EarlyLaunch
+    name: DriverLoadPolicy
+    data: 3
+    type: dword
+  tags:
+    - cat2
+    - WN19-CC-000100
+
+# --- Security Policy Controls (Low Risk) ---
+
+# WN19-PK-000050 - Minimum password age
+- name: "CAT2 | WN19-PK-000050 | Configure minimum password age"
+  when: "'WN19-PK-000050' not in win19stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: MinimumPasswordAge
+    value: "{{ win19stig_password_policy.min_age }}"
+  tags:
+    - cat2
+    - WN19-PK-000050
+
+# WN19-PK-000060 - Reversible encryption disabled
+- name: "CAT2 | WN19-PK-000060 | Disable reversible encryption for passwords"
+  when: "'WN19-PK-000060' not in win19stig_skip_rules"
+  ansible.windows.win_security_policy:
+    section: System Access
+    key: ClearTextPassword
+    value: "{{ 0 if not win19stig_password_policy.reversible_encryption else 1 }}"
+  tags:
+    - cat2
+    - WN19-PK-000060
+
+# ============================================================================
+# Remediation Summary Report - Feature 005-easy-stig-remediations
+# ============================================================================
+
+- name: "CAT2 | REPORT | Display CAT II remediation summary"
+  ansible.builtin.debug:
+    msg: |
+      ═══════════════════════════════════════════════════════════════════════
+      CAT II STIG Remediation Summary - Windows Server 2019
+      ═══════════════════════════════════════════════════════════════════════
+      Controls processed: 35 (15 original + 20 easy wins)
+      Skip rules applied: {{ win19stig_skip_rules | length }}
+      Administrator protected controls: {{ win19stig_administrator_protected | default([]) | length }}
+
+      Note: Controls in skip_rules or administrator_protected list were not modified.
+      Run a compliance scan to verify remediation results.
+      ═══════════════════════════════════════════════════════════════════════
+  tags:
+    - cat2
+    - report
