@@ -1,13 +1,78 @@
 ---
 # Remediate Role - Main Task Dispatcher
-# Scan-driven CAT I remediation only
-# Only fixes controls that failed in the scan results
+# Supports both scan-driven CAT I remediation and EDA-triggered CAT I/II/III remediation
 
-- name: Validate remediation configuration
-  ansible.builtin.assert:
-    that:
-      - failed_cat1_controls is defined
-    fail_msg: "failed_cat1_controls must be provided from scan results"
+# ============================================================================
+# Determine remediation mode
+# ============================================================================
+- name: Determine remediation mode
+  ansible.builtin.set_fact:
+    remediation_mode: >-
+      {%- if trigger_source | default('manual') == 'eda' and category | default('') != '' -%}
+        eda
+      {%- elif failed_cat1_controls | default([]) | length > 0 -%}
+        scan_driven
+      {%- else -%}
+        none
+      {%- endif -%}
+
+- name: Display remediation mode
+  ansible.builtin.debug:
+    msg: |
+      Remediation Mode: {{ remediation_mode }}
+      Trigger Source: {{ trigger_source | default('manual') }}
+      Category: {{ category | default('not set') }}
+      Failed Control IDs: {{ failed_control_ids | default([]) | length }}
+      Failed CAT1 Controls: {{ failed_cat1_controls | default([]) | length }}
+
+# ============================================================================
+# EDA-Triggered Remediation
+# ============================================================================
+- name: Check auto-remediation toggle for EDA mode
+  when: remediation_mode == 'eda'
+  block:
+    - name: Check if auto-remediation is enabled for this category
+      ansible.builtin.set_fact:
+        auto_remediate_enabled: >-
+          {%- if category == 'CAT1' -%}
+            {{ auto_remediate_cat1 | default(false) | bool }}
+          {%- elif category == 'CAT2' -%}
+            {{ auto_remediate_cat2 | default(false) | bool }}
+          {%- elif category == 'CAT3' -%}
+            {{ auto_remediate_cat3 | default(false) | bool }}
+          {%- else -%}
+            false
+          {%- endif -%}
+
+    - name: Skip remediation - auto-remediation disabled
+      when: not auto_remediate_enabled | bool
+      ansible.builtin.debug:
+        msg: |
+          Auto-remediation is DISABLED for {{ category }}.
+          To enable, set auto_remediate_{{ category | lower }} = true in EDA activation.
+          Failed controls that would be remediated: {{ failed_control_ids | default([]) | join(', ') }}
+
+    - name: Set controls to remediate for EDA mode
+      when: auto_remediate_enabled | bool
+      ansible.builtin.set_fact:
+        controls_to_remediate: "{{ failed_control_ids | default([]) }}"
+        remediation_category: "{{ category }}"
+
+- name: Validate scan-driven configuration
+  when: remediation_mode == 'scan_driven'
+  ansible.builtin.set_fact:
+    controls_to_remediate: "{{ failed_cat1_controls }}"
+    remediation_category: "CAT1"
+    auto_remediate_enabled: true
+
+- name: Skip - no remediation needed
+  when: remediation_mode == 'none'
+  ansible.builtin.debug:
+    msg: "No remediation needed - no failed controls provided"
+
+- name: End play if no remediation to perform
+  when: remediation_mode == 'none' or (remediation_mode == 'eda' and not auto_remediate_enabled | default(false) | bool)
+  ansible.builtin.meta: end_play
 
 - name: Gather Windows facts
   ansible.windows.win_powershell:
@@ -48,31 +113,80 @@
     remediation_start_time: "{{ ansible_date_time.iso8601 }}"
 
 # ============================================================================
-# Apply scan-driven remediation based on failed controls
+# Apply remediation based on category and OS version
 # ============================================================================
-- name: Apply Windows 2019 STIG scan-driven remediation
-  when:
-    - windows_version == '2019'
-    - failed_cat1_controls | length > 0
-  ansible.builtin.include_tasks:
-    file: "{{ playbook_dir }}/../roles/win2019_stig/tasks/scan_driven_remediation.yml"
-  vars:
-    failed_cat1_controls: "{{ failed_cat1_controls }}"
-
-- name: Skip remediation - no failed CAT I controls
-  when: failed_cat1_controls | length == 0
-  ansible.builtin.debug:
-    msg: "No failed CAT I controls to remediate. System may already be compliant."
-
 - name: Fail if OS not supported
   when: windows_version == 'unknown'
   ansible.builtin.fail:
-    msg: "Unsupported Windows version: {{ os_info.Caption }}. Only Windows Server 2019 is currently supported."
+    msg: "Unsupported Windows version: {{ os_info.Caption }}. Only Windows Server 2019/2022 are supported."
 
-- name: Fail if Windows 2022 (not yet implemented)
-  when: windows_version == '2022'
-  ansible.builtin.fail:
-    msg: "Windows Server 2022 scan-driven remediation not yet implemented. Coming soon."
+- name: Display remediation plan
+  ansible.builtin.debug:
+    msg: |
+      Remediation Plan:
+      - OS Version: Windows Server {{ windows_version }}
+      - Category: {{ remediation_category }}
+      - Controls to remediate: {{ controls_to_remediate | length }}
+      - Control IDs: {{ controls_to_remediate | join(', ') }}
+
+# Windows Server 2019 Remediation
+- name: Apply Windows 2019 CAT I remediation
+  when:
+    - windows_version == '2019'
+    - remediation_category == 'CAT1'
+    - controls_to_remediate | length > 0
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/win2019_stig/tasks/scan_driven_remediation.yml"
+  vars:
+    failed_cat1_controls: "{{ controls_to_remediate }}"
+
+- name: Apply Windows 2019 CAT II remediation
+  when:
+    - windows_version == '2019'
+    - remediation_category == 'CAT2'
+    - controls_to_remediate | length > 0
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/win2019_stig/tasks/cat2.yml"
+
+- name: Apply Windows 2019 CAT III remediation
+  when:
+    - windows_version == '2019'
+    - remediation_category == 'CAT3'
+    - controls_to_remediate | length > 0
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/win2019_stig/tasks/cat3.yml"
+
+# Windows Server 2022 Remediation
+- name: Apply Windows 2022 CAT I remediation
+  when:
+    - windows_version == '2022'
+    - remediation_category == 'CAT1'
+    - controls_to_remediate | length > 0
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/win2022_stig/tasks/scan_driven_remediation.yml"
+  vars:
+    failed_cat1_controls: "{{ controls_to_remediate }}"
+
+- name: Apply Windows 2022 CAT II remediation
+  when:
+    - windows_version == '2022'
+    - remediation_category == 'CAT2'
+    - controls_to_remediate | length > 0
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/win2022_stig/tasks/cat2.yml"
+
+- name: Apply Windows 2022 CAT III remediation
+  when:
+    - windows_version == '2022'
+    - remediation_category == 'CAT3'
+    - controls_to_remediate | length > 0
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/../roles/win2022_stig/tasks/cat3.yml"
+
+- name: Skip remediation - no controls to remediate
+  when: controls_to_remediate | default([]) | length == 0
+  ansible.builtin.debug:
+    msg: "No controls to remediate. System may already be compliant."
 
 - name: Log remediation completion
   ansible.builtin.set_fact:
@@ -81,9 +195,12 @@
       completed: "{{ ansible_date_time.iso8601 }}"
       os_version: "{{ windows_version }}"
       profile: "{{ compliance_profile }}"
-      trigger: "{{ trigger_source }}"
-      dry_run: "{{ dry_run }}"
-      failed_cat1_count: "{{ failed_cat1_controls | length }}"
+      trigger: "{{ trigger_source | default('manual') }}"
+      category: "{{ remediation_category }}"
+      mode: "{{ remediation_mode }}"
+      dry_run: "{{ dry_run | default(false) }}"
+      controls_count: "{{ controls_to_remediate | default([]) | length }}"
+      controls: "{{ controls_to_remediate | default([]) }}"
       # Include scan-driven results if available
       automatable_controls: "{{ automatable_controls | default([]) }}"
       manual_controls: "{{ manual_controls | default([]) }}"

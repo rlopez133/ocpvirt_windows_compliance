@@ -42,6 +42,7 @@
               alertname: "{{ event['payload']['commonLabels']['alertname'] | default('ComplianceCAT1Violation') }}"
               trigger_source: "eda"
               auto_remediate_cat1: "{{ auto_remediate_cat1 | default(false) }}"
+              failed_control_ids: "{{ event['payload']['alerts'] | map(attribute='labels') | map(attribute='control_id') | list }}"
 
     # ==========================================================================
     # CAT II Alerts
@@ -64,6 +65,7 @@
               alertname: "{{ event['payload']['commonLabels']['alertname'] | default('ComplianceCAT2Violation') }}"
               trigger_source: "eda"
               auto_remediate_cat2: "{{ auto_remediate_cat2 | default(false) }}"
+              failed_control_ids: "{{ event['payload']['alerts'] | map(attribute='labels') | map(attribute='control_id') | list }}"
 
     # ==========================================================================
     # CAT III Alerts
@@ -86,6 +88,7 @@
               alertname: "{{ event['payload']['commonLabels']['alertname'] | default('ComplianceCAT3Violation') }}"
               trigger_source: "eda"
               auto_remediate_cat3: "{{ auto_remediate_cat3 | default(false) }}"
+              failed_control_ids: "{{ event['payload']['alerts'] | map(attribute='labels') | map(attribute='control_id') | list }}"
 
     # ==========================================================================
     # Resolved Alerts (logging only)

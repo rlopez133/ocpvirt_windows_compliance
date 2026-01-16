@@ -16,6 +16,18 @@ compliance_profile: "stig"
 # Example: ["V-205711", "V-205713", "V-205919"]
 failed_cat1_controls: []
 
+# For EDA-triggered mode: List of failed control V-IDs from alerts
+# Example: ["V-205627", "V-205629"]
+failed_control_ids: []
+
+# Category for EDA-triggered remediation (CAT1, CAT2, CAT3)
+category: ""
+
+# Auto-remediation toggles (set by EDA)
+auto_remediate_cat1: false
+auto_remediate_cat2: false
+auto_remediate_cat3: false
+
 # Controls to skip (by V-ID)
 skip_controls: []
 
