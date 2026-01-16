@@ -1,8 +1,9 @@
 ---
 # Setup Role - User Workload Monitoring Configuration
 # Enables OpenShift user workload monitoring for compliance metrics
+# Also enables alertmanagerMain.enableUserAlertmanagerConfig for user-namespace AlertmanagerConfigs
 
-- name: Check if user workload monitoring is enabled
+- name: Check if cluster-monitoring-config exists
   kubernetes.core.k8s_info:
     api_version: v1
     kind: ConfigMap
@@ -10,7 +11,42 @@
     namespace: openshift-monitoring
   register: cluster_monitoring_config
 
-- name: Enable user workload monitoring
+- name: Parse existing monitoring config
+  ansible.builtin.set_fact:
+    existing_config: "{{ cluster_monitoring_config.resources[0].data['config.yaml'] | default('') | from_yaml | default({}) }}"
+  when: cluster_monitoring_config.resources | length > 0
+
+- name: Set empty config if ConfigMap doesn't exist
+  ansible.builtin.set_fact:
+    existing_config: {}
+  when: cluster_monitoring_config.resources | length == 0
+
+- name: Build required monitoring configuration
+  ansible.builtin.set_fact:
+    required_config:
+      enableUserWorkload: true
+      alertmanagerMain:
+        enableUserAlertmanagerConfig: true
+
+- name: Merge monitoring configuration
+  ansible.builtin.set_fact:
+    merged_config: "{{ existing_config | combine(required_config, recursive=True) }}"
+
+- name: Check if configuration update is needed
+  ansible.builtin.set_fact:
+    config_needs_update: >-
+      {{ not (existing_config.get('enableUserWorkload', false) | bool) or
+         not (existing_config.get('alertmanagerMain', {}).get('enableUserAlertmanagerConfig', false) | bool) }}
+
+- name: Display configuration changes
+  ansible.builtin.debug:
+    msg: |
+      Cluster monitoring configuration:
+      - enableUserWorkload: {{ merged_config.enableUserWorkload }}
+      - alertmanagerMain.enableUserAlertmanagerConfig: {{ merged_config.alertmanagerMain.enableUserAlertmanagerConfig }}
+      - Update needed: {{ config_needs_update }}
+
+- name: Apply cluster-monitoring-config
   kubernetes.core.k8s:
     state: present
     definition:
@@ -20,11 +56,8 @@
         name: cluster-monitoring-config
         namespace: openshift-monitoring
       data:
-        config.yaml: |
-          enableUserWorkload: true
-  when: >-
-    cluster_monitoring_config.resources | length == 0 or
-    'enableUserWorkload: true' not in (cluster_monitoring_config.resources[0].data['config.yaml'] | default(''))
+        config.yaml: "{{ merged_config | to_nice_yaml }}"
+  when: config_needs_update | bool
 
 - name: Wait for user workload monitoring to be ready
   kubernetes.core.k8s_info:
