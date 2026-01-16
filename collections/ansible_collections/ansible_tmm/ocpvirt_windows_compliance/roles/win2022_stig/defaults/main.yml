@@ -13,6 +13,13 @@ win22stig_disruption_high: false
 # Skip specific rules (by rule ID)
 win22stig_skip_rules: []
 
+# Administrator Protection - Controls that MUST be skipped to preserve automation access
+# These controls are automatically excluded regardless of skip_rules setting (FR-009)
+win22stig_administrator_protected:
+  - WN22-SO-000200  # Rename Administrator account - breaks WinRM access
+  - WN22-SO-000210  # Disable Administrator account - breaks all access
+  - WN22-AC-000020  # Administrator account lockout - could lock out automation
+
 # Backup settings before changes
 win22stig_backup: true
 

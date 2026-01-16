@@ -137,3 +137,52 @@
   tags:
     - cat3
     - WN22-MS-000030
+
+# ============================================================================
+# Easy CAT III Controls - Feature 005-easy-stig-remediations
+# Low-risk controls safe for automated remediation
+# ============================================================================
+
+# WN22-MS-000040 - PowerShell event log size
+- name: "CAT3 | WN22-MS-000040 | Configure PowerShell event log size"
+  when: "'WN22-MS-000040' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WINEVT\Channels\Microsoft-Windows-PowerShell/Operational
+    name: MaxSize
+    data: 104857600
+    type: dword
+  tags:
+    - cat3
+    - WN22-MS-000040
+
+# WN22-CC-000110 - Remote Desktop idle timeout
+- name: "CAT3 | WN22-CC-000110 | Configure Remote Desktop idle timeout"
+  when: "'WN22-CC-000110' not in win22stig_skip_rules"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services
+    name: MaxIdleTime
+    data: 900000
+    type: dword
+  tags:
+    - cat3
+    - WN22-CC-000110
+
+# ============================================================================
+# Remediation Summary Report - Feature 005-easy-stig-remediations
+# ============================================================================
+
+- name: "CAT3 | REPORT | Display CAT III remediation summary"
+  ansible.builtin.debug:
+    msg: |
+      ═══════════════════════════════════════════════════════════════════════
+      CAT III STIG Remediation Summary - Windows Server 2022
+      ═══════════════════════════════════════════════════════════════════════
+      Controls processed: 14 (12 original + 2 easy wins)
+      Skip rules applied: {{ win22stig_skip_rules | length }}
+
+      Note: Controls in skip_rules were not modified.
+      Run a compliance scan to verify remediation results.
+      ═══════════════════════════════════════════════════════════════════════
+  tags:
+    - cat3
+    - report
