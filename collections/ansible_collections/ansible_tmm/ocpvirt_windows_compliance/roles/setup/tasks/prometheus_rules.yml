@@ -21,7 +21,7 @@
       metadata:
         name: "{{ prometheus_config.rule_name | default('compliance-alerts') }}"
         namespace: "{{ tenant_config.namespace }}"
-        labels: "{{ compliance_labels | combine(prometheus_config.labels | default({})) }}"
+        labels: "{{ compliance_labels | combine({'openshift.io/prometheus-rule-evaluation-scope': 'leaf-prometheus'}) | combine(prometheus_config.labels | default({})) }}"
       spec:
         groups:
           - name: compliance.windows.alerts
