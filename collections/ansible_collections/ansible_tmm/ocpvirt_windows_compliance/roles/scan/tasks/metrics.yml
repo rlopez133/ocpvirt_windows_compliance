@@ -70,11 +70,30 @@
   delegate_to: localhost
   ignore_errors: true
 
-- name: Wait for Prometheus to scrape deleted state (triggers alert resolve)
+# Poll Prometheus until compliance alerts for this VM are resolved
+# This ensures the alert cycle resets properly before pushing new metrics
+- name: Query Prometheus for active compliance alerts
   when: metrics_config.pushgateway_url | default('') | length > 0
-  ansible.builtin.pause:
-    seconds: "{{ metrics_config.scrape_interval_wait | default(45) }}"
-    prompt: "Waiting {{ metrics_config.scrape_interval_wait | default(45) }}s for Prometheus to detect metrics deletion..."
+  ansible.builtin.uri:
+    url: "{{ metrics_config.prometheus_url }}/api/v1/alerts"
+    method: GET
+    return_content: true
+    status_code: [200]
+  delegate_to: localhost
+  register: prometheus_alerts
+  until: >-
+    (prometheus_alerts.json.data.alerts | default([]) |
+     selectattr('labels.vm_name', 'defined') |
+     selectattr('labels.vm_name', 'equalto', scan_result.vm_name) |
+     selectattr('labels.alertname', 'match', '^Compliance') |
+     list | length) == 0
+  retries: "{{ metrics_config.alert_resolve_retries | default(36) }}"
+  delay: "{{ metrics_config.alert_resolve_delay | default(5) }}"
+
+- name: Display alert resolution status
+  when: metrics_config.pushgateway_url | default('') | length > 0
+  ansible.builtin.debug:
+    msg: "All compliance alerts for {{ scan_result.vm_name }} have been resolved - pushing new metrics"
 
 - name: Push metrics to Pushgateway
   when: metrics_config.pushgateway_url | default('') | length > 0
