@@ -79,6 +79,7 @@
     method: GET
     return_content: true
     status_code: [200]
+    validate_certs: "{{ metrics_config.validate_certs | default(false) }}"
   delegate_to: localhost
   register: prometheus_alerts
   until: >-
