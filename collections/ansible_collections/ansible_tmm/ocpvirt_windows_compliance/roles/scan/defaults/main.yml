@@ -35,6 +35,17 @@ metrics_config:
   # Pushgateway URL for pushing scan metrics to Prometheus
   # Default uses in-cluster service discovery. Override for external access.
   pushgateway_url: "http://pushgateway.{{ tenant_config.namespace | default('compliance') }}.svc:9091"
+
+  # Prometheus URL for querying alert status
+  # Used to poll and confirm alerts have resolved before pushing new metrics
+  # This ensures alerts properly re-fire on subsequent scans
+  prometheus_url: "https://thanos-querier.openshift-monitoring.svc:9091"
+
+  # Alert resolution polling settings
+  # Retries x delay = max wait time (default: 36 x 5s = 180s = 3 minutes)
+  alert_resolve_retries: 36
+  alert_resolve_delay: 5
+
   # Metrics retention in Prometheus (days)
   metrics_retention_days: 30
 
