@@ -140,23 +140,29 @@
   vars:
     failed_cat1_controls: "{{ controls_to_remediate }}"
 
+- name: Load Windows 2019 STIG defaults
+  when:
+    - windows_version == '2019'
+    - remediation_category in ['CAT2', 'CAT3']
+    - controls_to_remediate | length > 0
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../win2019_stig/defaults/main.yml"
+
 - name: Apply Windows 2019 CAT II remediation
   when:
     - windows_version == '2019'
     - remediation_category == 'CAT2'
     - controls_to_remediate | length > 0
-  ansible.builtin.include_role:
-    name: ansible_tmm.ocpvirt_windows_compliance.win2019_stig
-    tasks_from: cat2.yml
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/../win2019_stig/tasks/cat2.yml"
 
 - name: Apply Windows 2019 CAT III remediation
   when:
     - windows_version == '2019'
     - remediation_category == 'CAT3'
     - controls_to_remediate | length > 0
-  ansible.builtin.include_role:
-    name: ansible_tmm.ocpvirt_windows_compliance.win2019_stig
-    tasks_from: cat3.yml
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/../win2019_stig/tasks/cat3.yml"
 
 # Windows Server 2022 Remediation
 - name: Apply Windows 2022 CAT I remediation
@@ -169,23 +175,29 @@
   vars:
     failed_cat1_controls: "{{ controls_to_remediate }}"
 
+- name: Load Windows 2022 STIG defaults
+  when:
+    - windows_version == '2022'
+    - remediation_category in ['CAT2', 'CAT3']
+    - controls_to_remediate | length > 0
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../win2022_stig/defaults/main.yml"
+
 - name: Apply Windows 2022 CAT II remediation
   when:
     - windows_version == '2022'
     - remediation_category == 'CAT2'
     - controls_to_remediate | length > 0
-  ansible.builtin.include_role:
-    name: ansible_tmm.ocpvirt_windows_compliance.win2022_stig
-    tasks_from: cat2.yml
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/../win2022_stig/tasks/cat2.yml"
 
 - name: Apply Windows 2022 CAT III remediation
   when:
     - windows_version == '2022'
     - remediation_category == 'CAT3'
     - controls_to_remediate | length > 0
-  ansible.builtin.include_role:
-    name: ansible_tmm.ocpvirt_windows_compliance.win2022_stig
-    tasks_from: cat3.yml
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/../win2022_stig/tasks/cat3.yml"
 
 - name: Skip remediation - no controls to remediate
   when: controls_to_remediate | default([]) | length == 0
