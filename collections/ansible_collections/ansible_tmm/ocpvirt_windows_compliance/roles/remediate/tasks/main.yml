@@ -146,7 +146,7 @@
     - remediation_category == 'CAT2'
     - controls_to_remediate | length > 0
   ansible.builtin.include_role:
-    name: win2019_stig
+    name: ansible_tmm.ocpvirt_windows_compliance.win2019_stig
     tasks_from: cat2.yml
 
 - name: Apply Windows 2019 CAT III remediation
@@ -155,7 +155,7 @@
     - remediation_category == 'CAT3'
     - controls_to_remediate | length > 0
   ansible.builtin.include_role:
-    name: win2019_stig
+    name: ansible_tmm.ocpvirt_windows_compliance.win2019_stig
     tasks_from: cat3.yml
 
 # Windows Server 2022 Remediation
@@ -175,7 +175,7 @@
     - remediation_category == 'CAT2'
     - controls_to_remediate | length > 0
   ansible.builtin.include_role:
-    name: win2022_stig
+    name: ansible_tmm.ocpvirt_windows_compliance.win2022_stig
     tasks_from: cat2.yml
 
 - name: Apply Windows 2022 CAT III remediation
@@ -184,7 +184,7 @@
     - remediation_category == 'CAT3'
     - controls_to_remediate | length > 0
   ansible.builtin.include_role:
-    name: win2022_stig
+    name: ansible_tmm.ocpvirt_windows_compliance.win2022_stig
     tasks_from: cat3.yml
 
 - name: Skip remediation - no controls to remediate
