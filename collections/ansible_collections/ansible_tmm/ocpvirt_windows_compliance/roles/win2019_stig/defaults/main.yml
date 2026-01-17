@@ -24,27 +24,28 @@ win19stig_administrator_protected:
 win19stig_backup: true
 
 # Audit policy settings
+# Valid values: success, failure, none (or combination with comma)
 win19stig_audit_policy:
-  credential_validation: "Success and Failure"
-  kerberos_authentication: "Success and Failure"
-  kerberos_service_ticket: "Success and Failure"
-  application_group_management: "Success and Failure"
-  computer_account_management: "Success and Failure"
-  security_group_management: "Success and Failure"
-  user_account_management: "Success and Failure"
-  process_creation: "Success"
-  logoff: "Success"
-  logon: "Success and Failure"
-  special_logon: "Success"
-  removable_storage: "Success and Failure"
-  audit_policy_change: "Success and Failure"
-  authentication_policy_change: "Success"
-  authorization_policy_change: "Success"
-  sensitive_privilege_use: "Success and Failure"
-  ipsec_driver: "Success and Failure"
-  security_state_change: "Success"
-  security_system_extension: "Success and Failure"
-  system_integrity: "Success and Failure"
+  credential_validation: "success, failure"
+  kerberos_authentication: "success, failure"
+  kerberos_service_ticket: "success, failure"
+  application_group_management: "success, failure"
+  computer_account_management: "success, failure"
+  security_group_management: "success, failure"
+  user_account_management: "success, failure"
+  process_creation: "success"
+  logoff: "success"
+  logon: "success, failure"
+  special_logon: "success"
+  removable_storage: "success, failure"
+  audit_policy_change: "success, failure"
+  authentication_policy_change: "success"
+  authorization_policy_change: "success"
+  sensitive_privilege_use: "success, failure"
+  ipsec_driver: "success, failure"
+  security_state_change: "success"
+  security_system_extension: "success, failure"
+  system_integrity: "success, failure"
 
 # Password policy
 win19stig_password_policy:
