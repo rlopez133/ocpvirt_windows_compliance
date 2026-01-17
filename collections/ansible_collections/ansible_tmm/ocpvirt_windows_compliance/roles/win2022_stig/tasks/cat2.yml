@@ -54,7 +54,7 @@
 # WN22-PK-000010 - Minimum password length
 - name: "CAT2 | WN22-PK-000010 | Configure minimum password length"
   when: "'WN22-PK-000010' not in win22stig_skip_rules"
-  ansible.windows.win_security_policy:
+  community.windows.win_security_policy:
     section: System Access
     key: MinimumPasswordLength
     value: "{{ win22stig_password_policy.min_length }}"
@@ -65,7 +65,7 @@
 # WN22-PK-000020 - Password complexity
 - name: "CAT2 | WN22-PK-000020 | Enable password complexity"
   when: "'WN22-PK-000020' not in win22stig_skip_rules"
-  ansible.windows.win_security_policy:
+  community.windows.win_security_policy:
     section: System Access
     key: PasswordComplexity
     value: "{{ 1 if win22stig_password_policy.complexity else 0 }}"
@@ -76,7 +76,7 @@
 # WN22-PK-000030 - Maximum password age
 - name: "CAT2 | WN22-PK-000030 | Configure maximum password age"
   when: "'WN22-PK-000030' not in win22stig_skip_rules"
-  ansible.windows.win_security_policy:
+  community.windows.win_security_policy:
     section: System Access
     key: MaximumPasswordAge
     value: "{{ win22stig_password_policy.max_age }}"
@@ -87,7 +87,7 @@
 # WN22-PK-000040 - Password history
 - name: "CAT2 | WN22-PK-000040 | Configure password history"
   when: "'WN22-PK-000040' not in win22stig_skip_rules"
-  ansible.windows.win_security_policy:
+  community.windows.win_security_policy:
     section: System Access
     key: PasswordHistorySize
     value: "{{ win22stig_password_policy.history }}"
@@ -396,7 +396,7 @@
 # WN22-PK-000050 - Minimum password age
 - name: "CAT2 | WN22-PK-000050 | Configure minimum password age"
   when: "'WN22-PK-000050' not in win22stig_skip_rules"
-  ansible.windows.win_security_policy:
+  community.windows.win_security_policy:
     section: System Access
     key: MinimumPasswordAge
     value: "{{ win22stig_password_policy.min_age }}"
@@ -407,7 +407,7 @@
 # WN22-PK-000060 - Reversible encryption disabled
 - name: "CAT2 | WN22-PK-000060 | Disable reversible encryption for passwords"
   when: "'WN22-PK-000060' not in win22stig_skip_rules"
-  ansible.windows.win_security_policy:
+  community.windows.win_security_policy:
     section: System Access
     key: ClearTextPassword
     value: "{{ 0 if not win22stig_password_policy.reversible_encryption else 1 }}"

@@ -77,7 +77,7 @@
 - name: Create Compliance-Remediate job template
   ansible.controller.job_template:
     name: "Compliance-Remediate"
-    description: "Apply scan-driven CAT I remediation to Windows VMs based on scan results"
+    description: "Apply compliance remediation to Windows VMs (supports EDA-triggered and scan-driven modes)"
     organization: "{{ aap_job_template_organization }}"
     project: "{{ aap_job_template_project }}"
     playbook: "{{ aap_playbook_path_prefix }}/remediate.yml"
@@ -88,9 +88,16 @@
     ask_limit_on_launch: true
     extra_vars:
       compliance_profile: "stig"
-      # failed_cat1_controls should be passed from scan results in a workflow
-      # Example: ["V-205711", "V-205713", "V-205919"]
-      failed_cat1_controls: []
+      dry_run: false
+      # EDA passes: trigger_source, category, failed_control_ids, auto_remediate_cat*
+      # Scan-driven passes: failed_cat1_controls
+      # Example for scan-driven mode:
+      #   failed_cat1_controls: ["V-205711", "V-205713", "V-205919"]
+      # Example for EDA-triggered mode:
+      #   trigger_source: "eda"
+      #   category: "CAT2"
+      #   failed_control_ids: ["V-205627", "V-205629"]
+      #   auto_remediate_cat2: true
     survey_enabled: false
     state: present
 
