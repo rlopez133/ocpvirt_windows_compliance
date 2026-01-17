@@ -36,7 +36,7 @@ spec:
         - alert: ComplianceMultipleCAT1Violations
           expr: |
             count by (vm_name, namespace) (compliance_control_status{category="CAT1", status="fail"} == 1) > 3
-          for: 5m
+          for: 1m
           labels:
             severity: critical
           annotations:
@@ -50,7 +50,7 @@ spec:
         - alert: ComplianceCAT2Violation
           expr: |
             compliance_control_status{category="CAT2", status="fail"} == 1
-          for: 5m
+          for: 1m
           labels:
             severity: warning
             category: CAT2
@@ -103,7 +103,7 @@ spec:
         - alert: ComplianceScanFailed
           expr: |
             increase(compliance_scans_total{result="failed"}[1h]) > 0
-          for: 5m
+          for: 1m
           labels:
             severity: warning
           annotations:
@@ -125,7 +125,7 @@ spec:
         - alert: ComplianceRemediationFailed
           expr: |
             increase(compliance_remediations_total{result="failed"}[1h]) > 0
-          for: 5m
+          for: 1m
           labels:
             severity: warning
           annotations:

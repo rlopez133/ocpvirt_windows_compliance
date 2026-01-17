@@ -27,7 +27,7 @@
 # WN22-00-000030 - Accounts with blank passwords must be disabled
 - name: "CAT1 | WN22-00-000030 | Ensure no blank passwords"
   when: "'WN22-00-000030' not in win22stig_skip_rules"
-  ansible.windows.win_security_policy:
+  community.windows.win_security_policy:
     section: System Access
     key: LimitBlankPasswordUse
     value: 1
@@ -38,7 +38,7 @@
 # WN22-AC-000010 - Account lockout threshold
 - name: "CAT1 | WN22-AC-000010 | Configure account lockout threshold"
   when: "'WN22-AC-000010' not in win22stig_skip_rules"
-  ansible.windows.win_security_policy:
+  community.windows.win_security_policy:
     section: System Access
     key: LockoutBadCount
     value: "{{ win22stig_lockout_policy.threshold }}"

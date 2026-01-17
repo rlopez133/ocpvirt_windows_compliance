@@ -31,7 +31,7 @@
               - alert: ComplianceCAT1Violation
                 expr: |
                   compliance_control_status{category="CAT1", status="fail"} == 1
-                for: 5m
+                for: 1m
                 labels:
                   severity: critical
                   category: CAT1
@@ -44,7 +44,7 @@
               - alert: ComplianceCAT2Violation
                 expr: |
                   compliance_control_status{category="CAT2", status="fail"} == 1
-                for: 5m
+                for: 1m
                 labels:
                   severity: warning
                   category: CAT2
@@ -79,7 +79,7 @@
               - alert: ComplianceScanFailed
                 expr: |
                   increase(compliance_scans_total{result="failed"}[1h]) > 0
-                for: 5m
+                for: 1m
                 labels:
                   severity: warning
                 annotations:
