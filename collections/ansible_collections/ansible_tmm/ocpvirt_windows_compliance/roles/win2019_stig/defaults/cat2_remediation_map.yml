@@ -1,0 +1,377 @@
+---
+# Windows Server 2019 STIG CAT II Remediation Map
+# Maps V-IDs to remediation actions
+# Used by scan-driven remediation to only fix failed controls
+#
+# Reference: DISA STIG V3R2 (January 2025)
+# Only includes CAT II (Medium Severity) controls that are automatable
+#
+# Each entry contains:
+#   - v_id: The Vulnerability ID from XCCDF results (V-XXXXXX)
+#   - stig_id: The STIG rule ID (WN19-XX-XXXXXX)
+#   - title: Brief description
+#   - automatable: Whether this can be fixed automatically (true/false)
+#   - remediation_type: registry, security_policy, audit_policy, firewall, manual
+#   - remediation: The specific fix details
+
+win2019_cat2_remediation_map:
+  # ============================================================================
+  # Audit Policy Controls
+  # ============================================================================
+  - v_id: "V-205629"
+    stig_id: "WN19-AU-000010"
+    title: "Audit Credential Validation"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Credential Validation"
+      audit_type: "success,failure"
+
+  - v_id: "V-205630"
+    stig_id: "WN19-AU-000020"
+    title: "Audit Logon"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Logon"
+      audit_type: "success,failure"
+
+  - v_id: "V-205633"
+    stig_id: "WN19-AU-000030"
+    title: "Audit User Account Management"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "User Account Management"
+      audit_type: "success,failure"
+
+  - v_id: "V-205636"
+    stig_id: "WN19-AU-000040"
+    title: "Audit Process Creation"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Process Creation"
+      audit_type: "success"
+
+  - v_id: "V-205637"
+    stig_id: "WN19-AU-000050"
+    title: "Audit Security Group Management"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Security Group Management"
+      audit_type: "success"
+
+  - v_id: "V-205644"
+    stig_id: "WN19-AU-000060"
+    title: "Audit Computer Account Management"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Computer Account Management"
+      audit_type: "success"
+
+  - v_id: "V-205648"
+    stig_id: "WN19-AU-000070"
+    title: "Audit Logoff"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Logoff"
+      audit_type: "success"
+
+  - v_id: "V-205649"
+    stig_id: "WN19-AU-000080"
+    title: "Audit Special Logon"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Special Logon"
+      audit_type: "success"
+
+  - v_id: "V-205650"
+    stig_id: "WN19-AU-000090"
+    title: "Audit Removable Storage"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Removable Storage"
+      audit_type: "success,failure"
+
+  - v_id: "V-205651"
+    stig_id: "WN19-AU-000100"
+    title: "Audit Audit Policy Change"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Audit Policy Change"
+      audit_type: "success"
+
+  - v_id: "V-205671"
+    stig_id: "WN19-AU-000110"
+    title: "Audit Authentication Policy Change"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Authentication Policy Change"
+      audit_type: "success"
+
+  - v_id: "V-205672"
+    stig_id: "WN19-AU-000120"
+    title: "Audit Sensitive Privilege Use"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Sensitive Privilege Use"
+      audit_type: "success,failure"
+
+  - v_id: "V-205673"
+    stig_id: "WN19-AU-000130"
+    title: "Audit IPsec Driver"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "IPsec Driver"
+      audit_type: "success,failure"
+
+  - v_id: "V-205675"
+    stig_id: "WN19-AU-000140"
+    title: "Audit Security State Change"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Security State Change"
+      audit_type: "success"
+
+  - v_id: "V-205676"
+    stig_id: "WN19-AU-000150"
+    title: "Audit System Integrity"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "System Integrity"
+      audit_type: "success,failure"
+
+  # ============================================================================
+  # Password Policy Controls
+  # ============================================================================
+  - v_id: "V-205686"
+    stig_id: "WN19-PK-000010"
+    title: "Minimum password length"
+    automatable: true
+    remediation_type: security_policy
+    remediation:
+      section: "System Access"
+      key: "MinimumPasswordLength"
+      value: 14
+
+  - v_id: "V-205688"
+    stig_id: "WN19-PK-000020"
+    title: "Password complexity"
+    automatable: true
+    remediation_type: security_policy
+    remediation:
+      section: "System Access"
+      key: "PasswordComplexity"
+      value: 1
+
+  - v_id: "V-205689"
+    stig_id: "WN19-PK-000030"
+    title: "Maximum password age"
+    automatable: true
+    remediation_type: security_policy
+    remediation:
+      section: "System Access"
+      key: "MaximumPasswordAge"
+      value: 60
+
+  - v_id: "V-205690"
+    stig_id: "WN19-PK-000040"
+    title: "Password history"
+    automatable: true
+    remediation_type: security_policy
+    remediation:
+      section: "System Access"
+      key: "PasswordHistorySize"
+      value: 24
+
+  - v_id: "V-205692"
+    stig_id: "WN19-PK-000050"
+    title: "Minimum password age"
+    automatable: true
+    remediation_type: security_policy
+    remediation:
+      section: "System Access"
+      key: "MinimumPasswordAge"
+      value: 1
+
+  - v_id: "V-205694"
+    stig_id: "WN19-PK-000060"
+    title: "Reversible encryption disabled"
+    automatable: true
+    remediation_type: security_policy
+    remediation:
+      section: "System Access"
+      key: "ClearTextPassword"
+      value: 0
+
+  # ============================================================================
+  # Security Options - Registry Controls
+  # ============================================================================
+  - v_id: "V-205708"
+    stig_id: "WN19-SO-000100"
+    title: "SMB server signing required"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+      name: "RequireSecuritySignature"
+      value: 1
+      type: dword
+
+  - v_id: "V-205712"
+    stig_id: "WN19-SO-000110"
+    title: "SMB client signing required"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters"
+      name: "RequireSecuritySignature"
+      value: 1
+      type: dword
+
+  - v_id: "V-205714"
+    stig_id: "WN19-SO-000120"
+    title: "WDigest authentication disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest"
+      name: "UseLogonCredential"
+      value: 0
+      type: dword
+
+  - v_id: "V-205717"
+    stig_id: "WN19-SO-000130"
+    title: "Null session fallback disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\MSV1_0"
+      name: "AllowNullSessionFallback"
+      value: 0
+      type: dword
+
+  - v_id: "V-205722"
+    stig_id: "WN19-SO-000140"
+    title: "Restrict null session access"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+      name: "RestrictNullSessAccess"
+      value: 1
+      type: dword
+
+  - v_id: "V-205730"
+    stig_id: "WN19-SO-000150"
+    title: "Named pipes anonymous access"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+      name: "NullSessionPipes"
+      value: ""
+      type: multistring
+
+  - v_id: "V-205733"
+    stig_id: "WN19-SO-000160"
+    title: "Remote registry access restriction"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\winreg"
+      name: "Description"
+      value: "Registry Server"
+      type: string
+
+  # ============================================================================
+  # Firewall Controls
+  # ============================================================================
+  - v_id: "V-205747"
+    stig_id: "WN19-FW-000010"
+    title: "Windows Firewall Domain enabled"
+    automatable: true
+    remediation_type: firewall
+    remediation:
+      profile: "Domain"
+      state: enabled
+
+  - v_id: "V-205751"
+    stig_id: "WN19-FW-000020"
+    title: "Windows Firewall Private enabled"
+    automatable: true
+    remediation_type: firewall
+    remediation:
+      profile: "Private"
+      state: enabled
+
+  - v_id: "V-205761"
+    stig_id: "WN19-FW-000030"
+    title: "Windows Firewall Public enabled"
+    automatable: true
+    remediation_type: firewall
+    remediation:
+      profile: "Public"
+      state: enabled
+
+  # ============================================================================
+  # Endpoint Protection Controls
+  # ============================================================================
+  - v_id: "V-205767"
+    stig_id: "WN19-EP-000010"
+    title: "Windows Defender enabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender"
+      name: "DisableAntiSpyware"
+      value: 0
+      type: dword
+
+  # ============================================================================
+  # Computer Configuration Controls
+  # ============================================================================
+  - v_id: "V-205769"
+    stig_id: "WN19-CC-000080"
+    title: "Command line in process creation"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Audit"
+      name: "ProcessCreationIncludeCmdLine_Enabled"
+      value: 1
+      type: dword
+
+  - v_id: "V-205774"
+    stig_id: "WN19-CC-000090"
+    title: "PowerShell script block logging"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging"
+      name: "EnableScriptBlockLogging"
+      value: 1
+      type: dword
+
+  - v_id: "V-205782"
+    stig_id: "WN19-CC-000100"
+    title: "Early Launch Antimalware policy"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Policies\\EarlyLaunch"
+      name: "DriverLoadPolicy"
+      value: 3
+      type: dword
