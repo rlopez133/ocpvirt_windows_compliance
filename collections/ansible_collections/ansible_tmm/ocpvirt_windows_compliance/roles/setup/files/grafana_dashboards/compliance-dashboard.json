@@ -112,7 +112,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(compliance_score{namespace=~\"$namespace\"})",
+          "expr": "count(count by (vm_name) (compliance_score{namespace=~\"$namespace\"}))",
           "refId": "A"
         }
       ],
@@ -167,7 +167,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(compliance_control_status{namespace=~\"$namespace\", category=\"CAT1\", status=\"fail\"} == 1) or vector(0)",
+          "expr": "count(count by (vm_name, control_id) (compliance_control_status{namespace=~\"$namespace\", category=\"CAT1\", status=\"fail\"} == 1)) or vector(0)",
           "refId": "A"
         }
       ],
@@ -226,7 +226,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(compliance_control_status{namespace=~\"$namespace\", category=\"CAT2\", status=\"fail\"} == 1) or vector(0)",
+          "expr": "count(count by (vm_name, control_id) (compliance_control_status{namespace=~\"$namespace\", category=\"CAT2\", status=\"fail\"} == 1)) or vector(0)",
           "refId": "A"
         }
       ],
@@ -281,7 +281,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(compliance_control_status{namespace=~\"$namespace\", category=\"CAT3\", status=\"fail\"} == 1) or vector(0)",
+          "expr": "count(count by (vm_name, control_id) (compliance_control_status{namespace=~\"$namespace\", category=\"CAT3\", status=\"fail\"} == 1)) or vector(0)",
           "refId": "A"
         }
       ],
@@ -332,7 +332,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(compliance_score{namespace=~\"$namespace\"} >= 70) or vector(0)",
+          "expr": "count(count by (vm_name) (compliance_score{namespace=~\"$namespace\"} >= 70)) or vector(0)",
           "refId": "A"
         }
       ],

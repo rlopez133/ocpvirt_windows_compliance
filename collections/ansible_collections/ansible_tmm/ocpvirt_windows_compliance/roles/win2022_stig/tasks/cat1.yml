@@ -2,11 +2,20 @@
 # Windows Server 2022 STIG - CAT I (High Severity) Controls
 # These are critical security controls that must be addressed
 
+# Initialize result tracking for this category
+- name: "CAT1 | Initialize remediation tracking"
+  ansible.builtin.set_fact:
+    cat1_results: "{{ cat1_results | default([]) }}"
+  tags:
+    - cat1
+    - tracking
+
 # WN22-00-000010 - Windows Server 2022 must be a supported release
 - name: "CAT1 | WN22-00-000010 | Verify Windows 2022 is current"
   when: "'WN22-00-000010' not in win22stig_skip_rules"
   ansible.builtin.debug:
     msg: "Checking Windows Server 2022 is up to date - manual verification required"
+  register: _wn22_00_000010
   tags:
     - cat1
     - WN22-00-000010
@@ -19,7 +28,7 @@
       $threshold = (Get-Date).AddDays(-35)
       Get-LocalUser | Where-Object { $_.Enabled -and $_.LastLogon -lt $threshold } |
         Select-Object Name, LastLogon | ConvertTo-Json
-  register: inactive_accounts
+  register: _wn22_00_000020
   tags:
     - cat1
     - WN22-00-000020
@@ -31,6 +40,7 @@
     section: System Access
     key: LimitBlankPasswordUse
     value: 1
+  register: _wn22_00_000030
   tags:
     - cat1
     - WN22-00-000030
@@ -42,6 +52,7 @@
     section: System Access
     key: LockoutBadCount
     value: "{{ win22stig_lockout_policy.threshold }}"
+  register: _wn22_ac_000010
   tags:
     - cat1
     - WN22-AC-000010
@@ -54,6 +65,7 @@
     name: AnonymousNameLookup
     data: 0
     type: dword
+  register: _wn22_so_000010
   tags:
     - cat1
     - WN22-SO-000010
@@ -66,6 +78,7 @@
     name: RestrictAnonymousSAM
     data: 1
     type: dword
+  register: _wn22_so_000020
   tags:
     - cat1
     - WN22-SO-000020
@@ -78,6 +91,7 @@
     name: RestrictAnonymous
     data: 1
     type: dword
+  register: _wn22_so_000030
   tags:
     - cat1
     - WN22-SO-000030
@@ -90,6 +104,7 @@
     name: NoLMHash
     data: 1
     type: dword
+  register: _wn22_so_000040
   tags:
     - cat1
     - WN22-SO-000040
@@ -102,6 +117,7 @@
     name: LmCompatibilityLevel
     data: 5
     type: dword
+  register: _wn22_so_000050
   tags:
     - cat1
     - WN22-SO-000050
@@ -114,6 +130,7 @@
     name: LDAPClientIntegrity
     data: 2
     type: dword
+  register: _wn22_so_000060
   tags:
     - cat1
     - WN22-SO-000060
@@ -128,6 +145,7 @@
     name: EnableVirtualizationBasedSecurity
     data: 1
     type: dword
+  register: _wn22_cc_000010_vbs
   tags:
     - cat1
     - WN22-CC-000010
@@ -141,6 +159,32 @@
     name: LsaCfgFlags
     data: 1
     type: dword
+  register: _wn22_cc_000010_lsa
   tags:
     - cat1
     - WN22-CC-000010
+
+# ============================================================================
+# Aggregate CAT I Results
+# ============================================================================
+- name: "CAT1 | Aggregate remediation results"
+  ansible.builtin.set_fact:
+    cat1_results: >-
+      {{
+        [
+          {'control_id': 'WN22-00-000010', 'status': 'skipped' if (_wn22_00_000010.skipped | default(false)) else 'ok'},
+          {'control_id': 'WN22-00-000020', 'status': 'skipped' if (_wn22_00_000020.skipped | default(false)) else ('changed' if (_wn22_00_000020.changed | default(false)) else 'ok')},
+          {'control_id': 'WN22-00-000030', 'status': 'skipped' if (_wn22_00_000030.skipped | default(false)) else ('failed' if (_wn22_00_000030.failed | default(false)) else ('changed' if (_wn22_00_000030.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AC-000010', 'status': 'skipped' if (_wn22_ac_000010.skipped | default(false)) else ('failed' if (_wn22_ac_000010.failed | default(false)) else ('changed' if (_wn22_ac_000010.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000010', 'status': 'skipped' if (_wn22_so_000010.skipped | default(false)) else ('failed' if (_wn22_so_000010.failed | default(false)) else ('changed' if (_wn22_so_000010.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000020', 'status': 'skipped' if (_wn22_so_000020.skipped | default(false)) else ('failed' if (_wn22_so_000020.failed | default(false)) else ('changed' if (_wn22_so_000020.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000030', 'status': 'skipped' if (_wn22_so_000030.skipped | default(false)) else ('failed' if (_wn22_so_000030.failed | default(false)) else ('changed' if (_wn22_so_000030.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000040', 'status': 'skipped' if (_wn22_so_000040.skipped | default(false)) else ('failed' if (_wn22_so_000040.failed | default(false)) else ('changed' if (_wn22_so_000040.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000050', 'status': 'skipped' if (_wn22_so_000050.skipped | default(false)) else ('failed' if (_wn22_so_000050.failed | default(false)) else ('changed' if (_wn22_so_000050.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000060', 'status': 'skipped' if (_wn22_so_000060.skipped | default(false)) else ('failed' if (_wn22_so_000060.failed | default(false)) else ('changed' if (_wn22_so_000060.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-CC-000010', 'status': 'skipped' if (_wn22_cc_000010_vbs.skipped | default(false)) else ('failed' if (_wn22_cc_000010_vbs.failed | default(false) or _wn22_cc_000010_lsa.failed | default(false)) else ('changed' if (_wn22_cc_000010_vbs.changed | default(false) or _wn22_cc_000010_lsa.changed | default(false)) else 'ok'))}
+        ]
+      }}
+  tags:
+    - cat1
+    - tracking

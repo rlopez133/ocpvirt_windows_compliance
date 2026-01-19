@@ -29,87 +29,83 @@
           - ansible_os_family == "Windows"
         fail_msg: "This playbook only runs on Windows systems"
 
-    - name: Display remediation plan
-      ansible.builtin.debug:
-        msg: |
-          Scan-Driven CAT I Remediation
-          =============================
-          Target: {{ inventory_hostname }}
-          Profile: {{ compliance_profile }}
-          Failed CAT I Controls: {{ failed_cat1_controls | length }}
-          Controls: {{ failed_cat1_controls | join(', ') | default('None provided') }}
-          Allow Reboot: {{ allow_reboot }}
-          Dry Run: {{ dry_run }}
-          Trigger: {{ trigger_source }}
-
-    - name: Warn if no failed controls provided
-      when: failed_cat1_controls | length == 0
-      ansible.builtin.debug:
-        msg: |
-          WARNING: No failed CAT I controls provided.
-          Pass failed_cat1_controls from scan results to remediate.
-          No remediation will be performed.
+    - name: Initialize result tracking variables
+      ansible.builtin.set_fact:
+        cat1_results: []
+        cat2_results: []
+        cat3_results: []
 
   roles:
     - role: ../roles/remediate
 
   post_tasks:
+    # Compute category summaries from results
+    - name: Compute category summaries
+      ansible.builtin.set_fact:
+        cat1_summary:
+          found: "{{ cat1_results | default([]) | length }}"
+          changed: "{{ cat1_results | default([]) | selectattr('status', 'eq', 'changed') | list | length }}"
+          already_ok: "{{ cat1_results | default([]) | selectattr('status', 'eq', 'ok') | list | length }}"
+          failed: "{{ cat1_results | default([]) | selectattr('status', 'eq', 'failed') | list | length }}"
+          skipped: "{{ cat1_results | default([]) | selectattr('status', 'eq', 'skipped') | list | length }}"
+        cat2_summary:
+          found: "{{ cat2_results | default([]) | length }}"
+          changed: "{{ cat2_results | default([]) | selectattr('status', 'eq', 'changed') | list | length }}"
+          already_ok: "{{ cat2_results | default([]) | selectattr('status', 'eq', 'ok') | list | length }}"
+          failed: "{{ cat2_results | default([]) | selectattr('status', 'eq', 'failed') | list | length }}"
+          skipped: "{{ cat2_results | default([]) | selectattr('status', 'eq', 'skipped') | list | length }}"
+        cat3_summary:
+          found: "{{ cat3_results | default([]) | length }}"
+          changed: "{{ cat3_results | default([]) | selectattr('status', 'eq', 'changed') | list | length }}"
+          already_ok: "{{ cat3_results | default([]) | selectattr('status', 'eq', 'ok') | list | length }}"
+          failed: "{{ cat3_results | default([]) | selectattr('status', 'eq', 'failed') | list | length }}"
+          skipped: "{{ cat3_results | default([]) | selectattr('status', 'eq', 'skipped') | list | length }}"
+
+    - name: Compute totals
+      ansible.builtin.set_fact:
+        total_summary:
+          found: "{{ (cat1_summary.found | int) + (cat2_summary.found | int) + (cat3_summary.found | int) }}"
+          changed: "{{ (cat1_summary.changed | int) + (cat2_summary.changed | int) + (cat3_summary.changed | int) }}"
+          already_ok: "{{ (cat1_summary.already_ok | int) + (cat2_summary.already_ok | int) + (cat3_summary.already_ok | int) }}"
+          failed: "{{ (cat1_summary.failed | int) + (cat2_summary.failed | int) + (cat3_summary.failed | int) }}"
+
     - name: Display final remediation summary
       ansible.builtin.debug:
         msg: |
           ================================================================================
-                              COMPLIANCE REMEDIATION SUMMARY
+                              REMEDIATION RESULTS
           ================================================================================
 
           Target:     {{ inventory_hostname }}
           OS:         Windows Server {{ remediation_result.os_version | default('Unknown') }}
-          Profile:    {{ remediation_result.profile | default(compliance_profile) }}
+          Mode:       {{ remediation_result.mode | default('unknown') }}
+          {% if remediation_result.mode | default('') == 'eda' %}Category:   {{ remediation_result.category | default('N/A') }} only{% endif %}
+
+          Dry Run:    {{ remediation_result.dry_run | default(dry_run) }}
           Started:    {{ remediation_result.started | default('N/A') }}
           Completed:  {{ remediation_result.completed | default('N/A') }}
-          Dry Run:    {{ remediation_result.dry_run | default(dry_run) }}
 
           --------------------------------------------------------------------------------
-          CONTROLS PROCESSED
+                              RESULTS BY CATEGORY
           --------------------------------------------------------------------------------
-          Failed CAT I Controls Analyzed:  {{ failed_cat1_controls | length }}
-          Automatable Controls:            {{ remediation_result.automatable_controls | default([]) | length }}
-          Manual Controls (require review): {{ remediation_result.manual_controls | default([]) | length }}
-          Unknown Controls (skipped):      {{ remediation_result.unknown_v_ids | default([]) | length }}
 
-          --------------------------------------------------------------------------------
-          CHANGES APPLIED
-          --------------------------------------------------------------------------------
-          Registry settings:       {{ remediation_result.registry_changed | default(0) }}
-          Multi-registry settings: {{ remediation_result.multi_registry_changed | default(0) }}
-          Security policies:       {{ remediation_result.security_policy_changed | default(0) }}
-          User rights:             {{ remediation_result.user_rights_changed | default(0) }}
-          {% if remediation_result.manual_controls | default([]) | length > 0 %}
-
-          --------------------------------------------------------------------------------
-          MANUAL CONTROLS REQUIRING ATTENTION
-          --------------------------------------------------------------------------------
-          {% for control in remediation_result.manual_controls | default([]) %}
-          - {{ control.v_id }}: {{ control.title }}
-          {% endfor %}
+          Category   | Found | Changed | Already OK | Failed
+          -----------|-------|---------|------------|-------
+          {% if (cat1_summary.found | int) > 0 or remediation_result.mode | default('') != 'eda' or remediation_result.category | default('') == 'CAT1' %}CAT I      | {{ '%5s' | format(cat1_summary.found) }} | {{ '%7s' | format(cat1_summary.changed) }} | {{ '%10s' | format(cat1_summary.already_ok) }} | {{ '%6s' | format(cat1_summary.failed) }}
           {% endif %}
-          {% if remediation_result.winrm_in_manual | default(false) %}
-
-          --------------------------------------------------------------------------------
-          WINRM AUTHENTICATION CONTROLS (V-205711, V-205713)
-          --------------------------------------------------------------------------------
-          These controls require a separate migration process:
-            1. Update your inventory: ansible_winrm_transport: ntlm
-            2. Verify connectivity: ansible -m win_ping <host>
-            3. Run the WinRM-Auth-Migration job template (or migrate_winrm_auth.yml)
+          {% if (cat2_summary.found | int) > 0 or remediation_result.mode | default('') != 'eda' or remediation_result.category | default('') == 'CAT2' %}CAT II     | {{ '%5s' | format(cat2_summary.found) }} | {{ '%7s' | format(cat2_summary.changed) }} | {{ '%10s' | format(cat2_summary.already_ok) }} | {{ '%6s' | format(cat2_summary.failed) }}
           {% endif %}
-          {% if remediation_result.unknown_v_ids | default([]) | length > 0 %}
+          {% if (cat3_summary.found | int) > 0 or remediation_result.mode | default('') != 'eda' or remediation_result.category | default('') == 'CAT3' %}CAT III    | {{ '%5s' | format(cat3_summary.found) }} | {{ '%7s' | format(cat3_summary.changed) }} | {{ '%10s' | format(cat3_summary.already_ok) }} | {{ '%6s' | format(cat3_summary.failed) }}
+          {% endif %}
+          -----------|-------|---------|------------|-------
+          TOTAL      | {{ '%5s' | format(total_summary.found) }} | {{ '%7s' | format(total_summary.changed) }} | {{ '%10s' | format(total_summary.already_ok) }} | {{ '%6s' | format(total_summary.failed) }}
 
-          --------------------------------------------------------------------------------
-          UNKNOWN V-IDs (not in remediation map)
-          --------------------------------------------------------------------------------
-          {{ remediation_result.unknown_v_ids | join(', ') }}
+          {% if (total_summary.changed | int) == 0 and (total_summary.failed | int) == 0 %}
+          All controls already compliant - no changes needed.
+          {% endif %}
+          {% if (total_summary.failed | int) > 0 %}
+          WARNING: {{ total_summary.failed }} control(s) failed remediation. Manual review required.
           {% endif %}
 
-          ================================================================================
-          Run a compliance scan to verify remediation effectiveness.
+          Run a compliance scan to verify final compliance state.
           ================================================================================
