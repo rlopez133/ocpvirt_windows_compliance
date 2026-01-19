@@ -36,11 +36,6 @@ metrics_config:
   # Default uses in-cluster service discovery. Override for external access.
   pushgateway_url: "http://pushgateway.{{ tenant_config.namespace | default('compliance') }}.svc:9091"
 
-  # Wait time after deleting metrics before pushing new ones (seconds)
-  # This allows Prometheus to scrape the deleted state and resolve alerts
-  # before new metrics trigger them again. Should be > 2x Prometheus scrape interval.
-  alert_resolve_wait: 120
-
   # Metrics retention in Prometheus (days)
   metrics_retention_days: 30
 

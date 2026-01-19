@@ -61,27 +61,13 @@
       {{ cat2_failed_metrics | default('') }}
       {{ cat3_failed_metrics | default('') }}
 
-- name: Delete old metrics from Pushgateway (triggers alert resolve)
-  when: metrics_config.pushgateway_url | default('') | length > 0
-  ansible.builtin.uri:
-    url: "{{ metrics_config.pushgateway_url }}/metrics/job/compliance_scan/instance/{{ scan_result.vm_name }}"
-    method: DELETE
-    status_code: [200, 202, 204]
-  delegate_to: localhost
-  ignore_errors: true
-
-# Wait for Prometheus to scrape the deleted metrics state
-# This ensures alerts resolve before we push new metrics, allowing them to re-fire
-- name: Wait for alerts to resolve after metrics deletion
-  when: metrics_config.pushgateway_url | default('') | length > 0
-  ansible.builtin.pause:
-    seconds: "{{ metrics_config.alert_resolve_wait | default(120) }}"
-    prompt: "Waiting {{ metrics_config.alert_resolve_wait | default(120) }}s for alerts to resolve before pushing new metrics..."
-
+# Use scan_id in the Pushgateway instance to create unique metric groups per scan
+# Old scan instances become stale in Prometheus after ~5 min (staleness threshold)
+# This triggers alert resolution for old scan, and new alerts for current scan
 - name: Push metrics to Pushgateway
   when: metrics_config.pushgateway_url | default('') | length > 0
   ansible.builtin.uri:
-    url: "{{ metrics_config.pushgateway_url }}/metrics/job/compliance_scan/instance/{{ scan_result.vm_name }}"
+    url: "{{ metrics_config.pushgateway_url }}/metrics/job/compliance_scan/instance/{{ scan_result.vm_name }}_{{ scan_result.scan_id }}"
     method: POST
     body: "{{ metrics_payload }}"
     headers:
@@ -89,6 +75,20 @@
     status_code: [200, 202]
   delegate_to: localhost
   register: pushgateway_result
+  ignore_errors: true
+
+# Clean up old Pushgateway instances for this VM (if previous scan_id is known)
+# This prevents accumulation of stale instances in Pushgateway
+- name: Delete previous scan instance from Pushgateway
+  when:
+    - metrics_config.pushgateway_url | default('') | length > 0
+    - previous_scan_id is defined
+    - previous_scan_id != scan_result.scan_id
+  ansible.builtin.uri:
+    url: "{{ metrics_config.pushgateway_url }}/metrics/job/compliance_scan/instance/{{ scan_result.vm_name }}_{{ previous_scan_id }}"
+    method: DELETE
+    status_code: [200, 202, 204, 404]
+  delegate_to: localhost
   ignore_errors: true
 
 - name: Warn if Pushgateway is unavailable
