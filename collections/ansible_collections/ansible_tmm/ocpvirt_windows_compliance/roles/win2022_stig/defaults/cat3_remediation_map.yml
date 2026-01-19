@@ -1,0 +1,180 @@
+---
+# Windows Server 2022 STIG CAT III Remediation Map
+# Maps V-IDs to remediation actions
+# Used by scan-driven remediation to only fix failed controls
+#
+# Reference: DISA STIG V1R5 (January 2025)
+# Only includes CAT III (Low Severity) controls that are automatable
+#
+# Each entry contains:
+#   - v_id: The Vulnerability ID from XCCDF results (V-XXXXXX)
+#   - stig_id: The STIG rule ID (WN22-XX-XXXXXX)
+#   - title: Brief description
+#   - automatable: Whether this can be fixed automatically (true/false)
+#   - remediation_type: registry, security_policy, audit_policy, firewall, manual
+#   - remediation: The specific fix details
+
+win2022_cat3_remediation_map:
+  # ============================================================================
+  # Screen Saver and Lock Screen Controls
+  # ============================================================================
+  - v_id: "V-254276"
+    stig_id: "WN22-CC-000020"
+    title: "Screen saver timeout"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKCU:\\Control Panel\\Desktop"
+      name: "ScreenSaveTimeOut"
+      value: "900"
+      type: string
+
+  - v_id: "V-254277"
+    stig_id: "WN22-CC-000030"
+    title: "Screen saver password protection"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKCU:\\Control Panel\\Desktop"
+      name: "ScreenSaverIsSecure"
+      value: "1"
+      type: string
+
+  # ============================================================================
+  # Legal Notice Controls
+  # ============================================================================
+  - v_id: "V-254278"
+    stig_id: "WN22-CC-000040"
+    title: "Legal notice caption"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+      name: "LegalNoticeCaption"
+      value: "DoD Notice and Consent Banner"
+      type: string
+
+  - v_id: "V-254279"
+    stig_id: "WN22-CC-000050"
+    title: "Legal notice text"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+      name: "LegalNoticeText"
+      value: "You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only. By using this IS (which includes any device attached to this IS), you consent to the following conditions: -The USG routinely intercepts and monitors communications on this IS for purposes including, but not limited to, penetration testing, COMSEC monitoring, network operations and defense, personnel misconduct (PM), law enforcement (LE), and counterintelligence (CI) investigations. -At any time, the USG may inspect and seize data stored on this IS. -Communications using, or data stored on, this IS are not private, are subject to routine monitoring, interception, and search, and may be disclosed or used for any USG-authorized purpose. -This IS includes security measures (e.g., authentication and access controls) to protect USG interests--not for your personal benefit or privacy. -Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or monitoring of the content of privileged communications, or work product, related to personal representation or services by attorneys, psychotherapists, or clergy, and their assistants. Such communications and work product are private and confidential. See User Agreement for details."
+      type: string
+
+  # ============================================================================
+  # Logon Display Controls
+  # ============================================================================
+  - v_id: "V-254280"
+    stig_id: "WN22-CC-000060"
+    title: "Hide last logged on user"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+      name: "DontDisplayLastUserName"
+      value: 1
+      type: dword
+
+  # ============================================================================
+  # AutoPlay Controls
+  # ============================================================================
+  - v_id: "V-254281"
+    stig_id: "WN22-CC-000070"
+    title: "Disable autoplay"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer"
+      name: "NoDriveTypeAutoRun"
+      value: 255
+      type: dword
+
+  # ============================================================================
+  # Remote Desktop Controls
+  # ============================================================================
+  - v_id: "V-254282"
+    stig_id: "WN22-CC-000110"
+    title: "Remote Desktop idle timeout"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services"
+      name: "MaxIdleTime"
+      value: 900000
+      type: dword
+
+  # ============================================================================
+  # Anonymous Access Controls (Win2022 specific)
+  # ============================================================================
+  - v_id: "V-254283"
+    stig_id: "WN22-SO-000200"
+    title: "Named pipes null session"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters"
+      name: "NullSessionPipes"
+      value: ""
+      type: multistring
+
+  - v_id: "V-254284"
+    stig_id: "WN22-SO-000210"
+    title: "Shares null session"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters"
+      name: "NullSessionShares"
+      value: ""
+      type: multistring
+
+  # ============================================================================
+  # Event Log Size Controls
+  # ============================================================================
+  - v_id: "V-254285"
+    stig_id: "WN22-MS-000010"
+    title: "Application event log size"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Eventlog\\Application"
+      name: "MaxSize"
+      value: 32768
+      type: dword
+
+  - v_id: "V-254286"
+    stig_id: "WN22-MS-000020"
+    title: "Security event log size"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Eventlog\\Security"
+      name: "MaxSize"
+      value: 196608
+      type: dword
+
+  - v_id: "V-254287"
+    stig_id: "WN22-MS-000030"
+    title: "System event log size"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Eventlog\\System"
+      name: "MaxSize"
+      value: 32768
+      type: dword
+
+  - v_id: "V-254288"
+    stig_id: "WN22-MS-000040"
+    title: "PowerShell event log size"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WINEVT\\Channels\\Microsoft-Windows-PowerShell/Operational"
+      name: "MaxSize"
+      value: 104857600
+      type: dword

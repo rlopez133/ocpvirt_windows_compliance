@@ -88,7 +88,7 @@ spec:
         - alert: ComplianceCAT3Violation
           expr: |
             compliance_control_status{category="CAT3", status="fail"} == 1
-          for: 30m
+          for: 1m
           labels:
             severity: info
             category: CAT3
