@@ -1,5 +1,15 @@
 ---
 # Windows Server 2019 STIG - CAT III (Low Severity) Controls
+# When controls_to_remediate is set (EDA-triggered), we still run all controls
+# but track what changed for accurate reporting.
+
+# Initialize result tracking for this category
+- name: "CAT3 | Initialize remediation tracking"
+  ansible.builtin.set_fact:
+    cat3_results: "{{ cat3_results | default([]) }}"
+  tags:
+    - cat3
+    - tracking
 
 # WN19-CC-000020 - Lock screen timeout
 - name: "CAT3 | WN19-CC-000020 | Configure screen saver timeout"
@@ -9,6 +19,7 @@
     name: ScreenSaveTimeOut
     data: "900"
     type: string
+  register: _wn19_cc_000020
   tags:
     - cat3
     - WN19-CC-000020
@@ -21,6 +32,7 @@
     name: ScreenSaverIsSecure
     data: "1"
     type: string
+  register: _wn19_cc_000030
   tags:
     - cat3
     - WN19-CC-000030
@@ -33,6 +45,7 @@
     name: LegalNoticeCaption
     data: "DoD Notice and Consent Banner"
     type: string
+  register: _wn19_cc_000040
   tags:
     - cat3
     - WN19-CC-000040
@@ -52,6 +65,7 @@
       -This IS includes security measures (e.g., authentication and access controls) to protect USG interests--not for your personal benefit or privacy.
       -Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or monitoring of the content of privileged communications, or work product, related to personal representation or services by attorneys, psychotherapists, or clergy, and their assistants. Such communications and work product are private and confidential. See User Agreement for details.
     type: string
+  register: _wn19_cc_000050
   tags:
     - cat3
     - WN19-CC-000050
@@ -64,6 +78,7 @@
     name: DontDisplayLastUserName
     data: 1
     type: dword
+  register: _wn19_cc_000060
   tags:
     - cat3
     - WN19-CC-000060
@@ -76,6 +91,7 @@
     name: NoDriveTypeAutoRun
     data: 255
     type: dword
+  register: _wn19_cc_000070
   tags:
     - cat3
     - WN19-CC-000070
@@ -88,6 +104,7 @@
     name: MaxSize
     data: 32768
     type: dword
+  register: _wn19_ms_000010
   tags:
     - cat3
     - WN19-MS-000010
@@ -99,6 +116,7 @@
     name: MaxSize
     data: 196608
     type: dword
+  register: _wn19_ms_000020
   tags:
     - cat3
     - WN19-MS-000020
@@ -110,14 +128,10 @@
     name: MaxSize
     data: 32768
     type: dword
+  register: _wn19_ms_000030
   tags:
     - cat3
     - WN19-MS-000030
-
-# ============================================================================
-# Easy CAT III Controls - Feature 005-easy-stig-remediations
-# Low-risk controls safe for automated remediation
-# ============================================================================
 
 # WN19-MS-000040 - PowerShell event log size
 - name: "CAT3 | WN19-MS-000040 | Configure PowerShell event log size"
@@ -127,6 +141,7 @@
     name: MaxSize
     data: 104857600
     type: dword
+  register: _wn19_ms_000040
   tags:
     - cat3
     - WN19-MS-000040
@@ -139,26 +154,32 @@
     name: MaxIdleTime
     data: 900000
     type: dword
+  register: _wn19_cc_000110
   tags:
     - cat3
     - WN19-CC-000110
 
 # ============================================================================
-# Remediation Summary Report - Feature 005-easy-stig-remediations
+# Aggregate CAT III Results
 # ============================================================================
-
-- name: "CAT3 | REPORT | Display CAT III remediation summary"
-  ansible.builtin.debug:
-    msg: |
-      ═══════════════════════════════════════════════════════════════════════
-      CAT III STIG Remediation Summary - Windows Server 2019
-      ═══════════════════════════════════════════════════════════════════════
-      Controls processed: 12 (10 original + 2 easy wins)
-      Skip rules applied: {{ win19stig_skip_rules | length }}
-
-      Note: Controls in skip_rules were not modified.
-      Run a compliance scan to verify remediation results.
-      ═══════════════════════════════════════════════════════════════════════
+- name: "CAT3 | Aggregate remediation results"
+  ansible.builtin.set_fact:
+    cat3_results: >-
+      {{
+        [
+          {'control_id': 'WN19-CC-000020', 'status': 'skipped' if (_wn19_cc_000020.skipped | default(false)) else ('failed' if (_wn19_cc_000020.failed | default(false)) else ('changed' if (_wn19_cc_000020.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN19-CC-000030', 'status': 'skipped' if (_wn19_cc_000030.skipped | default(false)) else ('failed' if (_wn19_cc_000030.failed | default(false)) else ('changed' if (_wn19_cc_000030.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN19-CC-000040', 'status': 'skipped' if (_wn19_cc_000040.skipped | default(false)) else ('failed' if (_wn19_cc_000040.failed | default(false)) else ('changed' if (_wn19_cc_000040.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN19-CC-000050', 'status': 'skipped' if (_wn19_cc_000050.skipped | default(false)) else ('failed' if (_wn19_cc_000050.failed | default(false)) else ('changed' if (_wn19_cc_000050.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN19-CC-000060', 'status': 'skipped' if (_wn19_cc_000060.skipped | default(false)) else ('failed' if (_wn19_cc_000060.failed | default(false)) else ('changed' if (_wn19_cc_000060.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN19-CC-000070', 'status': 'skipped' if (_wn19_cc_000070.skipped | default(false)) else ('failed' if (_wn19_cc_000070.failed | default(false)) else ('changed' if (_wn19_cc_000070.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN19-MS-000010', 'status': 'skipped' if (_wn19_ms_000010.skipped | default(false)) else ('failed' if (_wn19_ms_000010.failed | default(false)) else ('changed' if (_wn19_ms_000010.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN19-MS-000020', 'status': 'skipped' if (_wn19_ms_000020.skipped | default(false)) else ('failed' if (_wn19_ms_000020.failed | default(false)) else ('changed' if (_wn19_ms_000020.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN19-MS-000030', 'status': 'skipped' if (_wn19_ms_000030.skipped | default(false)) else ('failed' if (_wn19_ms_000030.failed | default(false)) else ('changed' if (_wn19_ms_000030.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN19-MS-000040', 'status': 'skipped' if (_wn19_ms_000040.skipped | default(false)) else ('failed' if (_wn19_ms_000040.failed | default(false)) else ('changed' if (_wn19_ms_000040.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN19-CC-000110', 'status': 'skipped' if (_wn19_cc_000110.skipped | default(false)) else ('failed' if (_wn19_cc_000110.failed | default(false)) else ('changed' if (_wn19_cc_000110.changed | default(false)) else 'ok'))}
+        ]
+      }}
   tags:
     - cat3
-    - report
+    - tracking

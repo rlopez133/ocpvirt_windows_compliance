@@ -1,5 +1,15 @@
 ---
 # Windows Server 2022 STIG - CAT II (Medium Severity) Controls
+# When controls_to_remediate is set (EDA-triggered), we still run all controls
+# but track what changed for accurate reporting.
+
+# Initialize result tracking for this category
+- name: "CAT2 | Initialize remediation tracking"
+  ansible.builtin.set_fact:
+    cat2_results: "{{ cat2_results | default([]) }}"
+  tags:
+    - cat2
+    - tracking
 
 # WN22-AU-000010 - Audit policy for credential validation
 - name: "CAT2 | WN22-AU-000010 | Configure audit policy - Credential Validation"
@@ -7,6 +17,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Credential Validation
     audit_type: "{{ win22stig_audit_policy.credential_validation }}"
+  register: _wn22_au_000010
   tags:
     - cat2
     - WN22-AU-000010
@@ -17,6 +28,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Kerberos Authentication Service
     audit_type: "{{ win22stig_audit_policy.kerberos_authentication }}"
+  register: _wn22_au_000020
   tags:
     - cat2
     - WN22-AU-000020
@@ -27,6 +39,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Logon
     audit_type: "{{ win22stig_audit_policy.logon }}"
+  register: _wn22_au_000030
   tags:
     - cat2
     - WN22-AU-000030
@@ -37,6 +50,7 @@
   community.windows.win_audit_policy_system:
     subcategory: User Account Management
     audit_type: "{{ win22stig_audit_policy.user_account_management }}"
+  register: _wn22_au_000040
   tags:
     - cat2
     - WN22-AU-000040
@@ -47,6 +61,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Process Creation
     audit_type: "{{ win22stig_audit_policy.process_creation }}"
+  register: _wn22_au_000050
   tags:
     - cat2
     - WN22-AU-000050
@@ -58,6 +73,7 @@
     section: System Access
     key: MinimumPasswordLength
     value: "{{ win22stig_password_policy.min_length }}"
+  register: _wn22_pk_000010
   tags:
     - cat2
     - WN22-PK-000010
@@ -69,6 +85,7 @@
     section: System Access
     key: PasswordComplexity
     value: "{{ 1 if win22stig_password_policy.complexity else 0 }}"
+  register: _wn22_pk_000020
   tags:
     - cat2
     - WN22-PK-000020
@@ -80,6 +97,7 @@
     section: System Access
     key: MaximumPasswordAge
     value: "{{ win22stig_password_policy.max_age }}"
+  register: _wn22_pk_000030
   tags:
     - cat2
     - WN22-PK-000030
@@ -91,6 +109,7 @@
     section: System Access
     key: PasswordHistorySize
     value: "{{ win22stig_password_policy.history }}"
+  register: _wn22_pk_000040
   tags:
     - cat2
     - WN22-PK-000040
@@ -103,6 +122,7 @@
     name: RequireSecuritySignature
     data: 1
     type: dword
+  register: _wn22_so_000100
   tags:
     - cat2
     - WN22-SO-000100
@@ -116,6 +136,7 @@
     name: RequireSecuritySignature
     data: 1
     type: dword
+  register: _wn22_so_000110
   tags:
     - cat2
     - WN22-SO-000110
@@ -129,6 +150,7 @@
     name: MinEncryptionLevel
     data: 3
     type: dword
+  register: _wn22_so_000120
   tags:
     - cat2
     - WN22-SO-000120
@@ -141,6 +163,7 @@
     name: UseLogonCredential
     data: 0
     type: dword
+  register: _wn22_so_000130
   tags:
     - cat2
     - WN22-SO-000130
@@ -152,6 +175,7 @@
     profiles:
       - Domain
     state: enabled
+  register: _wn22_fw_000010
   tags:
     - cat2
     - WN22-FW-000010
@@ -162,6 +186,7 @@
     profiles:
       - Private
     state: enabled
+  register: _wn22_fw_000020
   tags:
     - cat2
     - WN22-FW-000020
@@ -172,6 +197,7 @@
     profiles:
       - Public
     state: enabled
+  register: _wn22_fw_000030
   tags:
     - cat2
     - WN22-FW-000030
@@ -184,6 +210,7 @@
     name: DisableAntiSpyware
     data: 0
     type: dword
+  register: _wn22_ep_000010
   tags:
     - cat2
     - WN22-EP-000010
@@ -201,6 +228,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Security Group Management
     audit_type: "{{ win22stig_audit_policy.security_group_management }}"
+  register: _wn22_au_000060
   tags:
     - cat2
     - WN22-AU-000060
@@ -211,6 +239,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Computer Account Management
     audit_type: "{{ win22stig_audit_policy.computer_account_management }}"
+  register: _wn22_au_000070
   tags:
     - cat2
     - WN22-AU-000070
@@ -221,6 +250,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Logoff
     audit_type: "{{ win22stig_audit_policy.logoff }}"
+  register: _wn22_au_000080
   tags:
     - cat2
     - WN22-AU-000080
@@ -231,6 +261,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Special Logon
     audit_type: "{{ win22stig_audit_policy.special_logon }}"
+  register: _wn22_au_000090
   tags:
     - cat2
     - WN22-AU-000090
@@ -241,6 +272,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Removable Storage
     audit_type: "{{ win22stig_audit_policy.removable_storage }}"
+  register: _wn22_au_000100
   tags:
     - cat2
     - WN22-AU-000100
@@ -251,6 +283,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Audit Policy Change
     audit_type: "{{ win22stig_audit_policy.audit_policy_change }}"
+  register: _wn22_au_000110
   tags:
     - cat2
     - WN22-AU-000110
@@ -261,6 +294,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Authentication Policy Change
     audit_type: "{{ win22stig_audit_policy.authentication_policy_change }}"
+  register: _wn22_au_000120
   tags:
     - cat2
     - WN22-AU-000120
@@ -271,6 +305,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Sensitive Privilege Use
     audit_type: "{{ win22stig_audit_policy.sensitive_privilege_use }}"
+  register: _wn22_au_000130
   tags:
     - cat2
     - WN22-AU-000130
@@ -281,6 +316,7 @@
   community.windows.win_audit_policy_system:
     subcategory: IPsec Driver
     audit_type: "{{ win22stig_audit_policy.ipsec_driver }}"
+  register: _wn22_au_000140
   tags:
     - cat2
     - WN22-AU-000140
@@ -291,6 +327,7 @@
   community.windows.win_audit_policy_system:
     subcategory: Security State Change
     audit_type: "{{ win22stig_audit_policy.security_state_change }}"
+  register: _wn22_au_000150
   tags:
     - cat2
     - WN22-AU-000150
@@ -301,6 +338,7 @@
   community.windows.win_audit_policy_system:
     subcategory: System Integrity
     audit_type: "{{ win22stig_audit_policy.system_integrity }}"
+  register: _wn22_au_000160
   tags:
     - cat2
     - WN22-AU-000160
@@ -315,6 +353,7 @@
     name: AllowNullSessionFallback
     data: 0
     type: dword
+  register: _wn22_so_000140
   tags:
     - cat2
     - WN22-SO-000140
@@ -327,6 +366,7 @@
     name: RestrictNullSessAccess
     data: 1
     type: dword
+  register: _wn22_so_000150
   tags:
     - cat2
     - WN22-SO-000150
@@ -339,6 +379,7 @@
     name: NullSessionPipes
     data: ""
     type: multistring
+  register: _wn22_so_000160
   tags:
     - cat2
     - WN22-SO-000160
@@ -351,6 +392,7 @@
     name: Description
     data: "Registry Server"
     type: string
+  register: _wn22_so_000170
   tags:
     - cat2
     - WN22-SO-000170
@@ -363,6 +405,7 @@
     name: ProcessCreationIncludeCmdLine_Enabled
     data: 1
     type: dword
+  register: _wn22_cc_000080
   tags:
     - cat2
     - WN22-CC-000080
@@ -375,6 +418,7 @@
     name: EnableScriptBlockLogging
     data: 1
     type: dword
+  register: _wn22_cc_000090
   tags:
     - cat2
     - WN22-CC-000090
@@ -387,6 +431,7 @@
     name: DriverLoadPolicy
     data: 3
     type: dword
+  register: _wn22_cc_000100
   tags:
     - cat2
     - WN22-CC-000100
@@ -400,6 +445,7 @@
     section: System Access
     key: MinimumPasswordAge
     value: "{{ win22stig_password_policy.min_age }}"
+  register: _wn22_pk_000050
   tags:
     - cat2
     - WN22-PK-000050
@@ -411,27 +457,59 @@
     section: System Access
     key: ClearTextPassword
     value: "{{ 0 if not win22stig_password_policy.reversible_encryption else 1 }}"
+  register: _wn22_pk_000060
   tags:
     - cat2
     - WN22-PK-000060
 
 # ============================================================================
-# Remediation Summary Report - Feature 005-easy-stig-remediations
+# Aggregate Remediation Results
 # ============================================================================
 
-- name: "CAT2 | REPORT | Display CAT II remediation summary"
-  ansible.builtin.debug:
-    msg: |
-      ═══════════════════════════════════════════════════════════════════════
-      CAT II STIG Remediation Summary - Windows Server 2022
-      ═══════════════════════════════════════════════════════════════════════
-      Controls processed: 40 (20 original + 20 easy wins)
-      Skip rules applied: {{ win22stig_skip_rules | length }}
-      Administrator protected controls: {{ win22stig_administrator_protected | default([]) | length }}
-
-      Note: Controls in skip_rules or administrator_protected list were not modified.
-      Run a compliance scan to verify remediation results.
-      ═══════════════════════════════════════════════════════════════════════
+- name: "CAT2 | Aggregate remediation results"
+  ansible.builtin.set_fact:
+    cat2_results: >-
+      {{
+        [
+          {'control_id': 'WN22-AU-000010', 'status': 'skipped' if (_wn22_au_000010.skipped | default(false)) else ('failed' if (_wn22_au_000010.failed | default(false)) else ('changed' if (_wn22_au_000010.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000020', 'status': 'skipped' if (_wn22_au_000020.skipped | default(false)) else ('failed' if (_wn22_au_000020.failed | default(false)) else ('changed' if (_wn22_au_000020.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000030', 'status': 'skipped' if (_wn22_au_000030.skipped | default(false)) else ('failed' if (_wn22_au_000030.failed | default(false)) else ('changed' if (_wn22_au_000030.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000040', 'status': 'skipped' if (_wn22_au_000040.skipped | default(false)) else ('failed' if (_wn22_au_000040.failed | default(false)) else ('changed' if (_wn22_au_000040.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000050', 'status': 'skipped' if (_wn22_au_000050.skipped | default(false)) else ('failed' if (_wn22_au_000050.failed | default(false)) else ('changed' if (_wn22_au_000050.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000060', 'status': 'skipped' if (_wn22_au_000060.skipped | default(false)) else ('failed' if (_wn22_au_000060.failed | default(false)) else ('changed' if (_wn22_au_000060.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000070', 'status': 'skipped' if (_wn22_au_000070.skipped | default(false)) else ('failed' if (_wn22_au_000070.failed | default(false)) else ('changed' if (_wn22_au_000070.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000080', 'status': 'skipped' if (_wn22_au_000080.skipped | default(false)) else ('failed' if (_wn22_au_000080.failed | default(false)) else ('changed' if (_wn22_au_000080.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000090', 'status': 'skipped' if (_wn22_au_000090.skipped | default(false)) else ('failed' if (_wn22_au_000090.failed | default(false)) else ('changed' if (_wn22_au_000090.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000100', 'status': 'skipped' if (_wn22_au_000100.skipped | default(false)) else ('failed' if (_wn22_au_000100.failed | default(false)) else ('changed' if (_wn22_au_000100.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000110', 'status': 'skipped' if (_wn22_au_000110.skipped | default(false)) else ('failed' if (_wn22_au_000110.failed | default(false)) else ('changed' if (_wn22_au_000110.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000120', 'status': 'skipped' if (_wn22_au_000120.skipped | default(false)) else ('failed' if (_wn22_au_000120.failed | default(false)) else ('changed' if (_wn22_au_000120.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000130', 'status': 'skipped' if (_wn22_au_000130.skipped | default(false)) else ('failed' if (_wn22_au_000130.failed | default(false)) else ('changed' if (_wn22_au_000130.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000140', 'status': 'skipped' if (_wn22_au_000140.skipped | default(false)) else ('failed' if (_wn22_au_000140.failed | default(false)) else ('changed' if (_wn22_au_000140.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000150', 'status': 'skipped' if (_wn22_au_000150.skipped | default(false)) else ('failed' if (_wn22_au_000150.failed | default(false)) else ('changed' if (_wn22_au_000150.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-AU-000160', 'status': 'skipped' if (_wn22_au_000160.skipped | default(false)) else ('failed' if (_wn22_au_000160.failed | default(false)) else ('changed' if (_wn22_au_000160.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-PK-000010', 'status': 'skipped' if (_wn22_pk_000010.skipped | default(false)) else ('failed' if (_wn22_pk_000010.failed | default(false)) else ('changed' if (_wn22_pk_000010.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-PK-000020', 'status': 'skipped' if (_wn22_pk_000020.skipped | default(false)) else ('failed' if (_wn22_pk_000020.failed | default(false)) else ('changed' if (_wn22_pk_000020.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-PK-000030', 'status': 'skipped' if (_wn22_pk_000030.skipped | default(false)) else ('failed' if (_wn22_pk_000030.failed | default(false)) else ('changed' if (_wn22_pk_000030.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-PK-000040', 'status': 'skipped' if (_wn22_pk_000040.skipped | default(false)) else ('failed' if (_wn22_pk_000040.failed | default(false)) else ('changed' if (_wn22_pk_000040.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-PK-000050', 'status': 'skipped' if (_wn22_pk_000050.skipped | default(false)) else ('failed' if (_wn22_pk_000050.failed | default(false)) else ('changed' if (_wn22_pk_000050.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-PK-000060', 'status': 'skipped' if (_wn22_pk_000060.skipped | default(false)) else ('failed' if (_wn22_pk_000060.failed | default(false)) else ('changed' if (_wn22_pk_000060.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000100', 'status': 'skipped' if (_wn22_so_000100.skipped | default(false)) else ('failed' if (_wn22_so_000100.failed | default(false)) else ('changed' if (_wn22_so_000100.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000110', 'status': 'skipped' if (_wn22_so_000110.skipped | default(false)) else ('failed' if (_wn22_so_000110.failed | default(false)) else ('changed' if (_wn22_so_000110.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000120', 'status': 'skipped' if (_wn22_so_000120.skipped | default(false)) else ('failed' if (_wn22_so_000120.failed | default(false)) else ('changed' if (_wn22_so_000120.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000130', 'status': 'skipped' if (_wn22_so_000130.skipped | default(false)) else ('failed' if (_wn22_so_000130.failed | default(false)) else ('changed' if (_wn22_so_000130.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000140', 'status': 'skipped' if (_wn22_so_000140.skipped | default(false)) else ('failed' if (_wn22_so_000140.failed | default(false)) else ('changed' if (_wn22_so_000140.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000150', 'status': 'skipped' if (_wn22_so_000150.skipped | default(false)) else ('failed' if (_wn22_so_000150.failed | default(false)) else ('changed' if (_wn22_so_000150.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000160', 'status': 'skipped' if (_wn22_so_000160.skipped | default(false)) else ('failed' if (_wn22_so_000160.failed | default(false)) else ('changed' if (_wn22_so_000160.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-SO-000170', 'status': 'skipped' if (_wn22_so_000170.skipped | default(false)) else ('failed' if (_wn22_so_000170.failed | default(false)) else ('changed' if (_wn22_so_000170.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-FW-000010', 'status': 'skipped' if (_wn22_fw_000010.skipped | default(false)) else ('failed' if (_wn22_fw_000010.failed | default(false)) else ('changed' if (_wn22_fw_000010.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-FW-000020', 'status': 'skipped' if (_wn22_fw_000020.skipped | default(false)) else ('failed' if (_wn22_fw_000020.failed | default(false)) else ('changed' if (_wn22_fw_000020.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-FW-000030', 'status': 'skipped' if (_wn22_fw_000030.skipped | default(false)) else ('failed' if (_wn22_fw_000030.failed | default(false)) else ('changed' if (_wn22_fw_000030.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-EP-000010', 'status': 'skipped' if (_wn22_ep_000010.skipped | default(false)) else ('failed' if (_wn22_ep_000010.failed | default(false)) else ('changed' if (_wn22_ep_000010.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-CC-000080', 'status': 'skipped' if (_wn22_cc_000080.skipped | default(false)) else ('failed' if (_wn22_cc_000080.failed | default(false)) else ('changed' if (_wn22_cc_000080.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-CC-000090', 'status': 'skipped' if (_wn22_cc_000090.skipped | default(false)) else ('failed' if (_wn22_cc_000090.failed | default(false)) else ('changed' if (_wn22_cc_000090.changed | default(false)) else 'ok'))},
+          {'control_id': 'WN22-CC-000100', 'status': 'skipped' if (_wn22_cc_000100.skipped | default(false)) else ('failed' if (_wn22_cc_000100.failed | default(false)) else ('changed' if (_wn22_cc_000100.changed | default(false)) else 'ok'))}
+        ]
+      }}
   tags:
     - cat2
-    - report
+    - tracking
