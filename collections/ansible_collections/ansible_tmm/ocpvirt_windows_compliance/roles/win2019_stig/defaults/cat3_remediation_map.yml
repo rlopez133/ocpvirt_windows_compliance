@@ -3,7 +3,8 @@
 # Maps V-IDs to remediation actions
 # Used by scan-driven remediation to only fix failed controls
 #
-# Reference: DISA STIG V3R2 (January 2025)
+# Reference: DISA STIG Windows Server 2019 V3R2 (January 2025)
+# Source: cyber.trackr.live, stigviewer.com
 # Only includes CAT III (Low Severity) controls that are automatable
 #
 # Each entry contains:
@@ -16,61 +17,133 @@
 
 win2019_cat3_remediation_map:
   # ============================================================================
-  # Screen Saver and Lock Screen Controls
+  # Lock Screen and Logon Controls
+  # ============================================================================
+  - v_id: "V-205858"
+    stig_id: "WN19-CC-000040"
+    title: "Camera access from the lock screen must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization"
+      name: "NoLockScreenCamera"
+      value: 1
+      type: dword
+
+  - v_id: "V-205859"
+    stig_id: "WN19-CC-000050"
+    title: "Toast notifications on the lock screen must be turned off"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\CurrentVersion\\PushNotifications"
+      name: "NoToastApplicationNotificationOnLockScreen"
+      value: 1
+      type: dword
+
+  - v_id: "V-205860"
+    stig_id: "WN19-CC-000060"
+    title: "Windows Spotlight must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent"
+      name: "DisableWindowsSpotlightFeatures"
+      value: 1
+      type: dword
+
+  # ============================================================================
+  # Application Compatibility Controls
+  # ============================================================================
+  - v_id: "V-205691"
+    stig_id: "WN19-CC-000200"
+    title: "Application Compatibility Program Inventory must be prevented from collecting data"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppCompat"
+      name: "DisableInventory"
+      value: 1
+      type: dword
+
+  # ============================================================================
+  # Explorer and Shell Controls
+  # ============================================================================
+  - v_id: "V-205819"
+    stig_id: "WN19-CC-000310"
+    title: "Explorer Data Execution Prevention must be enabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer"
+      name: "NoDataExecutionPrevention"
+      value: 0
+      type: dword
+
+  - v_id: "V-205870"
+    stig_id: "WN19-CC-000330"
+    title: "Heap termination on corruption must be enabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer"
+      name: "NoHeapTerminationOnCorruption"
+      value: 0
+      type: dword
+
+  # ============================================================================
+  # Event Log Size Controls
   # ============================================================================
   - v_id: "V-205795"
-    stig_id: "WN19-CC-000020"
-    title: "Screen saver timeout"
+    stig_id: "WN19-AU-000010"
+    title: "Application event log size must be at least 32768 KB"
     automatable: true
     remediation_type: registry
     remediation:
-      path: "HKCU:\\Control Panel\\Desktop"
-      name: "ScreenSaveTimeOut"
-      value: "900"
-      type: string
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\Application"
+      name: "MaxSize"
+      value: 32768
+      type: dword
 
   - v_id: "V-205796"
-    stig_id: "WN19-CC-000030"
-    title: "Screen saver password protection"
+    stig_id: "WN19-AU-000020"
+    title: "Security event log size must be at least 196608 KB"
     automatable: true
     remediation_type: registry
     remediation:
-      path: "HKCU:\\Control Panel\\Desktop"
-      name: "ScreenSaverIsSecure"
-      value: "1"
-      type: string
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\Security"
+      name: "MaxSize"
+      value: 196608
+      type: dword
 
-  # ============================================================================
-  # Legal Notice Controls
-  # ============================================================================
   - v_id: "V-205797"
-    stig_id: "WN19-CC-000040"
-    title: "Legal notice caption"
+    stig_id: "WN19-AU-000030"
+    title: "System event log size must be at least 32768 KB"
     automatable: true
     remediation_type: registry
     remediation:
-      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
-      name: "LegalNoticeCaption"
-      value: "DoD Notice and Consent Banner"
-      type: string
-
-  - v_id: "V-205798"
-    stig_id: "WN19-CC-000050"
-    title: "Legal notice text"
-    automatable: true
-    remediation_type: registry
-    remediation:
-      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
-      name: "LegalNoticeText"
-      value: "You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only. By using this IS (which includes any device attached to this IS), you consent to the following conditions: -The USG routinely intercepts and monitors communications on this IS for purposes including, but not limited to, penetration testing, COMSEC monitoring, network operations and defense, personnel misconduct (PM), law enforcement (LE), and counterintelligence (CI) investigations. -At any time, the USG may inspect and seize data stored on this IS. -Communications using, or data stored on, this IS are not private, are subject to routine monitoring, interception, and search, and may be disclosed or used for any USG-authorized purpose. -This IS includes security measures (e.g., authentication and access controls) to protect USG interests--not for your personal benefit or privacy. -Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or monitoring of the content of privileged communications, or work product, related to personal representation or services by attorneys, psychotherapists, or clergy, and their assistants. Such communications and work product are private and confidential. See User Agreement for details."
-      type: string
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\System"
+      name: "MaxSize"
+      value: 32768
+      type: dword
 
   # ============================================================================
   # Logon Display Controls
   # ============================================================================
+  - v_id: "V-205798"
+    stig_id: "WN19-SO-000010"
+    title: "Caching of logon credentials must be limited"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"
+      name: "CachedLogonsCount"
+      value: "4"
+      type: string
+
   - v_id: "V-205801"
-    stig_id: "WN19-CC-000060"
-    title: "Hide last logged on user"
+    stig_id: "WN19-SO-000020"
+    title: "Last user name must not be displayed on logon screen"
     automatable: true
     remediation_type: registry
     remediation:
@@ -80,25 +153,33 @@ win2019_cat3_remediation_map:
       type: dword
 
   # ============================================================================
-  # AutoPlay Controls
+  # Remote Desktop Controls
   # ============================================================================
   - v_id: "V-205808"
-    stig_id: "WN19-CC-000070"
-    title: "Disable autoplay"
+    stig_id: "WN19-CC-000350"
+    title: "Remote Desktop Services must always prompt for password upon connection"
     automatable: true
     remediation_type: registry
     remediation:
-      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer"
-      name: "NoDriveTypeAutoRun"
-      value: 255
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services"
+      name: "fPromptForPassword"
+      value: 1
       type: dword
 
-  # ============================================================================
-  # Remote Desktop Controls
-  # ============================================================================
   - v_id: "V-205809"
-    stig_id: "WN19-CC-000110"
-    title: "Remote Desktop idle timeout"
+    stig_id: "WN19-CC-000360"
+    title: "Remote Desktop Services must require secure RPC communication"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services"
+      name: "fEncryptRPCTraffic"
+      value: 1
+      type: dword
+
+  - v_id: "V-205810"
+    stig_id: "WN19-CC-000370"
+    title: "Remote Desktop Services session hosts must limit maximum idle time"
     automatable: true
     remediation_type: registry
     remediation:
@@ -107,49 +188,366 @@ win2019_cat3_remediation_map:
       value: 900000
       type: dword
 
-  # ============================================================================
-  # Event Log Size Controls
-  # ============================================================================
-  - v_id: "V-205810"
-    stig_id: "WN19-MS-000010"
-    title: "Application event log size"
-    automatable: true
-    remediation_type: registry
-    remediation:
-      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Eventlog\\Application"
-      name: "MaxSize"
-      value: 32768
-      type: dword
-
   - v_id: "V-205811"
-    stig_id: "WN19-MS-000020"
-    title: "Security event log size"
+    stig_id: "WN19-CC-000380"
+    title: "Remote Desktop Services session hosts must limit disconnected session time"
     automatable: true
     remediation_type: registry
     remediation:
-      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Eventlog\\Security"
-      name: "MaxSize"
-      value: 196608
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services"
+      name: "MaxDisconnectionTime"
+      value: 60000
       type: dword
 
+  # ============================================================================
+  # Internet Explorer and Network Controls
+  # ============================================================================
   - v_id: "V-205812"
-    stig_id: "WN19-MS-000030"
-    title: "System event log size"
+    stig_id: "WN19-CC-000390"
+    title: "Users must be prevented from changing installation options"
     automatable: true
     remediation_type: registry
     remediation:
-      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Eventlog\\System"
-      name: "MaxSize"
-      value: 32768
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer"
+      name: "EnableUserControl"
+      value: 0
       type: dword
 
   - v_id: "V-205814"
-    stig_id: "WN19-MS-000040"
-    title: "PowerShell event log size"
+    stig_id: "WN19-CC-000400"
+    title: "Basic authentication for RSS feeds must be disabled"
     automatable: true
     remediation_type: registry
     remediation:
-      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WINEVT\\Channels\\Microsoft-Windows-PowerShell/Operational"
-      name: "MaxSize"
-      value: 104857600
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Internet Explorer\\Feeds"
+      name: "AllowBasicAuthInClear"
+      value: 0
+      type: dword
+
+  # ============================================================================
+  # Additional Security Controls
+  # ============================================================================
+  - v_id: "V-205816"
+    stig_id: "WN19-CC-000420"
+    title: "InPrivate browsing in Microsoft Edge must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\Main"
+      name: "AllowInPrivate"
+      value: 0
+      type: dword
+
+  - v_id: "V-205817"
+    stig_id: "WN19-CC-000430"
+    title: "The Windows dialog box title for legal notice must be configured"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+      name: "LegalNoticeCaption"
+      value: "DoD Notice and Consent Banner"
+      type: string
+
+  # ============================================================================
+  # Audit Subcategory Controls
+  # ============================================================================
+  - v_id: "V-205825"
+    stig_id: "WN19-AU-000150"
+    title: "Audit Central Access Policy Staging must include success and failure"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Central Policy Staging"
+      audit_type: "success,failure"
+
+  - v_id: "V-205827"
+    stig_id: "WN19-AU-000160"
+    title: "Audit Credential Validation must include success and failure"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Credential Validation"
+      audit_type: "success,failure"
+
+  - v_id: "V-205828"
+    stig_id: "WN19-AU-000170"
+    title: "Audit Computer Account Management must include success"
+    automatable: true
+    remediation_type: audit_policy
+    remediation:
+      subcategory: "Computer Account Management"
+      audit_type: "success"
+
+  # ============================================================================
+  # Additional Registry Controls from Failed V-IDs
+  # ============================================================================
+  - v_id: "V-205833"
+    stig_id: "WN19-CC-000450"
+    title: "Automatically signing in the last interactive user must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+      name: "DisableAutomaticRestartSignOn"
+      value: 1
+      type: dword
+
+  - v_id: "V-205834"
+    stig_id: "WN19-CC-000460"
+    title: "IPv6 source routing must be configured to highest protection"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters"
+      name: "DisableIPSourceRouting"
+      value: 2
+      type: dword
+
+  - v_id: "V-205836"
+    stig_id: "WN19-CC-000480"
+    title: "ICMP redirects must not be allowed to override OSPF generated routes"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters"
+      name: "EnableICMPRedirect"
+      value: 0
+      type: dword
+
+  - v_id: "V-205837"
+    stig_id: "WN19-CC-000490"
+    title: "Path MTU discovery must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters"
+      name: "EnablePMTUDiscovery"
+      value: 0
+      type: dword
+
+  - v_id: "V-205839"
+    stig_id: "WN19-CC-000510"
+    title: "IP source routing must be configured to highest protection for IPv4"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters"
+      name: "DisableIPSourceRouting"
+      value: 2
+      type: dword
+
+  - v_id: "V-205840"
+    stig_id: "WN19-CC-000520"
+    title: "Computer Browser must be prevented from maintaining server list"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+      name: "Hidden"
+      value: 1
+      type: dword
+
+  - v_id: "V-205841"
+    stig_id: "WN19-CC-000530"
+    title: "NetBIOS name release on request must be ignored"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Netbt\\Parameters"
+      name: "NoNameReleaseOnDemand"
+      value: 1
+      type: dword
+
+  - v_id: "V-205842"
+    stig_id: "WN19-CC-000540"
+    title: "Insecure logons to an SMB server must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\LanmanWorkstation"
+      name: "AllowInsecureGuestAuth"
+      value: 0
+      type: dword
+
+  # ============================================================================
+  # Additional Controls
+  # ============================================================================
+  - v_id: "V-205861"
+    stig_id: "WN19-CC-000070"
+    title: "Windows Connect Now wizards must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WCN\\Registrars"
+      name: "DisableWcnUi"
+      value: 1
+      type: dword
+
+  - v_id: "V-205863"
+    stig_id: "WN19-CC-000090"
+    title: "Windows Telemetry must not send additional data"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection"
+      name: "LimitDiagnosticLogCollection"
+      value: 1
+      type: dword
+
+  - v_id: "V-205866"
+    stig_id: "WN19-CC-000120"
+    title: "Windows Update must not obtain updates from other PCs"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization"
+      name: "DODownloadMode"
+      value: 0
+      type: dword
+
+  - v_id: "V-205867"
+    stig_id: "WN19-CC-000130"
+    title: "Solicited Remote Assistance must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services"
+      name: "fAllowToGetHelp"
+      value: 0
+      type: dword
+
+  - v_id: "V-205868"
+    stig_id: "WN19-CC-000140"
+    title: "Unauthenticated RPC clients must be restricted"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Rpc"
+      name: "RestrictRemoteClients"
+      value: 1
+      type: dword
+
+  - v_id: "V-205869"
+    stig_id: "WN19-CC-000150"
+    title: "Windows Store application installation must be turned off"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\WindowsStore"
+      name: "RemoveWindowsStore"
+      value: 1
+      type: dword
+
+  - v_id: "V-205873"
+    stig_id: "WN19-CC-000190"
+    title: "Remote host delegation of non-exportable credentials must be enabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\CredentialsDelegation"
+      name: "AllowProtectedCreds"
+      value: 1
+      type: dword
+
+  # ============================================================================
+  # Audit and Security Options
+  # ============================================================================
+  - v_id: "V-205909"
+    stig_id: "WN19-SO-000030"
+    title: "Audit of Backup and Restore privileges must be enabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+      name: "FullPrivilegeAuditing"
+      value: 1
+      type: binary
+
+  - v_id: "V-205910"
+    stig_id: "WN19-SO-000040"
+    title: "Outgoing secure channel traffic must be encrypted or signed"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters"
+      name: "RequireSignOrSeal"
+      value: 1
+      type: dword
+
+  - v_id: "V-205912"
+    stig_id: "WN19-SO-000060"
+    title: "Strong session key for secure channel must be required"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters"
+      name: "RequireStrongKey"
+      value: 1
+      type: dword
+
+  - v_id: "V-205916"
+    stig_id: "WN19-SO-000100"
+    title: "Machine account password changes must not be prevented"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters"
+      name: "DisablePasswordChange"
+      value: 0
+      type: dword
+
+  - v_id: "V-205917"
+    stig_id: "WN19-SO-000110"
+    title: "Maximum machine account password age must be configured"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters"
+      name: "MaximumPasswordAge"
+      value: 30
+      type: dword
+
+  - v_id: "V-205918"
+    stig_id: "WN19-SO-000120"
+    title: "Smart card removal behavior must be configured"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"
+      name: "scremoveoption"
+      value: "1"
+      type: string
+
+  - v_id: "V-205921"
+    stig_id: "WN19-SO-000150"
+    title: "UIAccess applications must not be elevated without using secure desktop"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+      name: "EnableUIADesktopToggle"
+      value: 0
+      type: dword
+
+  - v_id: "V-205922"
+    stig_id: "WN19-SO-000160"
+    title: "Admin Approval Mode must be enabled for built-in Administrator"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+      name: "FilterAdministratorToken"
+      value: 1
+      type: dword
+
+  - v_id: "V-257503"
+    stig_id: "WN19-CC-000550"
+    title: "Virtualization Based Security must be enabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard"
+      name: "EnableVirtualizationBasedSecurity"
+      value: 1
       type: dword

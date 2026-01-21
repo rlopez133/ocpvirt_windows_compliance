@@ -1,0 +1,142 @@
+---
+# Windows Server 2019 STIG - Scan-Driven CAT III Remediation
+# Only remediates failed controls identified in scan results
+#
+# Required variables:
+#   - failed_cat3_controls: List of V-IDs that failed the scan (e.g., ["V-205795", "V-205796"])
+
+# Load remediation map from the win2019_stig role defaults
+# Path is relative to playbook_dir (../roles/win2019_stig/defaults from playbooks/)
+- name: Load CAT III remediation map
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/../roles/win2019_stig/defaults/cat3_remediation_map.yml"
+
+- name: Filter remediation map for failed controls
+  ansible.builtin.set_fact:
+    controls_to_remediate: >-
+      {{ win2019_cat3_remediation_map | selectattr('v_id', 'in', failed_cat3_controls) | list }}
+
+# Edge case: Identify V-IDs not found in the remediation map
+- name: Identify known V-IDs in remediation map
+  ansible.builtin.set_fact:
+    known_v_ids: "{{ win2019_cat3_remediation_map | map(attribute='v_id') | list }}"
+
+- name: Find unknown V-IDs not in remediation map
+  ansible.builtin.set_fact:
+    unknown_v_ids: "{{ failed_cat3_controls | difference(known_v_ids) }}"
+
+- name: Separate automatable and manual controls
+  ansible.builtin.set_fact:
+    automatable_controls: "{{ controls_to_remediate | selectattr('automatable', 'equalto', true) | list }}"
+    manual_controls: "{{ controls_to_remediate | selectattr('automatable', 'equalto', false) | list }}"
+
+# ============================================================================
+# Apply registry-based remediations
+# ============================================================================
+- name: Get registry controls
+  ansible.builtin.set_fact:
+    registry_controls: "{{ automatable_controls | selectattr('remediation_type', 'equalto', 'registry') | list }}"
+
+- name: Apply registry remediations
+  when: registry_controls | length > 0
+  ansible.windows.win_regedit:
+    path: "{{ item.remediation.path }}"
+    name: "{{ item.remediation.name }}"
+    data: "{{ item.remediation.value }}"
+    type: "{{ item.remediation.type }}"
+  loop: "{{ registry_controls }}"
+  loop_control:
+    label: "{{ item.v_id }} - {{ item.title }}"
+  register: registry_changes
+
+# ============================================================================
+# Apply security policy remediations
+# ============================================================================
+- name: Get security policy controls
+  ansible.builtin.set_fact:
+    security_policy_controls: "{{ automatable_controls | selectattr('remediation_type', 'equalto', 'security_policy') | list }}"
+
+- name: Apply security policy remediations
+  when: security_policy_controls | length > 0
+  community.windows.win_security_policy:
+    section: "{{ item.remediation.section }}"
+    key: "{{ item.remediation.key }}"
+    value: "{{ item.remediation.value }}"
+  loop: "{{ security_policy_controls }}"
+  loop_control:
+    label: "{{ item.v_id }} - {{ item.title }}"
+  register: security_policy_changes
+
+# ============================================================================
+# Apply audit policy remediations
+# ============================================================================
+- name: Get audit policy controls
+  ansible.builtin.set_fact:
+    audit_policy_controls: "{{ automatable_controls | selectattr('remediation_type', 'equalto', 'audit_policy') | list }}"
+
+- name: Apply audit policy remediations
+  when: audit_policy_controls | length > 0
+  community.windows.win_audit_policy_system:
+    subcategory: "{{ item.remediation.subcategory }}"
+    audit_type: "{{ item.remediation.audit_type }}"
+  loop: "{{ audit_policy_controls }}"
+  loop_control:
+    label: "{{ item.v_id }} - {{ item.title }}"
+  register: audit_policy_changes
+
+# ============================================================================
+# Apply user rights remediations (if any in CAT III)
+# ============================================================================
+- name: Get user rights controls
+  ansible.builtin.set_fact:
+    user_rights_controls: "{{ automatable_controls | selectattr('remediation_type', 'equalto', 'user_right') | list }}"
+
+- name: Apply user rights remediations
+  when: user_rights_controls | length > 0
+  ansible.windows.win_user_right:
+    name: "{{ item.remediation.right }}"
+    users: "{{ item.remediation.accounts }}"
+    action: set
+  loop: "{{ user_rights_controls }}"
+  loop_control:
+    label: "{{ item.v_id }} - {{ item.title }}"
+  register: user_rights_changes
+
+# ============================================================================
+# Build remediation summary
+# Manual controls are reported in the final consolidated summary at the playbook level
+# ============================================================================
+- name: Count changes made
+  ansible.builtin.set_fact:
+    registry_changed_count: "{{ registry_changes.results | default([]) | selectattr('changed', 'defined') | selectattr('changed', 'equalto', true) | list | length }}"
+    security_policy_changed_count: "{{ security_policy_changes.results | default([]) | selectattr('changed', 'defined') | selectattr('changed', 'equalto', true) | list | length }}"
+    audit_policy_changed_count: "{{ audit_policy_changes.results | default([]) | selectattr('changed', 'defined') | selectattr('changed', 'equalto', true) | list | length }}"
+    user_rights_changed_count: "{{ user_rights_changes.results | default([]) | selectattr('changed', 'defined') | selectattr('changed', 'equalto', true) | list | length }}"
+
+- name: Build scan-driven CAT III remediation result
+  ansible.builtin.set_fact:
+    scan_driven_result:
+      category: "CAT3"
+      controls_analyzed: "{{ failed_cat3_controls | length }}"
+      controls_remediated: "{{ automatable_controls | map(attribute='v_id') | list }}"
+      controls_skipped: "{{ unknown_v_ids | default([]) }}"
+      controls_manual: "{{ manual_controls | map(attribute='v_id') | list }}"
+      changes_applied:
+        registry: "{{ registry_changed_count | int }}"
+        security_policy: "{{ security_policy_changed_count | int }}"
+        audit_policy: "{{ audit_policy_changed_count | int }}"
+        user_rights: "{{ user_rights_changed_count | int }}"
+
+- name: Display CAT III remediation summary
+  ansible.builtin.debug:
+    msg: |
+      CAT III Remediation Summary:
+      - Controls analyzed: {{ scan_driven_result.controls_analyzed }}
+      - Controls remediated: {{ scan_driven_result.controls_remediated | length }}
+      - Controls requiring manual action: {{ scan_driven_result.controls_manual | length }}
+      - Unknown V-IDs (not in map): {{ scan_driven_result.controls_skipped | length }}
+      Changes applied:
+      - Registry: {{ scan_driven_result.changes_applied.registry }}
+      - Security Policy: {{ scan_driven_result.changes_applied.security_policy }}
+      - Audit Policy: {{ scan_driven_result.changes_applied.audit_policy }}
+      - User Rights: {{ scan_driven_result.changes_applied.user_rights }}
