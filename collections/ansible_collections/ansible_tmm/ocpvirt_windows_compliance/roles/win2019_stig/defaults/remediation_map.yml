@@ -66,36 +66,36 @@ win2019_cat1_remediation_map:
       type: dword
 
   # ============================================================================
-  # WinRM Controls - MANUAL: Cannot be auto-remediated during AAP jobs
-  # Restarting WinRM drops the active AAP connection.
-  # Operator must: 1) Switch inventory to NTLM transport, 2) Verify connectivity,
-  # 3) Run the dedicated migrate_winrm_auth.yml playbook
+  # WinRM Controls - Requires NTLM Transport
+  # These controls disable Basic auth which would lock out Ansible if running
+  # with Basic transport. They are marked with requires_ntlm_transport: true
+  # and will only execute when ansible_winrm_transport == 'ntlm'.
+  #
+  # Flow: Run bootstrap_winrm.yml (Basic) -> Switch to NTLM -> Run remediation
   # ============================================================================
   - v_id: "V-205711"
     stig_id: "WN19-CC-000470"
     title: "WinRM client must not use Basic authentication"
-    automatable: false
-    remediation_type: manual
+    automatable: true
+    requires_ntlm_transport: true  # Only runs if ansible_winrm_transport == 'ntlm'
+    remediation_type: registry
     remediation:
-      guidance: |
-        This control cannot be auto-remediated during AAP job execution.
-        To remediate:
-        1. Update your AAP inventory to use ansible_winrm_transport: ntlm
-        2. Verify connectivity with win_ping
-        3. Run the migrate_winrm_auth.yml playbook to disable Basic auth
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WinRM\\Client"
+      name: "AllowBasic"
+      value: 0
+      type: dword
 
   - v_id: "V-205713"
     stig_id: "WN19-CC-000500"
     title: "WinRM service must not use Basic authentication"
-    automatable: false
-    remediation_type: manual
+    automatable: true
+    requires_ntlm_transport: true  # Only runs if ansible_winrm_transport == 'ntlm'
+    remediation_type: registry
     remediation:
-      guidance: |
-        This control cannot be auto-remediated during AAP job execution.
-        To remediate:
-        1. Update your AAP inventory to use ansible_winrm_transport: ntlm
-        2. Verify connectivity with win_ping
-        3. Run the migrate_winrm_auth.yml playbook to disable Basic auth
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WinRM\\Service"
+      name: "AllowBasic"
+      value: 0
+      type: dword
 
   # ============================================================================
   # Account and Password Controls

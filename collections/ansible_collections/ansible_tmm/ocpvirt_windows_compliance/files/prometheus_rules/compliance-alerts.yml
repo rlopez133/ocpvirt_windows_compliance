@@ -12,8 +12,10 @@ metadata:
     compliance.ocpvirt/managed: "true"
 spec:
   groups:
+    # Evaluation intervals optimized for faster alert detection
+    # while maintaining reasonable resource usage
     - name: compliance.windows.critical
-      interval: 30s
+      interval: 30s  # CAT I - fastest evaluation for critical issues
       rules:
         # CAT I (Critical) violations - immediate alert
         - alert: ComplianceCAT1Violation
@@ -44,7 +46,7 @@ spec:
             description: "VM {{ $labels.vm_name }} has {{ $value }} CAT I violations. Immediate action required."
 
     - name: compliance.windows.warning
-      interval: 60s
+      interval: 30s  # CAT II - reduced from 60s for faster detection
       rules:
         # CAT II (Warning) violations
         - alert: ComplianceCAT2Violation
@@ -82,7 +84,7 @@ spec:
             description: "VM {{ $labels.vm_name }} has compliance score {{ $value }}%, below the target of 95%."
 
     - name: compliance.windows.info
-      interval: 120s
+      interval: 60s  # CAT III - reduced from 120s for faster detection
       rules:
         # CAT III (Info) violations
         - alert: ComplianceCAT3Violation
