@@ -57,6 +57,7 @@
             - alertname
             - vm_name
             - namespace
+            - category
           groupWait: 30s
           groupInterval: 5m
           repeatInterval: 1h  # Reduced from 4h for faster retry on missed alerts

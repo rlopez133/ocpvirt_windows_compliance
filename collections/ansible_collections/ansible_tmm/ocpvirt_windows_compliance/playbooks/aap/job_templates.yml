@@ -82,7 +82,7 @@
     controller_password: "{{ controller_password }}"
     validate_certs: "{{ controller_validate_certs }}"
     name: "Compliance-Remediate"
-    description: "Apply scan-driven CAT I remediation to Windows VMs based on scan results"
+    description: "Apply scan-driven remediation to Windows VMs (CAT I, II, III)"
     organization: "{{ aap_organization }}"
     project: "Windows Compliance Collection"
     playbook: "playbooks/remediate.yml"
@@ -91,6 +91,8 @@
       - "windows-winrm"
     ask_variables_on_launch: true
     ask_limit_on_launch: true
+    # Allow concurrent jobs so EDA can trigger CAT1, CAT2, CAT3 remediations simultaneously
+    allow_simultaneous: true
     extra_vars:
       compliance_profile: "stig"
       # failed_cat1_controls should be passed from scan results in a workflow
