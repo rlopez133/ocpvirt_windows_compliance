@@ -1,6 +1,8 @@
 ---
 # Remediate Role - Main Task Dispatcher
-# Supports both scan-driven CAT I remediation and EDA-triggered CAT I/II/III remediation
+# Supports map-driven remediation for CAT I, CAT II, and CAT III
+# All categories now use the scan_driven_*_remediation.yml pattern with remediation maps
+# Maps are loaded from win2019_stig/defaults/ or win2022_stig/defaults/
 
 # ============================================================================
 # Determine remediation mode
@@ -140,29 +142,25 @@
   vars:
     failed_cat1_controls: "{{ controls_to_remediate }}"
 
-- name: Load Windows 2019 STIG defaults
-  when:
-    - windows_version == '2019'
-    - remediation_category in ['CAT2', 'CAT3']
-    - controls_to_remediate | length > 0
-  ansible.builtin.include_vars:
-    file: "{{ role_path }}/../win2019_stig/defaults/main.yml"
-
-- name: Apply Windows 2019 CAT II remediation
+- name: Apply Windows 2019 CAT II remediation (map-driven)
   when:
     - windows_version == '2019'
     - remediation_category == 'CAT2'
     - controls_to_remediate | length > 0
   ansible.builtin.include_tasks:
-    file: "{{ role_path }}/../win2019_stig/tasks/cat2.yml"
+    file: "{{ playbook_dir }}/../roles/win2019_stig/tasks/scan_driven_cat2_remediation.yml"
+  vars:
+    failed_cat2_controls: "{{ controls_to_remediate }}"
 
-- name: Apply Windows 2019 CAT III remediation
+- name: Apply Windows 2019 CAT III remediation (map-driven)
   when:
     - windows_version == '2019'
     - remediation_category == 'CAT3'
     - controls_to_remediate | length > 0
   ansible.builtin.include_tasks:
-    file: "{{ role_path }}/../win2019_stig/tasks/cat3.yml"
+    file: "{{ playbook_dir }}/../roles/win2019_stig/tasks/scan_driven_cat3_remediation.yml"
+  vars:
+    failed_cat3_controls: "{{ controls_to_remediate }}"
 
 # Windows Server 2022 Remediation
 - name: Apply Windows 2022 CAT I remediation
@@ -175,29 +173,25 @@
   vars:
     failed_cat1_controls: "{{ controls_to_remediate }}"
 
-- name: Load Windows 2022 STIG defaults
-  when:
-    - windows_version == '2022'
-    - remediation_category in ['CAT2', 'CAT3']
-    - controls_to_remediate | length > 0
-  ansible.builtin.include_vars:
-    file: "{{ role_path }}/../win2022_stig/defaults/main.yml"
-
-- name: Apply Windows 2022 CAT II remediation
+- name: Apply Windows 2022 CAT II remediation (map-driven)
   when:
     - windows_version == '2022'
     - remediation_category == 'CAT2'
     - controls_to_remediate | length > 0
   ansible.builtin.include_tasks:
-    file: "{{ role_path }}/../win2022_stig/tasks/cat2.yml"
+    file: "{{ playbook_dir }}/../roles/win2022_stig/tasks/scan_driven_cat2_remediation.yml"
+  vars:
+    failed_cat2_controls: "{{ controls_to_remediate }}"
 
-- name: Apply Windows 2022 CAT III remediation
+- name: Apply Windows 2022 CAT III remediation (map-driven)
   when:
     - windows_version == '2022'
     - remediation_category == 'CAT3'
     - controls_to_remediate | length > 0
   ansible.builtin.include_tasks:
-    file: "{{ role_path }}/../win2022_stig/tasks/cat3.yml"
+    file: "{{ playbook_dir }}/../roles/win2022_stig/tasks/scan_driven_cat3_remediation.yml"
+  vars:
+    failed_cat3_controls: "{{ controls_to_remediate }}"
 
 - name: Skip remediation - no controls to remediate
   when: controls_to_remediate | default([]) | length == 0

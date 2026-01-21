@@ -1,9 +1,10 @@
 ---
-# Windows Server 2022 STIG CAT II Remediation Map
+# Windows Server 2019 STIG CAT II Remediation Map
 # Maps V-IDs to remediation actions
 # Used by scan-driven remediation to only fix failed controls
 #
-# Reference: DISA STIG V1R5 (January 2025)
+# Reference: DISA STIG Windows Server 2019 V3R2 (January 2025)
+# Source: cyber.trackr.live, stigviewer.com
 # Only includes CAT II (Medium Severity) controls that are automatable
 #
 # Each entry contains:
@@ -11,203 +12,39 @@
 #   - stig_id: The STIG rule ID (WN22-XX-XXXXXX)
 #   - title: Brief description
 #   - automatable: Whether this can be fixed automatically (true/false)
-#   - remediation_type: registry, security_policy, audit_policy, firewall, manual
+#   - remediation_type: registry, security_policy, audit_policy, user_right, firewall, manual
 #   - remediation: The specific fix details
 
 win2022_cat2_remediation_map:
   # ============================================================================
-  # Audit Policy Controls
+  # Account Lockout Policy Controls
   # ============================================================================
-  - v_id: "V-254239"
-    stig_id: "WN22-AU-000010"
-    title: "Audit Credential Validation"
+  - v_id: "V-205629"
+    stig_id: "WN22-AC-000020"
+    title: "Account lockout threshold must be 3 or fewer invalid logon attempts"
     automatable: true
-    remediation_type: audit_policy
+    remediation_type: security_policy
     remediation:
-      subcategory: "Credential Validation"
-      audit_type: "success,failure"
+      section: "System Access"
+      key: "LockoutBadCount"
+      value: 3
 
-  - v_id: "V-254240"
-    stig_id: "WN22-AU-000020"
-    title: "Audit Kerberos Authentication"
+  - v_id: "V-205630"
+    stig_id: "WN22-AC-000030"
+    title: "Reset account lockout counter must be at least 15 minutes"
     automatable: true
-    remediation_type: audit_policy
+    remediation_type: security_policy
     remediation:
-      subcategory: "Kerberos Authentication Service"
-      audit_type: "success,failure"
-
-  - v_id: "V-254241"
-    stig_id: "WN22-AU-000030"
-    title: "Audit Logon"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Logon"
-      audit_type: "success,failure"
-
-  - v_id: "V-254242"
-    stig_id: "WN22-AU-000040"
-    title: "Audit User Account Management"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "User Account Management"
-      audit_type: "success,failure"
-
-  - v_id: "V-254243"
-    stig_id: "WN22-AU-000050"
-    title: "Audit Process Creation"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Process Creation"
-      audit_type: "success"
-
-  - v_id: "V-254244"
-    stig_id: "WN22-AU-000060"
-    title: "Audit Security Group Management"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Security Group Management"
-      audit_type: "success"
-
-  - v_id: "V-254245"
-    stig_id: "WN22-AU-000070"
-    title: "Audit Computer Account Management"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Computer Account Management"
-      audit_type: "success"
-
-  - v_id: "V-254246"
-    stig_id: "WN22-AU-000080"
-    title: "Audit Logoff"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Logoff"
-      audit_type: "success"
-
-  - v_id: "V-254247"
-    stig_id: "WN22-AU-000090"
-    title: "Audit Special Logon"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Special Logon"
-      audit_type: "success"
-
-  - v_id: "V-254248"
-    stig_id: "WN22-AU-000100"
-    title: "Audit Removable Storage"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Removable Storage"
-      audit_type: "success,failure"
-
-  - v_id: "V-254249"
-    stig_id: "WN22-AU-000110"
-    title: "Audit Audit Policy Change"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Audit Policy Change"
-      audit_type: "success"
-
-  - v_id: "V-254250"
-    stig_id: "WN22-AU-000120"
-    title: "Audit Authentication Policy Change"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Authentication Policy Change"
-      audit_type: "success"
-
-  - v_id: "V-254251"
-    stig_id: "WN22-AU-000130"
-    title: "Audit Sensitive Privilege Use"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Sensitive Privilege Use"
-      audit_type: "success,failure"
-
-  - v_id: "V-254252"
-    stig_id: "WN22-AU-000140"
-    title: "Audit IPsec Driver"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "IPsec Driver"
-      audit_type: "success,failure"
-
-  - v_id: "V-254253"
-    stig_id: "WN22-AU-000150"
-    title: "Audit Security State Change"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "Security State Change"
-      audit_type: "success"
-
-  - v_id: "V-254254"
-    stig_id: "WN22-AU-000160"
-    title: "Audit System Integrity"
-    automatable: true
-    remediation_type: audit_policy
-    remediation:
-      subcategory: "System Integrity"
-      audit_type: "success,failure"
+      section: "System Access"
+      key: "ResetLockoutCount"
+      value: 15
 
   # ============================================================================
   # Password Policy Controls
   # ============================================================================
-  - v_id: "V-254255"
-    stig_id: "WN22-PK-000010"
-    title: "Minimum password length"
-    automatable: true
-    remediation_type: security_policy
-    remediation:
-      section: "System Access"
-      key: "MinimumPasswordLength"
-      value: 14
-
-  - v_id: "V-254256"
-    stig_id: "WN22-PK-000020"
-    title: "Password complexity"
-    automatable: true
-    remediation_type: security_policy
-    remediation:
-      section: "System Access"
-      key: "PasswordComplexity"
-      value: 1
-
-  - v_id: "V-254257"
-    stig_id: "WN22-PK-000030"
-    title: "Maximum password age"
-    automatable: true
-    remediation_type: security_policy
-    remediation:
-      section: "System Access"
-      key: "MaximumPasswordAge"
-      value: 60
-
-  - v_id: "V-254258"
-    stig_id: "WN22-PK-000040"
-    title: "Password history"
-    automatable: true
-    remediation_type: security_policy
-    remediation:
-      section: "System Access"
-      key: "PasswordHistorySize"
-      value: 24
-
-  - v_id: "V-254259"
-    stig_id: "WN22-PK-000050"
-    title: "Minimum password age"
+  - v_id: "V-205656"
+    stig_id: "WN22-AC-000060"
+    title: "Minimum password age must be at least one day"
     automatable: true
     remediation_type: security_policy
     remediation:
@@ -215,157 +52,144 @@ win2022_cat2_remediation_map:
       key: "MinimumPasswordAge"
       value: 1
 
-  - v_id: "V-254260"
-    stig_id: "WN22-PK-000060"
-    title: "Reversible encryption disabled"
+  - v_id: "V-205658"
+    stig_id: "WN22-00-000210"
+    title: "Passwords must be configured to expire"
     automatable: true
     remediation_type: security_policy
     remediation:
       section: "System Access"
-      key: "ClearTextPassword"
-      value: 0
+      key: "MaximumPasswordAge"
+      value: 60
+
+  - v_id: "V-205660"
+    stig_id: "WN22-AC-000040"
+    title: "Password history must be 24 passwords remembered"
+    automatable: true
+    remediation_type: security_policy
+    remediation:
+      section: "System Access"
+      key: "PasswordHistorySize"
+      value: 24
+
+  - v_id: "V-205662"
+    stig_id: "WN22-AC-000070"
+    title: "Minimum password length must be 14 characters"
+    automatable: true
+    remediation_type: security_policy
+    remediation:
+      section: "System Access"
+      key: "MinimumPasswordLength"
+      value: 14
 
   # ============================================================================
-  # Security Options - Registry Controls
+  # Audit Policy Controls
   # ============================================================================
-  - v_id: "V-254261"
-    stig_id: "WN22-SO-000100"
-    title: "SMB server signing required"
+  - v_id: "V-205627"
+    stig_id: "WN22-AU-000120"
+    title: "Audit User Account Management must be configured for failures"
     automatable: true
-    remediation_type: registry
+    remediation_type: audit_policy
     remediation:
-      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
-      name: "RequireSecuritySignature"
-      value: 1
-      type: dword
+      subcategory: "User Account Management"
+      audit_type: "success,failure"
 
-  - v_id: "V-254262"
-    stig_id: "WN22-SO-000110"
-    title: "SMB client signing required"
+  - v_id: "V-205673"
+    stig_id: "WN22-AU-000030"
+    title: "Audit IPsec Driver must include failures"
     automatable: true
-    remediation_type: registry
+    remediation_type: audit_policy
     remediation:
-      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters"
-      name: "RequireSecuritySignature"
-      value: 1
-      type: dword
+      subcategory: "IPsec Driver"
+      audit_type: "success,failure"
 
-  - v_id: "V-254263"
-    stig_id: "WN22-SO-000120"
-    title: "RDP encryption level"
+  - v_id: "V-205675"
+    stig_id: "WN22-AU-000040"
+    title: "Audit Security State Change must include success"
     automatable: true
-    remediation_type: registry
+    remediation_type: audit_policy
     remediation:
-      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services"
-      name: "MinEncryptionLevel"
-      value: 3
-      type: dword
+      subcategory: "Security State Change"
+      audit_type: "success"
 
-  - v_id: "V-254264"
-    stig_id: "WN22-SO-000130"
-    title: "WDigest authentication disabled"
+  - v_id: "V-205676"
+    stig_id: "WN22-AU-000050"
+    title: "Audit System Integrity must include success and failure"
     automatable: true
-    remediation_type: registry
+    remediation_type: audit_policy
     remediation:
-      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest"
-      name: "UseLogonCredential"
-      value: 0
-      type: dword
+      subcategory: "System Integrity"
+      audit_type: "success,failure"
 
-  - v_id: "V-254265"
-    stig_id: "WN22-SO-000140"
-    title: "Null session fallback disabled"
+  - v_id: "V-205686"
+    stig_id: "WN22-AU-000060"
+    title: "Audit Logoff must include success"
     automatable: true
-    remediation_type: registry
+    remediation_type: audit_policy
     remediation:
-      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\MSV1_0"
-      name: "AllowNullSessionFallback"
-      value: 0
-      type: dword
+      subcategory: "Logoff"
+      audit_type: "success"
 
-  - v_id: "V-254266"
-    stig_id: "WN22-SO-000150"
-    title: "Restrict null session access"
+  - v_id: "V-205687"
+    stig_id: "WN22-AU-000070"
+    title: "Audit Logon must include success and failure"
     automatable: true
-    remediation_type: registry
+    remediation_type: audit_policy
     remediation:
-      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
-      name: "RestrictNullSessAccess"
-      value: 1
-      type: dword
+      subcategory: "Logon"
+      audit_type: "success,failure"
 
-  - v_id: "V-254267"
-    stig_id: "WN22-SO-000160"
-    title: "Named pipes anonymous access"
+  - v_id: "V-205688"
+    stig_id: "WN22-AU-000080"
+    title: "Audit Special Logon must include success"
     automatable: true
-    remediation_type: registry
+    remediation_type: audit_policy
     remediation:
-      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
-      name: "NullSessionPipes"
-      value: ""
-      type: multistring
+      subcategory: "Special Logon"
+      audit_type: "success"
 
-  - v_id: "V-254268"
-    stig_id: "WN22-SO-000170"
-    title: "Remote registry access restriction"
+  - v_id: "V-205689"
+    stig_id: "WN22-AU-000090"
+    title: "Audit Other Object Access Events must include success and failure"
     automatable: true
-    remediation_type: registry
+    remediation_type: audit_policy
     remediation:
-      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\winreg"
-      name: "Description"
-      value: "Registry Server"
-      type: string
+      subcategory: "Other Object Access Events"
+      audit_type: "success,failure"
 
-  # ============================================================================
-  # Firewall Controls
-  # ============================================================================
-  - v_id: "V-254269"
-    stig_id: "WN22-FW-000010"
-    title: "Windows Firewall Domain enabled"
+  - v_id: "V-205690"
+    stig_id: "WN22-AU-000100"
+    title: "Audit Removable Storage must include success and failure"
     automatable: true
-    remediation_type: firewall
+    remediation_type: audit_policy
     remediation:
-      profile: "Domain"
-      state: enabled
+      subcategory: "Removable Storage"
+      audit_type: "success,failure"
 
-  - v_id: "V-254270"
-    stig_id: "WN22-FW-000020"
-    title: "Windows Firewall Private enabled"
+  - v_id: "V-205692"
+    stig_id: "WN22-AU-000110"
+    title: "Audit Audit Policy Change must include success"
     automatable: true
-    remediation_type: firewall
+    remediation_type: audit_policy
     remediation:
-      profile: "Private"
-      state: enabled
+      subcategory: "Audit Policy Change"
+      audit_type: "success"
 
-  - v_id: "V-254271"
-    stig_id: "WN22-FW-000030"
-    title: "Windows Firewall Public enabled"
+  - v_id: "V-205694"
+    stig_id: "WN22-AU-000130"
+    title: "Audit Authentication Policy Change must include success"
     automatable: true
-    remediation_type: firewall
+    remediation_type: audit_policy
     remediation:
-      profile: "Public"
-      state: enabled
+      subcategory: "Authentication Policy Change"
+      audit_type: "success"
 
   # ============================================================================
-  # Endpoint Protection Controls
+  # Registry Controls - Logging and Auditing
   # ============================================================================
-  - v_id: "V-254272"
-    stig_id: "WN22-EP-000010"
-    title: "Windows Defender enabled"
-    automatable: true
-    remediation_type: registry
-    remediation:
-      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender"
-      name: "DisableAntiSpyware"
-      value: 0
-      type: dword
-
-  # ============================================================================
-  # Computer Configuration Controls
-  # ============================================================================
-  - v_id: "V-254273"
-    stig_id: "WN22-CC-000080"
-    title: "Command line in process creation"
+  - v_id: "V-205638"
+    stig_id: "WN22-CC-000090"
+    title: "Command line data must be included in process creation events"
     automatable: true
     remediation_type: registry
     remediation:
@@ -374,9 +198,9 @@ win2022_cat2_remediation_map:
       value: 1
       type: dword
 
-  - v_id: "V-254274"
-    stig_id: "WN22-CC-000090"
-    title: "PowerShell script block logging"
+  - v_id: "V-205639"
+    stig_id: "WN22-CC-000460"
+    title: "PowerShell script block logging must be enabled"
     automatable: true
     remediation_type: registry
     remediation:
@@ -385,9 +209,182 @@ win2022_cat2_remediation_map:
       value: 1
       type: dword
 
-  - v_id: "V-254275"
-    stig_id: "WN22-CC-000100"
-    title: "Early Launch Antimalware policy"
+  # ============================================================================
+  # Security Policy Controls - Audit Subcategory
+  # ============================================================================
+  - v_id: "V-205644"
+    stig_id: "WN22-SO-000050"
+    title: "Audit policy subcategory settings must override audit policy category settings"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+      name: "SCENoApplyLegacyAuditPolicy"
+      value: 1
+      type: dword
+
+  # ============================================================================
+  # Registry Controls - Security Options
+  # ============================================================================
+  - v_id: "V-205651"
+    stig_id: "WN22-SO-000350"
+    title: "Interactive logon must require user to press CTRL+ALT+DEL"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+      name: "DisableCAD"
+      value: 0
+      type: dword
+
+  - v_id: "V-205708"
+    stig_id: "WN22-SO-000100"
+    title: "SMB server must perform SMB packet signing when possible"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+      name: "EnableSecuritySignature"
+      value: 1
+      type: dword
+
+  - v_id: "V-205712"
+    stig_id: "WN22-SO-000110"
+    title: "SMB client must perform SMB packet signing when possible"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters"
+      name: "EnableSecuritySignature"
+      value: 1
+      type: dword
+
+  - v_id: "V-205714"
+    stig_id: "WN22-SO-000120"
+    title: "WDigest Authentication must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest"
+      name: "UseLogonCredential"
+      value: 0
+      type: dword
+
+  - v_id: "V-205717"
+    stig_id: "WN22-SO-000130"
+    title: "LDAP client signing must be required"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LDAP"
+      name: "LDAPClientIntegrity"
+      value: 1
+      type: dword
+
+  - v_id: "V-205722"
+    stig_id: "WN22-SO-000140"
+    title: "Session security for NTLM SSP clients must require NTLMv2 session security"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\MSV1_0"
+      name: "NTLMMinClientSec"
+      value: 537395200
+      type: dword
+
+  - v_id: "V-205730"
+    stig_id: "WN22-SO-000150"
+    title: "Session security for NTLM SSP servers must require NTLMv2 session security"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\MSV1_0"
+      name: "NTLMMinServerSec"
+      value: 537395200
+      type: dword
+
+  - v_id: "V-205733"
+    stig_id: "WN22-SO-000160"
+    title: "Kerberos encryption types must be configured to prevent DES and RC4"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Kerberos\\Parameters"
+      name: "SupportedEncryptionTypes"
+      value: 2147483640
+      type: dword
+
+  # ============================================================================
+  # User Rights Controls
+  # ============================================================================
+  - v_id: "V-205671"
+    stig_id: "WN22-MS-000070"
+    title: "Access this computer from the network must be limited to appropriate accounts"
+    automatable: true
+    remediation_type: user_right
+    remediation:
+      right: "SeNetworkLogonRight"
+      accounts:
+        - "*S-1-5-32-544"  # Administrators
+        - "*S-1-5-11"      # Authenticated Users
+
+  - v_id: "V-205672"
+    stig_id: "WN22-MS-000080"
+    title: "Deny access to this computer from network must include privileged local accounts"
+    automatable: true
+    remediation_type: user_right
+    remediation:
+      right: "SeDenyNetworkLogonRight"
+      accounts:
+        - "*S-1-5-114"  # Local account and member of Administrators group
+
+  # ============================================================================
+  # Firewall Controls
+  # ============================================================================
+  - v_id: "V-205747"
+    stig_id: "WN22-FW-000010"
+    title: "Windows Firewall with Advanced Security must be enabled - Domain Profile"
+    automatable: true
+    remediation_type: firewall
+    remediation:
+      profile: "Domain"
+      state: enabled
+
+  - v_id: "V-205751"
+    stig_id: "WN22-FW-000020"
+    title: "Windows Firewall with Advanced Security must be enabled - Private Profile"
+    automatable: true
+    remediation_type: firewall
+    remediation:
+      profile: "Private"
+      state: enabled
+
+  - v_id: "V-205761"
+    stig_id: "WN22-FW-000030"
+    title: "Windows Firewall with Advanced Security must be enabled - Public Profile"
+    automatable: true
+    remediation_type: firewall
+    remediation:
+      profile: "Public"
+      state: enabled
+
+  # ============================================================================
+  # Registry Controls - Various Security Settings
+  # ============================================================================
+  - v_id: "V-205767"
+    stig_id: "WN22-CC-000010"
+    title: "Windows Defender SmartScreen must be enabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System"
+      name: "EnableSmartScreen"
+      value: 1
+      type: dword
+
+  - v_id: "V-205769"
+    stig_id: "WN22-CC-000030"
+    title: "Early Launch Antimalware driver must be enabled"
     automatable: true
     remediation_type: registry
     remediation:
@@ -395,3 +392,150 @@ win2022_cat2_remediation_map:
       name: "DriverLoadPolicy"
       value: 3
       type: dword
+
+  - v_id: "V-205770"
+    stig_id: "WN22-CC-000040"
+    title: "Group Policy objects must reprocess even if they have not changed"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}"
+      name: "NoGPOListChanges"
+      value: 0
+      type: dword
+
+  - v_id: "V-205772"
+    stig_id: "WN22-CC-000060"
+    title: "Downloading print driver packages over HTTP must be prevented"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers"
+      name: "DisableWebPnPDownload"
+      value: 1
+      type: dword
+
+  - v_id: "V-205774"
+    stig_id: "WN22-CC-000080"
+    title: "Web publishing and online ordering wizards must be prevented"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer"
+      name: "NoWebServices"
+      value: 1
+      type: dword
+
+  - v_id: "V-205775"
+    stig_id: "WN22-CC-000100"
+    title: "Printing over HTTP must be prevented"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers"
+      name: "DisableHTTPPrinting"
+      value: 1
+      type: dword
+
+  - v_id: "V-205776"
+    stig_id: "WN22-CC-000110"
+    title: "Network selection UI must not be displayed on logon screen"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System"
+      name: "DontDisplayNetworkSelectionUI"
+      value: 1
+      type: dword
+
+  - v_id: "V-205777"
+    stig_id: "WN22-CC-000120"
+    title: "Local users on domain-joined computers must not be enumerated"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System"
+      name: "EnumerateLocalUsers"
+      value: 0
+      type: dword
+
+  - v_id: "V-205778"
+    stig_id: "WN22-CC-000130"
+    title: "App notifications on lock screen must be turned off"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System"
+      name: "DisableLockScreenAppNotifications"
+      value: 1
+      type: dword
+
+  - v_id: "V-205782"
+    stig_id: "WN22-CC-000170"
+    title: "Camera access from the lock screen must be disabled"
+    automatable: true
+    remediation_type: registry
+    remediation:
+      path: "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization"
+      name: "NoLockScreenCamera"
+      value: 1
+      type: dword
+
+  # ============================================================================
+  # Manual Controls (Not Automatable)
+  # ============================================================================
+  - v_id: "V-205631"
+    stig_id: "WN22-SO-000130"
+    title: "Interactive logon must display legal notice banner text"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Configure legal notice banner with organization-specific text"
+
+  - v_id: "V-205633"
+    stig_id: "WN22-SO-000120"
+    title: "Machine inactivity limit must be set"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Set machine inactivity limit - may affect user experience"
+
+  - v_id: "V-205636"
+    stig_id: "WN22-CC-000370"
+    title: "Remote Desktop Services must require secure RPC communication"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "May break RDP connectivity - requires careful testing"
+
+  - v_id: "V-205637"
+    stig_id: "WN22-CC-000380"
+    title: "Remote Desktop Services must set client encryption level to High"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "May break RDP connectivity - requires careful testing"
+
+  - v_id: "V-205648"
+    stig_id: "WN22-PK-000010"
+    title: "DoD Root CA certificates must be installed"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Requires certificate files from DoD PKI"
+
+  - v_id: "V-205649"
+    stig_id: "WN22-PK-000020"
+    title: "DoD Interoperability Root CA cross-certificates must be installed"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Requires certificate files from DoD PKI"
+
+  - v_id: "V-205650"
+    stig_id: "WN22-PK-000030"
+    title: "US DoD CCEB Interoperability Root CA cross-certificates must be installed"
+    automatable: false
+    remediation_type: manual
+    remediation:
+      guidance: "Requires certificate files from DoD PKI"
