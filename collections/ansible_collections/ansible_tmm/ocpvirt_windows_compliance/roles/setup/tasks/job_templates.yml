@@ -86,6 +86,8 @@
       - "{{ aap_credential_windows }}"
     ask_variables_on_launch: true
     ask_limit_on_launch: true
+    # Allow concurrent jobs so EDA can trigger CAT1, CAT2, CAT3 remediations simultaneously
+    allow_simultaneous: true
     extra_vars:
       compliance_profile: "stig"
       dry_run: false

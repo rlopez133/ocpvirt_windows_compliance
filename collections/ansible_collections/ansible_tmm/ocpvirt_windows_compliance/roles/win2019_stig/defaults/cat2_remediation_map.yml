@@ -325,8 +325,8 @@ win2019_cat2_remediation_map:
     remediation:
       right: "SeNetworkLogonRight"
       accounts:
-        - "*S-1-5-32-544"  # Administrators
-        - "*S-1-5-11"      # Authenticated Users
+        - "Administrators"
+        - "Authenticated Users"
 
   - v_id: "V-205672"
     stig_id: "WN19-MS-000080"
@@ -336,7 +336,7 @@ win2019_cat2_remediation_map:
     remediation:
       right: "SeDenyNetworkLogonRight"
       accounts:
-        - "*S-1-5-114"  # Local account and member of Administrators group
+        - "Local account and member of Administrators group"
 
   # ============================================================================
   # Firewall Controls
