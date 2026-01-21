@@ -1,0 +1,173 @@
+---
+# WinRM Bootstrap Playbook
+# Enables NTLM/Negotiate authentication on fresh Windows VMs
+#
+# PURPOSE:
+#   This playbook runs with Basic auth transport to enable NTLM authentication.
+#   It does NOT disable Basic auth - that happens later during compliance remediation
+#   when the inventory is using NTLM transport.
+#
+# FLOW:
+#   1. Deploy fresh Windows VM (uses Basic auth by default)
+#   2. Run this bootstrap playbook (with Basic auth transport)
+#   3. Update inventory to use: ansible_winrm_transport: ntlm
+#   4. Run SCC Install playbook
+#   5. Run Compliance Scan
+#   6. EDA triggers remediation (with NTLM) which disables Basic auth
+#
+# USAGE:
+#   ansible-playbook bootstrap_winrm.yml -i inventory.yml -e ansible_winrm_transport=basic
+#
+# AAP:
+#   Create a Job Template with a "Bootstrap" inventory that uses Basic auth transport
+
+- name: WinRM Bootstrap - Enable NTLM Authentication
+  hosts: all
+  gather_facts: false
+
+  vars:
+    # Set to true to see detailed WinRM configuration
+    debug_winrm: false
+
+  tasks:
+    # =========================================================================
+    # Step 1: Verify connectivity and gather current state
+    # =========================================================================
+    - name: Test WinRM connectivity
+      ansible.windows.win_ping:
+      register: ping_result
+
+    - name: Display connectivity status
+      ansible.builtin.debug:
+        msg: "Successfully connected to {{ inventory_hostname }} via WinRM"
+
+    - name: Get current WinRM authentication configuration
+      ansible.windows.win_shell: |
+        $config = @{
+            ClientBasic = (Get-Item WSMan:\localhost\Client\Auth\Basic -ErrorAction SilentlyContinue).Value
+            ServiceBasic = (Get-Item WSMan:\localhost\Service\Auth\Basic -ErrorAction SilentlyContinue).Value
+            ClientNegotiate = (Get-Item WSMan:\localhost\Client\Auth\Negotiate -ErrorAction SilentlyContinue).Value
+            ServiceNegotiate = (Get-Item WSMan:\localhost\Service\Auth\Negotiate -ErrorAction SilentlyContinue).Value
+            ClientKerberos = (Get-Item WSMan:\localhost\Client\Auth\Kerberos -ErrorAction SilentlyContinue).Value
+            ServiceKerberos = (Get-Item WSMan:\localhost\Service\Auth\Kerberos -ErrorAction SilentlyContinue).Value
+        }
+        $config | ConvertTo-Json -Compress
+      register: winrm_config_raw
+      changed_when: false
+
+    - name: Parse WinRM configuration
+      ansible.builtin.set_fact:
+        winrm_config: "{{ winrm_config_raw.stdout | from_json }}"
+
+    - name: Display current WinRM authentication status
+      ansible.builtin.debug:
+        msg: |
+          Current WinRM Authentication Configuration
+          ===========================================
+          Host: {{ inventory_hostname }}
+
+          Client Authentication:
+            - Basic:     {{ winrm_config.ClientBasic | default('Not Set') }}
+            - Negotiate: {{ winrm_config.ClientNegotiate | default('Not Set') }}
+            - Kerberos:  {{ winrm_config.ClientKerberos | default('Not Set') }}
+
+          Service Authentication:
+            - Basic:     {{ winrm_config.ServiceBasic | default('Not Set') }}
+            - Negotiate: {{ winrm_config.ServiceNegotiate | default('Not Set') }}
+            - Kerberos:  {{ winrm_config.ServiceKerberos | default('Not Set') }}
+
+    # =========================================================================
+    # Step 2: Enable NTLM/Negotiate authentication
+    # This allows the VM to accept NTLM connections after inventory switch
+    # =========================================================================
+    - name: Enable Negotiate authentication on WinRM Service
+      ansible.windows.win_shell: |
+        Set-Item WSMan:\localhost\Service\Auth\Negotiate -Value $true
+        Write-Output "Negotiate authentication enabled on WinRM Service"
+      register: enable_negotiate_service
+      changed_when: "'enabled' in enable_negotiate_service.stdout"
+
+    - name: Enable Negotiate authentication on WinRM Client
+      ansible.windows.win_shell: |
+        Set-Item WSMan:\localhost\Client\Auth\Negotiate -Value $true
+        Write-Output "Negotiate authentication enabled on WinRM Client"
+      register: enable_negotiate_client
+      changed_when: "'enabled' in enable_negotiate_client.stdout"
+
+    - name: Enable Kerberos authentication on WinRM Service
+      ansible.windows.win_shell: |
+        Set-Item WSMan:\localhost\Service\Auth\Kerberos -Value $true
+        Write-Output "Kerberos authentication enabled on WinRM Service"
+      register: enable_kerberos_service
+      changed_when: "'enabled' in enable_kerberos_service.stdout"
+
+    - name: Enable Kerberos authentication on WinRM Client
+      ansible.windows.win_shell: |
+        Set-Item WSMan:\localhost\Client\Auth\Kerberos -Value $true
+        Write-Output "Kerberos authentication enabled on WinRM Client"
+      register: enable_kerberos_client
+      changed_when: "'enabled' in enable_kerberos_client.stdout"
+
+    # =========================================================================
+    # Step 3: Verify NTLM is now enabled
+    # =========================================================================
+    - name: Verify final WinRM configuration
+      ansible.windows.win_shell: |
+        $config = @{
+            ClientBasic = (Get-Item WSMan:\localhost\Client\Auth\Basic -ErrorAction SilentlyContinue).Value
+            ServiceBasic = (Get-Item WSMan:\localhost\Service\Auth\Basic -ErrorAction SilentlyContinue).Value
+            ClientNegotiate = (Get-Item WSMan:\localhost\Client\Auth\Negotiate -ErrorAction SilentlyContinue).Value
+            ServiceNegotiate = (Get-Item WSMan:\localhost\Service\Auth\Negotiate -ErrorAction SilentlyContinue).Value
+            ClientKerberos = (Get-Item WSMan:\localhost\Client\Auth\Kerberos -ErrorAction SilentlyContinue).Value
+            ServiceKerberos = (Get-Item WSMan:\localhost\Service\Auth\Kerberos -ErrorAction SilentlyContinue).Value
+        }
+        $config | ConvertTo-Json -Compress
+      register: winrm_final_raw
+      changed_when: false
+
+    - name: Parse final WinRM configuration
+      ansible.builtin.set_fact:
+        winrm_final: "{{ winrm_final_raw.stdout | from_json }}"
+
+    - name: Validate NTLM is enabled
+      ansible.builtin.assert:
+        that:
+          - winrm_final.ServiceNegotiate | lower == 'true'
+          - winrm_final.ClientNegotiate | lower == 'true'
+        fail_msg: "NTLM/Negotiate authentication was not enabled successfully"
+        success_msg: "NTLM/Negotiate authentication is enabled"
+
+    # =========================================================================
+    # Step 4: Display next steps
+    # =========================================================================
+    - name: Display bootstrap completion and next steps
+      ansible.builtin.debug:
+        msg: |
+
+          =====================================================================
+          WinRM Bootstrap Complete
+          =====================================================================
+
+          Host: {{ inventory_hostname }}
+
+          Authentication Status After Bootstrap:
+            - Basic:     {{ winrm_final.ServiceBasic }} (still enabled - will be disabled during remediation)
+            - Negotiate: {{ winrm_final.ServiceNegotiate }} (NOW ENABLED)
+            - Kerberos:  {{ winrm_final.ServiceKerberos }} (NOW ENABLED)
+
+          NEXT STEPS:
+          -----------
+          1. Update your inventory to use NTLM transport:
+
+             ansible_winrm_transport: ntlm
+
+          2. Test NTLM connectivity:
+
+             ansible -m win_ping {{ inventory_hostname }} -e ansible_winrm_transport=ntlm
+
+          3. Run SCC Install and Compliance Scan
+
+          4. Basic auth will be disabled automatically during CAT I remediation
+             (V-205711, V-205713) when running with NTLM transport
+
+          =====================================================================

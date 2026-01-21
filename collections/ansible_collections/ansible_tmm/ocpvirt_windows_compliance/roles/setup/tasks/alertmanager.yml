@@ -48,6 +48,10 @@
         namespace: "{{ tenant_config.namespace }}"
         labels: "{{ compliance_labels }}"
       spec:
+        # Timing optimized for faster EDA response while preventing alert storms
+        # groupWait: time to buffer alerts before first notification
+        # groupInterval: time between notifications for same group
+        # repeatInterval: time before re-sending same alert (for missed notifications)
         route:
           groupBy:
             - alertname
@@ -55,7 +59,7 @@
             - namespace
           groupWait: 30s
           groupInterval: 5m
-          repeatInterval: 4h
+          repeatInterval: 1h  # Reduced from 4h for faster retry on missed alerts
           receiver: eda-webhook
           routes:
             # CAT I alerts - notify immediately, no auto-remediation
@@ -74,15 +78,16 @@
                   matchType: "="
               receiver: eda-webhook
               groupWait: 30s
+              repeatInterval: 1h  # Reduced from 4h for faster retry
 
-            # CAT III alerts - lower priority
+            # CAT III alerts - reduced delays for faster response
             - matchers:
                 - name: category
                   value: CAT3
                   matchType: "="
               receiver: eda-webhook
-              groupWait: 5m
-              repeatInterval: 12h
+              groupWait: 30s  # Reduced from 5m for faster initial notification
+              repeatInterval: 4h  # Reduced from 12h for faster retry
 
         receivers:
           - name: eda-webhook
