@@ -31,45 +31,22 @@
           - ansible_os_family == "Windows"
         fail_msg: "This playbook only runs on Windows systems"
 
-    - name: Initialize result tracking variables
-      ansible.builtin.set_fact:
-        cat1_results: []
-        cat2_results: []
-        cat3_results: []
-
   roles:
     - role: ../roles/remediate
 
   post_tasks:
-    # Compute category summaries from results
-    - name: Compute category summaries
+    # Build summary from scan_driven_result (set by scan_driven_*_remediation.yml tasks)
+    - name: Compute totals from scan-driven results
       ansible.builtin.set_fact:
-        cat1_summary:
-          found: "{{ cat1_results | default([]) | length }}"
-          changed: "{{ cat1_results | default([]) | selectattr('status', 'eq', 'changed') | list | length }}"
-          already_ok: "{{ cat1_results | default([]) | selectattr('status', 'eq', 'ok') | list | length }}"
-          failed: "{{ cat1_results | default([]) | selectattr('status', 'eq', 'failed') | list | length }}"
-          skipped: "{{ cat1_results | default([]) | selectattr('status', 'eq', 'skipped') | list | length }}"
-        cat2_summary:
-          found: "{{ cat2_results | default([]) | length }}"
-          changed: "{{ cat2_results | default([]) | selectattr('status', 'eq', 'changed') | list | length }}"
-          already_ok: "{{ cat2_results | default([]) | selectattr('status', 'eq', 'ok') | list | length }}"
-          failed: "{{ cat2_results | default([]) | selectattr('status', 'eq', 'failed') | list | length }}"
-          skipped: "{{ cat2_results | default([]) | selectattr('status', 'eq', 'skipped') | list | length }}"
-        cat3_summary:
-          found: "{{ cat3_results | default([]) | length }}"
-          changed: "{{ cat3_results | default([]) | selectattr('status', 'eq', 'changed') | list | length }}"
-          already_ok: "{{ cat3_results | default([]) | selectattr('status', 'eq', 'ok') | list | length }}"
-          failed: "{{ cat3_results | default([]) | selectattr('status', 'eq', 'failed') | list | length }}"
-          skipped: "{{ cat3_results | default([]) | selectattr('status', 'eq', 'skipped') | list | length }}"
-
-    - name: Compute totals
-      ansible.builtin.set_fact:
-        total_summary:
-          found: "{{ (cat1_summary.found | int) + (cat2_summary.found | int) + (cat3_summary.found | int) }}"
-          changed: "{{ (cat1_summary.changed | int) + (cat2_summary.changed | int) + (cat3_summary.changed | int) }}"
-          already_ok: "{{ (cat1_summary.already_ok | int) + (cat2_summary.already_ok | int) + (cat3_summary.already_ok | int) }}"
-          failed: "{{ (cat1_summary.failed | int) + (cat2_summary.failed | int) + (cat3_summary.failed | int) }}"
+        total_changes: >-
+          {{ (scan_driven_result.changes_applied.registry | default(0) | int) +
+             (scan_driven_result.changes_applied.security_policy | default(0) | int) +
+             (scan_driven_result.changes_applied.audit_policy | default(0) | int) +
+             (scan_driven_result.changes_applied.user_rights | default(0) | int) +
+             (scan_driven_result.changes_applied.firewall | default(0) | int) }}
+        total_remediated: "{{ scan_driven_result.controls_remediated | default([]) | length }}"
+        total_manual: "{{ scan_driven_result.controls_manual | default([]) | length }}"
+        total_skipped: "{{ scan_driven_result.controls_skipped | default([]) | length }}"
 
     - name: Display final remediation summary
       ansible.builtin.debug:
@@ -81,32 +58,47 @@
           Target:     {{ inventory_hostname }}
           OS:         Windows Server {{ remediation_result.os_version | default('Unknown') }}
           Mode:       {{ remediation_result.mode | default('unknown') }}
-          {% if remediation_result.mode | default('') == 'eda' %}Category:   {{ remediation_result.category | default('N/A') }} only{% endif %}
+          Category:   {{ scan_driven_result.category | default(remediation_result.category) | default('N/A') }}
 
           Dry Run:    {{ remediation_result.dry_run | default(dry_run) }}
           Started:    {{ remediation_result.started | default('N/A') }}
           Completed:  {{ remediation_result.completed | default('N/A') }}
 
           --------------------------------------------------------------------------------
-                              RESULTS BY CATEGORY
+                              SCAN-DRIVEN REMEDIATION SUMMARY
           --------------------------------------------------------------------------------
 
-          Category   | Found | Changed | Already OK | Failed
-          -----------|-------|---------|------------|-------
-          {% if (cat1_summary.found | int) > 0 or remediation_result.mode | default('') != 'eda' or remediation_result.category | default('') == 'CAT1' %}CAT I      | {{ '%5s' | format(cat1_summary.found) }} | {{ '%7s' | format(cat1_summary.changed) }} | {{ '%10s' | format(cat1_summary.already_ok) }} | {{ '%6s' | format(cat1_summary.failed) }}
-          {% endif %}
-          {% if (cat2_summary.found | int) > 0 or remediation_result.mode | default('') != 'eda' or remediation_result.category | default('') == 'CAT2' %}CAT II     | {{ '%5s' | format(cat2_summary.found) }} | {{ '%7s' | format(cat2_summary.changed) }} | {{ '%10s' | format(cat2_summary.already_ok) }} | {{ '%6s' | format(cat2_summary.failed) }}
-          {% endif %}
-          {% if (cat3_summary.found | int) > 0 or remediation_result.mode | default('') != 'eda' or remediation_result.category | default('') == 'CAT3' %}CAT III    | {{ '%5s' | format(cat3_summary.found) }} | {{ '%7s' | format(cat3_summary.changed) }} | {{ '%10s' | format(cat3_summary.already_ok) }} | {{ '%6s' | format(cat3_summary.failed) }}
-          {% endif %}
-          -----------|-------|---------|------------|-------
-          TOTAL      | {{ '%5s' | format(total_summary.found) }} | {{ '%7s' | format(total_summary.changed) }} | {{ '%10s' | format(total_summary.already_ok) }} | {{ '%6s' | format(total_summary.failed) }}
+          Controls Analyzed:    {{ scan_driven_result.controls_analyzed | default(0) }}
+          Controls Remediated:  {{ total_remediated }} (automatable controls in map)
+          Controls Manual:      {{ total_manual }} (require manual intervention)
+          Controls Skipped:     {{ total_skipped }} (V-IDs not in remediation map)
 
-          {% if (total_summary.changed | int) == 0 and (total_summary.failed | int) == 0 %}
-          All controls already compliant - no changes needed.
+          --------------------------------------------------------------------------------
+                              CHANGES APPLIED
+          --------------------------------------------------------------------------------
+
+          Registry:        {{ scan_driven_result.changes_applied.registry | default(0) }}
+          Security Policy: {{ scan_driven_result.changes_applied.security_policy | default(0) }}
+          Audit Policy:    {{ scan_driven_result.changes_applied.audit_policy | default(0) }}
+          User Rights:     {{ scan_driven_result.changes_applied.user_rights | default(0) }}
+          Firewall:        {{ scan_driven_result.changes_applied.firewall | default(0) }}
+          ------------------------------------
+          TOTAL CHANGES:   {{ total_changes }}
+
+          {% if total_manual | int > 0 %}
+          Manual Controls (require human review):
+          {% for v_id in scan_driven_result.controls_manual | default([]) %}  - {{ v_id }}
+          {% endfor %}
           {% endif %}
-          {% if (total_summary.failed | int) > 0 %}
-          WARNING: {{ total_summary.failed }} control(s) failed remediation. Manual review required.
+
+          {% if total_skipped | int > 0 %}
+          Skipped V-IDs (not in remediation map):
+          {% for v_id in scan_driven_result.controls_skipped | default([]) %}  - {{ v_id }}
+          {% endfor %}
+          {% endif %}
+
+          {% if total_changes | int == 0 %}
+          No changes applied - controls may already be compliant or require manual action.
           {% endif %}
 
           Run a compliance scan to verify final compliance state.
