@@ -77,41 +77,33 @@
   ansible.builtin.meta: end_play
 
 - name: Gather Windows facts
-  ansible.windows.win_powershell:
-    script: |
-      $os = Get-CimInstance Win32_OperatingSystem
-      @{
-        Caption = $os.Caption
-        Version = $os.Version
-        BuildNumber = $os.BuildNumber
-      } | ConvertTo-Json -Compress
+  ansible.windows.win_shell: |
+    $os = Get-CimInstance Win32_OperatingSystem
+    @{
+      Caption = $os.Caption
+      Version = $os.Version
+      BuildNumber = $os.BuildNumber
+    } | ConvertTo-Json -Compress
   register: os_info_raw
-
-- name: Debug raw OS info
-  ansible.builtin.debug:
-    msg: "Raw OS info output: {{ os_info_raw.output | default('EMPTY') }}"
-    verbosity: 1
 
 - name: Parse OS information
   ansible.builtin.set_fact:
-    os_info: "{{ (os_info_raw.output | join('')) | from_json }}"
-  when: os_info_raw.output is defined and os_info_raw.output | length > 0
-
-- name: Fail if OS info could not be gathered
-  when: os_info is not defined
-  ansible.builtin.fail:
-    msg: |
-      Failed to gather Windows OS information.
-      PowerShell output: {{ os_info_raw | default('undefined') }}
-      Ensure the Windows VM is reachable and PowerShell is working.
+    os_info: "{{ os_info_raw.stdout | from_json }}"
 
 - name: Determine Windows version
   ansible.builtin.set_fact:
-    windows_version: "{{ '2022' if '2022' in (os_info.Caption | default('')) else ('2019' if '2019' in (os_info.Caption | default('')) else 'unknown') }}"
+    windows_version: >-
+      {%- if '2022' in os_info.Caption -%}
+        2022
+      {%- elif '2019' in os_info.Caption -%}
+        2019
+      {%- else -%}
+        unknown
+      {%- endif -%}
 
 - name: Debug Windows version detected
   ansible.builtin.debug:
-    msg: "Detected Windows version: '{{ windows_version }}' from Caption: '{{ os_info.Caption | default('unknown') }}'"
+    msg: "Detected Windows version: '{{ windows_version }}' from Caption: '{{ os_info.Caption }}'"
 
 - name: Create system restore point
   when: remediation.create_restore_point | default(true) and not dry_run
