@@ -1,21 +1,108 @@
 ---
 # Invoke the external Red Hat CoP STIG role
 
+# ============================================================================
+# WinRM Transport Safety Check
+# Automatically skip controls that would lock out Ansible if using Basic auth
+# ============================================================================
+- name: Detect current WinRM transport
+  ansible.builtin.set_fact:
+    _current_winrm_transport: "{{ ansible_winrm_transport | default('basic') | lower }}"
+
+- name: Determine if using secure WinRM transport
+  ansible.builtin.set_fact:
+    _using_secure_transport: "{{ _current_winrm_transport in ['ntlm', 'kerberos', 'credssp'] }}"
+
+- name: Build combined skip list (always skip admin-protected controls)
+  ansible.builtin.set_fact:
+    _combined_skip_controls: "{{ (skip_controls | default([])) + (administrator_protected_controls | default([])) }}"
+
+- name: Add WinRM controls to skip list if using Basic transport
+  when: not _using_secure_transport
+  block:
+    - name: Log WinRM transport warning
+      ansible.builtin.debug:
+        msg: |
+          WARNING: Ansible is using Basic authentication (transport: {{ _current_winrm_transport }})
+
+          The following controls will be SKIPPED to prevent lockout:
+          {{ winrm_transport_sensitive_controls | default([]) | join(', ') }}
+
+          To remediate these controls:
+          1. Run bootstrap_winrm.yml or migrate_winrm_auth.yml to enable NTLM
+          2. Update inventory to use: ansible_winrm_transport: ntlm
+          3. Re-run remediation
+
+    - name: Add WinRM-sensitive controls to skip list
+      ansible.builtin.set_fact:
+        _combined_skip_controls: "{{ _combined_skip_controls + (winrm_transport_sensitive_controls | default([])) }}"
+
+- name: Filter out protected controls from remediation list
+  ansible.builtin.set_fact:
+    _safe_controls_to_remediate: "{{ controls_to_remediate | reject('in', _combined_skip_controls) | list }}"
+    _skipped_protected_controls: "{{ controls_to_remediate | select('in', _combined_skip_controls) | list }}"
+
+- name: Log skipped protected controls
+  when: _skipped_protected_controls | length > 0
+  ansible.builtin.debug:
+    msg: |
+      Protected controls removed from remediation:
+      {{ _skipped_protected_controls | join(', ') }}
+
+      These controls are skipped because they would:
+      - Break Ansible connectivity (WinRM/administrator controls)
+      - Require manual remediation with proper preparation
+
 - name: Display external role invocation plan
   ansible.builtin.debug:
     msg: |
       Invoking external STIG role:
       - Role: infra.windows_ops.windows_manage_stig
-      - Controls to remediate: {{ controls_to_remediate | length }}
+      - WinRM Transport: {{ _current_winrm_transport }} ({{ 'secure' if _using_secure_transport else 'BASIC - some controls skipped' }})
+      - Controls to remediate: {{ _safe_controls_to_remediate | length }} ({{ _skipped_protected_controls | length }} skipped for safety)
       - Category: {{ remediation_category }}
       - Report path: {{ external_stig_role.report_path | default('C:\\temp\\stig_compliance_report.json') }}
 
+- name: Skip external role if no safe controls to remediate
+  when: _safe_controls_to_remediate | length == 0
+  block:
+    - name: Log no safe controls
+      ansible.builtin.debug:
+        msg: |
+          No safe controls to remediate after filtering protected controls.
+          All requested controls were either:
+          - Administrator-protected (always skipped)
+          - WinRM-sensitive (skipped due to Basic auth transport)
+
+    - name: Set empty result
+      ansible.builtin.set_fact:
+        external_role_failed: false
+        external_role_error: null
+        external_role_skipped: true
+
+- name: Log dry run mode if enabled
+  when: dry_run | default(false) | bool
+  ansible.builtin.debug:
+    msg: |
+      DRY RUN MODE ENABLED
+      ====================
+      The following controls WOULD be remediated (no changes will be made):
+      {{ _safe_controls_to_remediate | join(', ') }}
+
+      Skipped controls (protected):
+      {{ _skipped_protected_controls | join(', ') if _skipped_protected_controls | length > 0 else 'None' }}
+
+      To apply changes, run without dry_run=true
+
 - name: Invoke infra.windows_ops.windows_manage_stig role
+  when:
+    - _safe_controls_to_remediate | length > 0
+    - not (dry_run | default(false) | bool)
   ansible.builtin.include_role:
     name: infra.windows_ops.windows_manage_stig
   vars:
-    windows_manage_stig_only_rules: "{{ controls_to_remediate }}"
-    windows_manage_stig_skip_rules: "{{ skip_controls | default([]) }}"
+    windows_manage_stig_only_rules: "{{ _safe_controls_to_remediate }}"
+    windows_manage_stig_skip_rules: "{{ _combined_skip_controls }}"
     windows_manage_stig_generate_report: "{{ external_stig_role.generate_report | default(true) }}"
     windows_manage_stig_report_format: "{{ external_stig_role.report_format | default('json') }}"
     windows_manage_stig_report_path: "{{ external_stig_role.report_path | default('C:\\temp\\stig_compliance_report.json') }}"
@@ -24,6 +111,14 @@
     windows_manage_stig_categories: "{{ external_stig_role.categories | default(['account_policies', 'audit_policies', 'user_rights', 'security_options', 'registry_settings', 'system_services']) }}"
   register: external_role_result
   ignore_errors: true
+
+- name: Set dry run result
+  when: dry_run | default(false) | bool
+  ansible.builtin.set_fact:
+    external_role_failed: false
+    external_role_error: null
+    external_role_skipped: true
+    dry_run_controls: "{{ _safe_controls_to_remediate }}"
 
 - name: Handle external role failure
   when: external_role_result is failed

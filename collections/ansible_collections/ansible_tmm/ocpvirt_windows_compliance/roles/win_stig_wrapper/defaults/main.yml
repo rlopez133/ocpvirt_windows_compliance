@@ -2,6 +2,21 @@
 # Win STIG Wrapper Role Defaults
 # Configuration for invoking the external Red Hat CoP STIG role
 
+# WinRM Transport-Sensitive Controls (Windows 2022 STIG V1R3)
+# These controls disable WinRM Basic auth and will lock out Ansible if still using Basic transport
+# They are automatically skipped when ansible_winrm_transport is 'basic'
+# Use migrate_winrm_auth.yml after switching to NTLM to remediate these
+winrm_transport_sensitive_controls:
+  - "V-254378"  # WN22-CC-000470 - WinRM Client must not use Basic authentication
+  - "V-254381"  # WN22-CC-000500 - WinRM Service must not use Basic authentication
+
+# Administrator-Protected Controls (always skipped to preserve automation access)
+# These would break Ansible connectivity regardless of transport
+administrator_protected_controls:
+  - "V-254247"  # WN22-SO-000200 - Rename Administrator account
+  - "V-254248"  # WN22-SO-000210 - Disable Administrator account
+  - "V-254239"  # WN22-AC-000020 - Administrator account lockout
+
 # External role configuration
 external_stig_role:
   # Report settings
