@@ -132,6 +132,17 @@
       - Control IDs: {{ controls_to_remediate | join(', ') }}
 
 # Windows Server 2019 Remediation
+# Note: Feature flag (use_external_stig_role) does NOT affect Windows 2019 - always uses existing role
+- name: Log feature flag ignored for Windows 2019
+  when:
+    - windows_version == '2019'
+    - use_external_stig_role | default(false) | bool
+    - controls_to_remediate | length > 0
+  ansible.builtin.debug:
+    msg: |
+      NOTE: use_external_stig_role is enabled, but Windows 2019 always uses existing win2019_stig role.
+      The external role integration is only available for Windows Server 2022.
+
 - name: Apply Windows 2019 CAT I remediation
   when:
     - windows_version == '2019'
@@ -163,9 +174,27 @@
     failed_cat3_controls: "{{ controls_to_remediate }}"
 
 # Windows Server 2022 Remediation
+# Feature flag routing: use_external_stig_role controls whether to use the
+# Red Hat CoP external role (via win_stig_wrapper) or the existing win2022_stig role
+
+- name: Apply Windows 2022 remediation via external role
+  when:
+    - windows_version == '2022'
+    - use_external_stig_role | default(false) | bool
+    - controls_to_remediate | length > 0
+  ansible.builtin.include_role:
+    name: win_stig_wrapper
+  vars:
+    controls_to_remediate: "{{ controls_to_remediate }}"
+    remediation_category: "{{ remediation_category }}"
+    windows_version: "{{ windows_version }}"
+    trigger_source: "{{ trigger_source | default('manual') }}"
+
+# Existing Windows 2022 remediation (fallback when feature flag is disabled)
 - name: Apply Windows 2022 CAT I remediation
   when:
     - windows_version == '2022'
+    - not (use_external_stig_role | default(false) | bool)
     - remediation_category == 'CAT1'
     - controls_to_remediate | length > 0
   ansible.builtin.include_tasks:
@@ -176,6 +205,7 @@
 - name: Apply Windows 2022 CAT II remediation (map-driven)
   when:
     - windows_version == '2022'
+    - not (use_external_stig_role | default(false) | bool)
     - remediation_category == 'CAT2'
     - controls_to_remediate | length > 0
   ansible.builtin.include_tasks:
@@ -186,6 +216,7 @@
 - name: Apply Windows 2022 CAT III remediation (map-driven)
   when:
     - windows_version == '2022'
+    - not (use_external_stig_role | default(false) | bool)
     - remediation_category == 'CAT3'
     - controls_to_remediate | length > 0
   ansible.builtin.include_tasks:

@@ -1,0 +1,22 @@
+---
+# Validate that required external collections are installed
+
+- name: Check if infra.windows_ops collection is installed
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection list infra.windows_ops --format json
+  register: collection_check
+  delegate_to: localhost
+  changed_when: false
+  failed_when: false
+
+- name: Fail if infra.windows_ops collection is not installed
+  when: collection_check.rc != 0 or 'infra.windows_ops' not in collection_check.stdout
+  ansible.builtin.fail:
+    msg: |
+      The infra.windows_ops collection is required but not installed.
+      Please install it with: ansible-galaxy collection install infra.windows_ops
+      Or add it to requirements.yml and run: ansible-galaxy collection install -r requirements.yml
+
+- name: Log external collection validated
+  ansible.builtin.debug:
+    msg: "infra.windows_ops collection is available"

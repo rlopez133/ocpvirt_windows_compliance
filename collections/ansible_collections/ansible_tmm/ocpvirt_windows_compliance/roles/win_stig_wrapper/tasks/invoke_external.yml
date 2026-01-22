@@ -1,0 +1,47 @@
+---
+# Invoke the external Red Hat CoP STIG role
+
+- name: Display external role invocation plan
+  ansible.builtin.debug:
+    msg: |
+      Invoking external STIG role:
+      - Role: infra.windows_ops.windows_manage_stig
+      - Controls to remediate: {{ controls_to_remediate | length }}
+      - Category: {{ remediation_category }}
+      - Report path: {{ external_stig_role.report_path | default('C:\\temp\\stig_compliance_report.json') }}
+
+- name: Invoke infra.windows_ops.windows_manage_stig role
+  ansible.builtin.include_role:
+    name: infra.windows_ops.windows_manage_stig
+  vars:
+    windows_manage_stig_only_rules: "{{ controls_to_remediate }}"
+    windows_manage_stig_skip_rules: "{{ skip_controls | default([]) }}"
+    windows_manage_stig_generate_report: "{{ external_stig_role.generate_report | default(true) }}"
+    windows_manage_stig_report_format: "{{ external_stig_role.report_format | default('json') }}"
+    windows_manage_stig_report_path: "{{ external_stig_role.report_path | default('C:\\temp\\stig_compliance_report.json') }}"
+    windows_manage_stig_compliance_threshold: "{{ external_stig_role.compliance_threshold | default(95) }}"
+    windows_manage_stig_fail_on_non_compliance: "{{ external_stig_role.fail_on_non_compliance | default(false) }}"
+    windows_manage_stig_categories: "{{ external_stig_role.categories | default(['account_policies', 'audit_policies', 'user_rights', 'security_options', 'registry_settings', 'system_services']) }}"
+  register: external_role_result
+  ignore_errors: true
+
+- name: Handle external role failure
+  when: external_role_result is failed
+  block:
+    - name: Log external role failure
+      ansible.builtin.debug:
+        msg: |
+          External STIG role failed.
+          Error: {{ external_role_result.msg | default('Unknown error') }}
+          Continuing to parse any partial report...
+
+    - name: Set external role failure flag
+      ansible.builtin.set_fact:
+        external_role_failed: true
+        external_role_error: "{{ external_role_result.msg | default('Unknown error') }}"
+
+- name: Set external role success flag
+  when: external_role_result is not failed
+  ansible.builtin.set_fact:
+    external_role_failed: false
+    external_role_error: null

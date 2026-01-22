@@ -1,0 +1,82 @@
+---
+# Parse the external role's JSON report and set result fact
+
+- name: Set report path variable
+  ansible.builtin.set_fact:
+    report_path: "{{ external_stig_role.report_path | default('C:\\temp\\stig_compliance_report.json') }}"
+
+- name: Check if report file exists
+  ansible.windows.win_stat:
+    path: "{{ report_path }}"
+  register: report_stat
+
+- name: Parse report when file exists
+  when: report_stat.stat.exists
+  block:
+    - name: Read external role report
+      ansible.windows.win_slurp:
+        src: "{{ report_path }}"
+      register: report_raw
+
+    - name: Parse external role report JSON
+      ansible.builtin.set_fact:
+        external_report: "{{ (report_raw.content | b64decode) | from_json }}"
+
+    - name: Set external remediation result from report
+      ansible.builtin.set_fact:
+        external_remediation_result:
+          success: "{{ not (external_role_failed | default(false)) }}"
+          report_found: true
+          summary:
+            total: "{{ external_report.compliance_report.summary.total_controls | default(0) }}"
+            passed: "{{ external_report.compliance_report.summary.compliant_controls | default(0) }}"
+            failed: "{{ external_report.compliance_report.summary.non_compliant_controls | default(0) }}"
+            skipped: "{{ external_report.compliance_report.summary.skipped_controls | default(0) }}"
+            percentage: "{{ external_report.compliance_report.summary.compliance_percentage | default(0) }}"
+            status: "{{ external_report.compliance_report.summary.overall_status | default('UNKNOWN') }}"
+          metadata:
+            target: "{{ external_report.compliance_report.metadata.target_system | default(inventory_hostname) }}"
+            baseline: "{{ external_report.compliance_report.metadata.baseline | default('Windows Server 2022 STIG') }}"
+            start_time: "{{ external_report.compliance_report.metadata.start_time | default('') }}"
+            end_time: "{{ external_report.compliance_report.metadata.end_time | default('') }}"
+          error: "{{ external_role_error | default(null) }}"
+
+    - name: Display parsed report summary
+      ansible.builtin.debug:
+        msg: |
+          External Role Report Summary:
+          - Total controls: {{ external_remediation_result.summary.total }}
+          - Passed (compliant): {{ external_remediation_result.summary.passed }}
+          - Failed (non-compliant): {{ external_remediation_result.summary.failed }}
+          - Skipped: {{ external_remediation_result.summary.skipped }}
+          - Compliance: {{ external_remediation_result.summary.percentage }}%
+          - Status: {{ external_remediation_result.summary.status }}
+
+- name: Handle missing report file
+  when: not report_stat.stat.exists
+  block:
+    - name: Log report file not found
+      ansible.builtin.debug:
+        msg: |
+          WARNING: Report file not found at {{ report_path }}
+          This may indicate the external role failed before generating the report.
+          Setting partial result based on external role execution status.
+
+    - name: Set external remediation result for missing report
+      ansible.builtin.set_fact:
+        external_remediation_result:
+          success: false
+          report_found: false
+          summary:
+            total: "{{ controls_to_remediate | length }}"
+            passed: 0
+            failed: 0
+            skipped: 0
+            percentage: 0
+            status: "ERROR"
+          metadata:
+            target: "{{ inventory_hostname }}"
+            baseline: "Windows Server 2022 STIG"
+            start_time: ""
+            end_time: ""
+          error: "Report file not found at {{ report_path }}"

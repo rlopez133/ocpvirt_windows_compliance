@@ -1,0 +1,28 @@
+---
+# Win STIG Wrapper Role Defaults
+# Configuration for invoking the external Red Hat CoP STIG role
+
+# External role configuration
+external_stig_role:
+  # Report settings
+  generate_report: true
+  report_format: json
+  report_path: "C:\\temp\\stig_compliance_report.json"
+
+  # Compliance settings
+  compliance_threshold: 95
+  fail_on_non_compliance: false
+
+  # Categories to include (all by default)
+  categories:
+    - account_policies
+    - audit_policies
+    - user_rights
+    - security_options
+    - registry_settings
+    - system_services
+
+# Metrics configuration (inherited from parent role/setup)
+# Pushgateway URL should be set at inventory or job template level
+metrics_config:
+  pushgateway_url: ""

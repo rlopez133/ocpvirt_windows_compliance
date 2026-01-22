@@ -1,0 +1,27 @@
+---
+# Win STIG Wrapper Role - Main Entry Point
+# Invokes Red Hat CoP infra.windows_ops.windows_manage_stig role and parses results
+#
+# Required inputs:
+#   - controls_to_remediate: list of V-IDs to remediate
+#   - remediation_category: CAT1, CAT2, or CAT3
+#   - windows_version: "2022" (this role only supports 2022)
+#
+# Outputs:
+#   - external_remediation_result: fact with summary metrics
+
+- name: Validate external role dependencies
+  ansible.builtin.include_tasks:
+    file: validate_dependencies.yml
+
+- name: Invoke external STIG role
+  ansible.builtin.include_tasks:
+    file: invoke_external.yml
+
+- name: Parse external role report
+  ansible.builtin.include_tasks:
+    file: parse_report.yml
+
+- name: Push metrics to Pushgateway
+  ansible.builtin.include_tasks:
+    file: push_metrics.yml

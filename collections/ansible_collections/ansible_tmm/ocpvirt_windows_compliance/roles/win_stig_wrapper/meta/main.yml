@@ -1,0 +1,25 @@
+---
+# Win STIG Wrapper Role Metadata
+
+galaxy_info:
+  role_name: win_stig_wrapper
+  author: Roger Lopez
+  description: Wrapper for Red Hat CoP infra.windows_ops.windows_manage_stig role
+  company: ""
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+
+  platforms:
+    - name: Windows
+      versions:
+        - "2022"
+
+  galaxy_tags:
+    - windows
+    - compliance
+    - stig
+    - remediation
+    - hardening
+    - redhat
+
+dependencies: []
