@@ -325,18 +325,21 @@ win2022_cat2_remediation_map:
     remediation:
       right: "SeNetworkLogonRight"
       accounts:
-        - "*S-1-5-32-544"  # Administrators
-        - "*S-1-5-11"      # Authenticated Users
+        - "Administrators"
+        - "Authenticated Users"
 
   - v_id: "V-205672"
     stig_id: "WN22-MS-000080"
     title: "Deny access to this computer from network must include privileged local accounts"
-    automatable: true
-    remediation_type: user_right
+    automatable: false
+    remediation_type: manual
     remediation:
-      right: "SeDenyNetworkLogonRight"
-      accounts:
-        - "*S-1-5-114"  # Local account and member of Administrators group
+      guidance: |
+        WARNING: Auto-remediation disabled - this control blocks local admin accounts from WinRM/network access.
+        If using local accounts for Ansible, applying this will lock you out.
+        Manual fix: secpol.msc -> Local Policies -> User Rights Assignment ->
+        'Deny access to this computer from the network' -> Add 'Local account and member of Administrators group'
+        Only apply if using domain accounts for Ansible management.
 
   # ============================================================================
   # Firewall Controls

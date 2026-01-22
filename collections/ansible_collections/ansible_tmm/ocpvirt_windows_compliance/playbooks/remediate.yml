@@ -1,15 +1,17 @@
 ---
 # Remediate Playbook
-# Scan-driven CAT I remediation for Windows VMs
+# Scan-driven remediation for Windows VMs (CAT I, CAT II, CAT III)
 #
 # This playbook should be run as an AAP Job Template against Windows VMs.
 # Use limit/filter to target specific VMs.
 #
-# Pass failed_cat1_controls from scan results to remediate only failed controls.
-# Example usage (in AAP workflow):
-#   failed_cat1_controls: "{{ scan_result.failed_controls.cat1 }}"
+# Supports two modes:
+# 1. Scan-driven: Pass failed_cat1_controls from scan results
+#    Example: failed_cat1_controls: "{{ scan_result.failed_controls.cat1 }}"
+# 2. EDA-triggered: Receives category and failed_control_ids from AlertManager webhook
+#    Example: trigger_source: "eda", category: "CAT2", failed_control_ids: ["V-205629"]
 
-- name: Apply Scan-Driven CAT I Remediation
+- name: Apply Scan-Driven Compliance Remediation
   hosts: all
   gather_facts: true
 
