@@ -185,7 +185,7 @@
     - use_external_stig_role | default(false) | bool
     - controls_to_remediate | length > 0
   ansible.builtin.include_role:
-    name: win_stig_wrapper
+    name: ansible_tmm.ocpvirt_windows_compliance.win_stig_wrapper
   vars:
     wrapper_controls_to_remediate: "{{ controls_to_remediate }}"
     wrapper_remediation_category: "{{ remediation_category }}"
