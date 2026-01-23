@@ -98,7 +98,7 @@
   when:
     - _safe_controls_to_remediate | length > 0
     - not (dry_run | default(false) | bool)
-  ansible.builtin.include_role:
+  ansible.builtin.import_role:
     name: infra.windows_ops.windows_manage_stig
   vars:
     windows_manage_stig_only_rules: "{{ _safe_controls_to_remediate }}"
