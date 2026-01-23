@@ -14,6 +14,9 @@
 - name: Apply Scan-Driven Compliance Remediation
   hosts: all
   gather_facts: true
+  collections:
+    - infra.windows_ops
+    - ansible_tmm.ocpvirt_windows_compliance
 
   vars:
     compliance_profile: "stig"
