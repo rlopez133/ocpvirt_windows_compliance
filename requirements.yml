@@ -3,6 +3,6 @@ collections:
 - name: community.windows
 - name: ansible.windows
 - name: infra.windows_ops
-  source: https://github.com/redhat-cop/infra.windows_ops.git
+  source: https://github.com/rlopez/infra.windows_ops.git
   type: git
-  version: main
+  version: 001-fix-stig-rule-filter

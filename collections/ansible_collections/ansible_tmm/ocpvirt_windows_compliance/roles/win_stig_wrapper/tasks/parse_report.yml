@@ -14,7 +14,7 @@
   when: report_stat.stat.exists
   block:
     - name: Read external role report
-      ansible.windows.win_slurp:
+      ansible.builtin.slurp:
         src: "{{ report_path }}"
       register: report_raw
 
