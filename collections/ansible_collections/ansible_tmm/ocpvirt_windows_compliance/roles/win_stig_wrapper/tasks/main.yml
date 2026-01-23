@@ -2,13 +2,22 @@
 # Win STIG Wrapper Role - Main Entry Point
 # Invokes Red Hat CoP infra.windows_ops.windows_manage_stig role and parses results
 #
-# Required inputs:
-#   - controls_to_remediate: list of V-IDs to remediate
-#   - remediation_category: CAT1, CAT2, or CAT3
-#   - windows_version: "2022" (this role only supports 2022)
+# Required inputs (prefixed to avoid variable collision with include_role):
+#   - wrapper_controls_to_remediate: list of V-IDs to remediate
+#   - wrapper_remediation_category: CAT1, CAT2, or CAT3
+#   - wrapper_windows_version: "2022" (this role only supports 2022)
+#   - wrapper_trigger_source: trigger source for metrics labeling
 #
 # Outputs:
 #   - external_remediation_result: fact with summary metrics
+
+# Map prefixed variables to local names to avoid recursive templating issues
+- name: Map wrapper input variables
+  ansible.builtin.set_fact:
+    controls_to_remediate: "{{ wrapper_controls_to_remediate }}"
+    remediation_category: "{{ wrapper_remediation_category }}"
+    windows_version: "{{ wrapper_windows_version }}"
+    trigger_source: "{{ wrapper_trigger_source | default('manual') }}"
 
 - name: Validate external role dependencies
   ansible.builtin.include_tasks:
