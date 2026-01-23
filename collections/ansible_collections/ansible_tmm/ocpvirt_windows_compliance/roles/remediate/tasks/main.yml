@@ -184,13 +184,14 @@
     - windows_version == '2022'
     - use_external_stig_role | default(false) | bool
     - controls_to_remediate | length > 0
-  ansible.builtin.include_role:
-    name: ansible_tmm.ocpvirt_windows_compliance.win_stig_wrapper
-  vars:
-    wrapper_controls_to_remediate: "{{ controls_to_remediate }}"
-    wrapper_remediation_category: "{{ remediation_category }}"
-    wrapper_windows_version: "{{ windows_version }}"
-    wrapper_trigger_source: "{{ trigger_source | default('manual') }}"
+  block:
+    - name: Load win_stig_wrapper defaults
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/win_stig_wrapper/defaults/main.yml"
+
+    - name: Execute win_stig_wrapper tasks
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/win_stig_wrapper/tasks/main.yml"
 
 # Existing Windows 2022 remediation (fallback when feature flag is disabled)
 - name: Apply Windows 2022 CAT I remediation
