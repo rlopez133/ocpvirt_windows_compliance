@@ -28,17 +28,17 @@
           success: "{{ not (external_role_failed | default(false)) }}"
           report_found: true
           summary:
-            total: "{{ external_report.compliance_report.summary.total_controls | default(0) }}"
-            passed: "{{ external_report.compliance_report.summary.compliant_controls | default(0) }}"
-            failed: "{{ external_report.compliance_report.summary.non_compliant_controls | default(0) }}"
-            skipped: "{{ external_report.compliance_report.summary.skipped_controls | default(0) }}"
-            percentage: "{{ external_report.compliance_report.summary.compliance_percentage | default(0) }}"
-            status: "{{ external_report.compliance_report.summary.overall_status | default('UNKNOWN') }}"
+            total: "{{ external_report.total_controls | default(0) }}"
+            passed: "{{ external_report.passed_controls | default(0) }}"
+            failed: "{{ external_report.failed_controls | default(0) }}"
+            skipped: 0
+            percentage: "{{ external_report.compliance_score | default(0) }}"
+            status: "{{ 'COMPLIANT' if (external_report.compliance_score | default(0) | float) >= 95 else 'NON-COMPLIANT' }}"
           metadata:
-            target: "{{ external_report.compliance_report.metadata.target_system | default(inventory_hostname) }}"
-            baseline: "{{ external_report.compliance_report.metadata.baseline | default('Windows Server 2022 STIG') }}"
-            start_time: "{{ external_report.compliance_report.metadata.start_time | default('') }}"
-            end_time: "{{ external_report.compliance_report.metadata.end_time | default('') }}"
+            target: "{{ external_report.system | default(inventory_hostname) }}"
+            baseline: "{{ external_report.benchmark | default('Windows Server 2022 STIG') }}"
+            start_time: "{{ external_report.execution_start | default('') }}"
+            end_time: "{{ external_report.execution_end | default('') }}"
           error: "{{ external_role_error | default(null) }}"
 
     - name: Display parsed report summary

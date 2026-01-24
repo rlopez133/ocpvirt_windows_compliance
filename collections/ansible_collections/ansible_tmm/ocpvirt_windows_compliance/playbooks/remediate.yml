@@ -38,8 +38,49 @@
     - role: ../roles/remediate
 
   post_tasks:
+    # Display external role summary if external role was used
+    - name: Display external role remediation summary
+      when: use_external_stig_role | default(false) | bool and external_remediation_result is defined
+      ansible.builtin.debug:
+        msg: |
+          ================================================================================
+                              EXTERNAL ROLE REMEDIATION RESULTS
+          ================================================================================
+
+          Target:     {{ inventory_hostname }}
+          OS:         Windows Server {{ remediation_result.os_version | default('Unknown') }}
+          Mode:       {{ remediation_result.mode | default('unknown') }}
+          Category:   {{ remediation_result.category | default('N/A') }}
+          Trigger:    {{ trigger_source | default('manual') }}
+
+          Dry Run:    {{ remediation_result.dry_run | default(dry_run) }}
+          Started:    {{ external_remediation_result.metadata.start_time | default('N/A') }}
+          Completed:  {{ external_remediation_result.metadata.end_time | default('N/A') }}
+
+          --------------------------------------------------------------------------------
+                              COMPLIANCE SUMMARY (External Role)
+          --------------------------------------------------------------------------------
+
+          Baseline:         {{ external_remediation_result.metadata.baseline | default('Windows Server 2022 STIG') }}
+          Total Controls:   {{ external_remediation_result.summary.total | default(0) }}
+          Controls Passed:  {{ external_remediation_result.summary.passed | default(0) }}
+          Controls Failed:  {{ external_remediation_result.summary.failed | default(0) }}
+          Compliance Score: {{ external_remediation_result.summary.percentage | default(0) }}%
+          Status:           {{ external_remediation_result.summary.status | default('UNKNOWN') }}
+
+          --------------------------------------------------------------------------------
+
+          {% if external_remediation_result.summary.failed | default(0) | int > 0 %}
+          Note: {{ external_remediation_result.summary.failed }} controls failed remediation.
+          Review the JSON report at C:\temp\stig_compliance_report.json for details.
+          {% endif %}
+
+          Run a compliance scan to verify final compliance state.
+          ================================================================================
+
     # Build summary from scan_driven_result (set by scan_driven_*_remediation.yml tasks)
     - name: Compute totals from scan-driven results
+      when: not (use_external_stig_role | default(false) | bool) or external_remediation_result is not defined
       ansible.builtin.set_fact:
         total_changes: >-
           {{ (scan_driven_result.changes_applied.registry | default(0) | int) +
@@ -51,7 +92,8 @@
         total_manual: "{{ scan_driven_result.controls_manual | default([]) | length }}"
         total_skipped: "{{ scan_driven_result.controls_skipped | default([]) | length }}"
 
-    - name: Display final remediation summary
+    - name: Display scan-driven remediation summary
+      when: not (use_external_stig_role | default(false) | bool) or external_remediation_result is not defined
       ansible.builtin.debug:
         msg: |
           ================================================================================
