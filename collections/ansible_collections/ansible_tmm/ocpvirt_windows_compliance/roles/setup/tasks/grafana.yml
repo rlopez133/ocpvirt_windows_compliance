@@ -139,6 +139,31 @@
   retries: 30
   delay: 10
 
+- name: Wait for Grafana route to be created
+  kubernetes.core.k8s_info:
+    api_version: route.openshift.io/v1
+    kind: Route
+    namespace: "{{ tenant_config.namespace }}"
+    name: grafana
+  register: grafana_route_check
+  until: grafana_route_check.resources | length > 0
+  retries: 10
+  delay: 5
+
+- name: Configure TLS edge termination on Grafana route
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        name: grafana
+        namespace: "{{ tenant_config.namespace }}"
+      spec:
+        tls:
+          termination: edge
+          insecureEdgeTerminationPolicy: Redirect
+
 # =============================================================================
 # Dashboard ConfigMap
 # =============================================================================
