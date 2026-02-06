@@ -1,0 +1,88 @@
+---
+# Push summary metrics to Prometheus Pushgateway
+
+- name: Check if Pushgateway URL is configured
+  ansible.builtin.set_fact:
+    pushgateway_available: "{{ (metrics_config.pushgateway_url | default('')) | length > 0 }}"
+
+- name: Build external remediation metrics payload
+  when: pushgateway_available
+  ansible.builtin.set_fact:
+    external_metrics_payload: |
+      # HELP compliance_remediation_external_passed Controls remediated successfully by external role
+      # TYPE compliance_remediation_external_passed gauge
+      compliance_remediation_external_passed{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}",trigger="{{ trigger_source | default('manual') }}"} {{ external_remediation_result.summary.passed | default(0) }}
+
+      # HELP compliance_remediation_external_failed Controls that failed remediation
+      # TYPE compliance_remediation_external_failed gauge
+      compliance_remediation_external_failed{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}",trigger="{{ trigger_source | default('manual') }}"} {{ external_remediation_result.summary.failed | default(0) }}
+
+      # HELP compliance_remediation_external_skipped Controls skipped during remediation
+      # TYPE compliance_remediation_external_skipped gauge
+      compliance_remediation_external_skipped{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}",trigger="{{ trigger_source | default('manual') }}"} {{ external_remediation_result.summary.skipped | default(0) }}
+
+      # HELP compliance_remediation_external_total Total controls processed by external role
+      # TYPE compliance_remediation_external_total gauge
+      compliance_remediation_external_total{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}",trigger="{{ trigger_source | default('manual') }}"} {{ external_remediation_result.summary.total | default(0) }}
+
+      # HELP compliance_remediation_external_percentage Compliance percentage from external role
+      # TYPE compliance_remediation_external_percentage gauge
+      compliance_remediation_external_percentage{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}",trigger="{{ trigger_source | default('manual') }}"} {{ external_remediation_result.summary.percentage | default(0) }}
+
+      # HELP compliance_remediation_external_success External role execution success (1=success, 0=failure)
+      # TYPE compliance_remediation_external_success gauge
+      compliance_remediation_external_success{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}",trigger="{{ trigger_source | default('manual') }}"} {{ 1 if external_remediation_result.success else 0 }}
+
+      # HELP compliance_remediation_external_timestamp Last external role execution timestamp
+      # TYPE compliance_remediation_external_timestamp gauge
+      compliance_remediation_external_timestamp{vm_name="{{ inventory_hostname }}",namespace="{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}",trigger="{{ trigger_source | default('manual') }}"} {{ ansible_date_time.epoch }}
+
+- name: Push external remediation metrics to Pushgateway
+  when: pushgateway_available
+  ansible.builtin.uri:
+    url: "{{ metrics_config.pushgateway_url }}/metrics/job/compliance_remediation_external/instance/{{ inventory_hostname }}"
+    method: POST
+    body: "{{ external_metrics_payload }}"
+    headers:
+      Content-Type: text/plain
+    status_code: [200, 202]
+  delegate_to: localhost
+  register: pushgateway_result
+  ignore_errors: true
+
+- name: Handle Pushgateway push failure
+  when: pushgateway_available and pushgateway_result is failed
+  block:
+    - name: Log Pushgateway failure
+      ansible.builtin.debug:
+        msg: |
+          WARNING: Failed to push metrics to Pushgateway.
+          URL: {{ metrics_config.pushgateway_url }}
+          Error: {{ pushgateway_result.msg | default('Unknown error') }}
+          Storing metrics locally as backup.
+
+    - name: Ensure local metrics backup directory exists
+      ansible.builtin.file:
+        path: "/tmp/compliance_metrics_backup"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+
+    - name: Store metrics locally as backup
+      ansible.builtin.copy:
+        content: "{{ external_metrics_payload }}"
+        dest: "/tmp/compliance_metrics_backup/{{ inventory_hostname }}_{{ ansible_date_time.epoch }}.prom"
+        mode: "0644"
+      delegate_to: localhost
+
+- name: Log successful metrics push
+  when: pushgateway_available and pushgateway_result is not failed
+  ansible.builtin.debug:
+    msg: "Successfully pushed external remediation metrics to Pushgateway"
+
+- name: Log Pushgateway not configured
+  when: not pushgateway_available
+  ansible.builtin.debug:
+    msg: |
+      Pushgateway URL not configured (metrics_config.pushgateway_url is empty).
+      Skipping metrics push. Set pushgateway_url to enable metrics collection.

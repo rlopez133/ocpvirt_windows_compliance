@@ -10,6 +10,7 @@ metadata:
     app.kubernetes.io/name: ocpvirt-windows-compliance
     app.kubernetes.io/component: monitoring
     compliance.ocpvirt/managed: "true"
+    openshift.io/prometheus-rule-evaluation-scope: leaf-prometheus
 spec:
   groups:
     # Evaluation intervals optimized for faster alert detection

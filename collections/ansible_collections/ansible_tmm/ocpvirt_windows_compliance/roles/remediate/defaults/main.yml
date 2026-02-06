@@ -39,6 +39,11 @@ dry_run: false
 # Trigger source (for auditing)
 trigger_source: "manual"  # manual | eda | scheduled
 
+# External STIG role integration (Windows 2022 only)
+# When true, uses infra.windows_ops.windows_manage_stig via win_stig_wrapper
+# When false (default), uses existing win2022_stig role
+use_external_stig_role: false
+
 # Remediation behavior
 remediation:
   max_retries: 3

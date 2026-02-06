@@ -77,20 +77,18 @@
   ansible.builtin.meta: end_play
 
 - name: Gather Windows facts
-  ansible.windows.win_powershell:
-    script: |
-      $os = Get-CimInstance Win32_OperatingSystem
-      @{
-        Caption = $os.Caption
-        Version = $os.Version
-        BuildNumber = $os.BuildNumber
-      } | ConvertTo-Json -Compress
+  ansible.windows.win_shell: |
+    $os = Get-CimInstance Win32_OperatingSystem
+    @{
+      Caption = $os.Caption
+      Version = $os.Version
+      BuildNumber = $os.BuildNumber
+    } | ConvertTo-Json -Compress
   register: os_info_raw
 
 - name: Parse OS information
   ansible.builtin.set_fact:
-    # win_powershell.output is a list, join it to get the JSON string
-    os_info: "{{ (os_info_raw.output | join('')) | from_json }}"
+    os_info: "{{ os_info_raw.stdout | from_json }}"
 
 - name: Determine Windows version
   ansible.builtin.set_fact:
@@ -102,6 +100,10 @@
       {%- else -%}
         unknown
       {%- endif -%}
+
+- name: Debug Windows version detected
+  ansible.builtin.debug:
+    msg: "Detected Windows version: '{{ windows_version }}' from Caption: '{{ os_info.Caption }}'"
 
 - name: Create system restore point
   when: remediation.create_restore_point | default(true) and not dry_run
@@ -132,6 +134,17 @@
       - Control IDs: {{ controls_to_remediate | join(', ') }}
 
 # Windows Server 2019 Remediation
+# Note: Feature flag (use_external_stig_role) does NOT affect Windows 2019 - always uses existing role
+- name: Log feature flag ignored for Windows 2019
+  when:
+    - windows_version == '2019'
+    - use_external_stig_role | default(false) | bool
+    - controls_to_remediate | length > 0
+  ansible.builtin.debug:
+    msg: |
+      NOTE: use_external_stig_role is enabled, but Windows 2019 always uses existing win2019_stig role.
+      The external role integration is only available for Windows Server 2022.
+
 - name: Apply Windows 2019 CAT I remediation
   when:
     - windows_version == '2019'
@@ -163,9 +176,28 @@
     failed_cat3_controls: "{{ controls_to_remediate }}"
 
 # Windows Server 2022 Remediation
+# Feature flag routing: use_external_stig_role controls whether to use the
+# Red Hat CoP external role (via win_stig_wrapper) or the existing win2022_stig role
+
+- name: Apply Windows 2022 remediation via external role
+  when:
+    - windows_version == '2022'
+    - use_external_stig_role | default(false) | bool
+    - controls_to_remediate | length > 0
+  block:
+    - name: Load win_stig_wrapper defaults
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/win_stig_wrapper/defaults/main.yml"
+
+    - name: Execute win_stig_wrapper tasks
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/win_stig_wrapper/tasks/main.yml"
+
+# Existing Windows 2022 remediation (fallback when feature flag is disabled)
 - name: Apply Windows 2022 CAT I remediation
   when:
     - windows_version == '2022'
+    - not (use_external_stig_role | default(false) | bool)
     - remediation_category == 'CAT1'
     - controls_to_remediate | length > 0
   ansible.builtin.include_tasks:
@@ -176,6 +208,7 @@
 - name: Apply Windows 2022 CAT II remediation (map-driven)
   when:
     - windows_version == '2022'
+    - not (use_external_stig_role | default(false) | bool)
     - remediation_category == 'CAT2'
     - controls_to_remediate | length > 0
   ansible.builtin.include_tasks:
@@ -186,6 +219,7 @@
 - name: Apply Windows 2022 CAT III remediation (map-driven)
   when:
     - windows_version == '2022'
+    - not (use_external_stig_role | default(false) | bool)
     - remediation_category == 'CAT3'
     - controls_to_remediate | length > 0
   ansible.builtin.include_tasks:
