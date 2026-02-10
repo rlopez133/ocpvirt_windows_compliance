@@ -196,7 +196,7 @@
       vm_name: "{{ inventory_hostname }}"
       namespace: "{{ hostvars[inventory_hostname]['namespace'] | default('unknown') }}"
       timestamp: "{{ scc_scan_output.completed }}"
-      profile: "{{ compliance_profile }}"
+      benchmark: "{{ scc_scan_output.target_benchmark }}"
       os_version: "{{ windows_version }}"
       duration_seconds: "{{ scc_scan_output.duration_seconds }}"
       score: "{{ calculated_score }}"

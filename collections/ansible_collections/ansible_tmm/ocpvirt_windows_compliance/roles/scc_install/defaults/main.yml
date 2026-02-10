@@ -86,4 +86,3 @@ scc_force_stig_update: false
 # Verification
 # =============================================================================
 scc_verify_install: true
-scc_test_scan: false  # Run a test scan after installation

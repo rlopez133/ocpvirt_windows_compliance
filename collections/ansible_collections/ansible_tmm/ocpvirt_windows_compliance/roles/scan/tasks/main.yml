@@ -7,7 +7,6 @@
     msg: |
       Compliance Scan Configuration
       =============================
-      Profile: {{ compliance_profile }}
       Scanner: {{ scanner_type }}
       Timeout: {{ scan_timeout }} seconds
 

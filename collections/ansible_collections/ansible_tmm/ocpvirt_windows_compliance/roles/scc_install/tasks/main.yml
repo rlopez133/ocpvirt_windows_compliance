@@ -261,18 +261,6 @@
       ansible.builtin.debug:
         msg: "SCC installed: {{ scc_version_output.stdout | default('Version check failed') }}"
 
-- name: Run test scan
-  when: scc_test_scan
-  block:
-    - name: Execute test scan
-      ansible.windows.win_shell: |
-        & "{{ scc_install_path }}\cscc.exe" --help
-      register: scc_test_result
-
-    - name: Display test result
-      ansible.builtin.debug:
-        msg: "SCC test completed successfully"
-
 - name: Cleanup temp files
   ansible.windows.win_file:
     path: "{{ scc_temp_path }}"
