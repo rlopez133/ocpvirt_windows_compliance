@@ -46,6 +46,10 @@
 - name: Deploy Prometheus rules
   ansible.builtin.include_tasks: prometheus_rules.yml
 
+- name: Install Grafana Operator if needed
+  ansible.builtin.include_tasks: grafana_operator.yml
+  when: ocpvirt_compliance_grafana_dashboards | default(true)
+
 - name: Deploy Grafana dashboards
   ansible.builtin.include_tasks: grafana.yml
   when: ocpvirt_compliance_grafana_dashboards | default(true)
@@ -66,5 +70,6 @@
       - Alertmanager: {{ 'Configured' if ocpvirt_compliance_alertmanager_dedicated else 'Skipped' }}
       - Pushgateway: {{ 'Deployed' if pushgateway_enabled | default(true) else 'Skipped' }}
       - PrometheusRules: Deployed
+      - Grafana Operator: {{ 'Installed/Verified' if ocpvirt_compliance_grafana_dashboards else 'Skipped' }}
       - Grafana Dashboards: {{ 'Deployed' if ocpvirt_compliance_grafana_dashboards else 'Skipped' }}
       - AAP Job Templates: {{ 'Created' if aap_create_job_templates | default(true) else 'Skipped' }}

@@ -1,7 +1,7 @@
 ---
 # Setup Role - Grafana Deployment
 # Deploys Grafana instance, datasource, and compliance dashboard
-# Requires: Grafana Operator installed in openshift-operators namespace
+# Note: Grafana Operator is installed by grafana_operator.yml before this task
 #
 # Components deployed:
 # 1. ServiceAccount with cluster-monitoring-view role for Prometheus access
@@ -9,22 +9,6 @@
 # 3. ConfigMap - Dashboard JSON content
 # 4. GrafanaDatasource CR - Prometheus datasource with bearer token auth
 # 5. GrafanaDashboard CR - References the ConfigMap
-
-- name: Check if Grafana Operator is installed
-  kubernetes.core.k8s_info:
-    api_version: apiextensions.k8s.io/v1
-    kind: CustomResourceDefinition
-    name: grafanas.grafana.integreatly.org
-  register: grafana_crd_check
-
-- name: Fail if Grafana Operator not installed
-  ansible.builtin.fail:
-    msg: |
-      Grafana Operator is not installed. Please install it from OperatorHub:
-      - Navigate to Operators > OperatorHub
-      - Search for "Grafana Operator" (by grafana-operator)
-      - Install with default settings (All namespaces)
-  when: grafana_crd_check.resources | length == 0
 
 # =============================================================================
 # ServiceAccount for Prometheus Access

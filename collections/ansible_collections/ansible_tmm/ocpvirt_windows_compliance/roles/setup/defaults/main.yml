@@ -92,8 +92,12 @@ pushgateway_resources:
 # OpenShift Monitoring Configuration
 ocpvirt_compliance_enable_user_workload_monitoring: true
 ocpvirt_compliance_alertmanager_dedicated: true
-# Grafana: Requires Grafana Operator to be installed (not included in OpenShift 4.11+)
+# Grafana: Operator is auto-installed from OperatorHub if not present
 ocpvirt_compliance_grafana_dashboards: true
+
+# Grafana Operator Configuration
+# The setup role installs the Grafana Operator if not already present
+grafana_operator_channel: "v5"
 
 # PrometheusRule Configuration
 prometheus_config:
