@@ -54,6 +54,7 @@
       - Project URL: {{ eda_project_url }}
       - Branch: {{ eda_scm_branch }}
       - Decision Environment: {{ eda_decision_environment }}
+      - Decision Environment Image: {{ eda_decision_environment_image }}
       - Event Stream: {{ eda_event_stream_name }}
       - Rulebook: {{ eda_rulebook_name }}
       - Token: {{ 'Provided' if eda_token | length > 0 else 'Auto-generated' }}
@@ -216,7 +217,34 @@
       This credential allows rulebooks to trigger job templates on Automation Controller.
 
 # =============================================================================
-# Phase 7: User Story 5 - Rulebook Activation with Event Stream Binding
+# Phase 7: Decision Environment Setup
+# =============================================================================
+# Create decision environment if it doesn't exist
+
+- name: Create decision environment
+  ansible.eda.decision_environment:
+    name: "{{ eda_decision_environment }}"
+    description: "Decision environment for Windows compliance automation"
+    image_url: "{{ eda_decision_environment_image }}"
+    organization_name: "{{ eda_organization }}"
+    state: present
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
+  register: eda_decision_environment_result
+
+- name: Display decision environment status
+  ansible.builtin.debug:
+    msg: |
+      Decision Environment:
+      - Name: {{ eda_decision_environment }}
+      - Image: {{ eda_decision_environment_image }}
+      - ID: {{ eda_decision_environment_result.id | default('Using existing') }}
+
+# =============================================================================
+# Phase 8: User Story 5 - Rulebook Activation with Event Stream Binding
 # =============================================================================
 # NOTE: Rulebooks must be at extensions/eda/rulebooks/ at the ROOT of the Git repo.
 # For Ansible Collections, eda_project_url should point to the collection root:

@@ -46,6 +46,7 @@ eda_enabled: true
 eda_project_name: "Windows Compliance"
 eda_project_url: ""  # Git URL for rulebook project (override in job template)
 eda_decision_environment: "Default Decision Environment"
+eda_decision_environment_image: "registry.redhat.io/ansible-automation-platform-26/de-supported-rhel9:latest"
 eda_rulebook_name: "compliance_remediation"
 eda_event_stream_name: "compliance-alerts"
 # RH AAP Credential for Rulebook Activations
@@ -55,10 +56,9 @@ eda_event_stream_name: "compliance-alerts"
 eda_aap_credential_name: ""
 
 # Auto-remediation settings per category
-# ALL DISABLED BY DEFAULT for security - enable only after implementing remediations
-eda_auto_remediate_cat1: false  # CAT I - Critical, requires security review before enabling
-eda_auto_remediate_cat2: false  # CAT II - Disabled until CAT II remediations available
-eda_auto_remediate_cat3: false  # CAT III - Disabled until CAT III remediations available
+eda_auto_remediate_cat1: true
+eda_auto_remediate_cat2: true
+eda_auto_remediate_cat3: true
 
 # AAP Gateway Connection (required for ansible.eda modules in AAP 2.5+)
 # These can be set via environment variables or passed from AAP credential
