@@ -106,7 +106,9 @@
             admin_user: "{{ grafana_admin_user | default('admin') }}"
             admin_password: "{{ grafana_admin_password | default('admin') }}"
         route:
-          enabled: true
+          spec:
+            tls:
+              termination: edge
   register: grafana_instance
 
 - name: Wait for Grafana to be ready
