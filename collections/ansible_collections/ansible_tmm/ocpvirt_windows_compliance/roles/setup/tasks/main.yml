@@ -25,6 +25,21 @@
       Namespace: {{ tenant_config.namespace }}
       EDA Enabled: {{ eda_enabled }}
 
+# Ensure namespace exists before creating any resources in it
+- name: Create tenant namespace if it does not exist
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ tenant_config.namespace }}"
+        labels:
+          app.kubernetes.io/name: "ocpvirt-windows-compliance"
+          app.kubernetes.io/component: "compliance-infrastructure"
+          compliance.ocpvirt/managed: "true"
+          compliance.ocpvirt/tenant: "{{ tenant_config.name }}"
+
 # EDA must be configured FIRST to get the event stream webhook URL
 - name: Configure Event-Driven Ansible
   ansible.builtin.include_tasks: eda.yml
