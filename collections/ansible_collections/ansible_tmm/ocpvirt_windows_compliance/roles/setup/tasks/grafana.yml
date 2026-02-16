@@ -239,7 +239,7 @@
           matchLabels:
             dashboards: grafana
         configMapRef:
-          name: compliance-dashboard
+          name: grafana-dashboard-compliance
           key: compliance-dashboard.json
 
 # =============================================================================
