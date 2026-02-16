@@ -107,13 +107,38 @@
     validate_certs: "{{ aap_validate_certs }}"
   register: eda_project_sync_result
 
+- name: Wait for EDA project sync to complete
+  ansible.eda.project_info:
+    name: "{{ eda_project_name }}"
+    controller_host: "{{ aap_hostname }}"
+    controller_username: "{{ aap_username | default(omit) }}"
+    controller_password: "{{ aap_password | default(omit) }}"
+    controller_token: "{{ aap_token | default(omit) if aap_token | length > 0 else omit }}"
+    validate_certs: "{{ aap_validate_certs }}"
+  register: eda_project_info
+  until: >-
+    eda_project_info.projects | length > 0 and
+    eda_project_info.projects[0].import_state == 'completed'
+  retries: 30
+  delay: 10
+
+- name: Fail if project sync failed
+  ansible.builtin.fail:
+    msg: |
+      EDA project sync failed with error: {{ eda_project_info.projects[0].import_error | default('Unknown error') }}
+      Check the EDA controller logs for more details.
+  when:
+    - eda_project_info.projects | length > 0
+    - eda_project_info.projects[0].import_state == 'failed'
+
 - name: Display credential and project creation status
   ansible.builtin.debug:
     msg: |
       EDA Credential and Project Created:
       - Credential: {{ eda_event_stream_name }}-token (ID: {{ eda_credential_result.id | default('N/A') }})
       - Project: {{ eda_project_name }} (ID: {{ eda_project_result.id | default('N/A') }})
-      - Project Sync: {{ 'Complete' if eda_project_sync_result is defined else 'Pending' }}
+      - Project Sync: {{ eda_project_info.projects[0].import_state | default('Unknown') }}
+      - Git Hash: {{ eda_project_info.projects[0].git_hash | default('N/A') }}
 
 # =============================================================================
 # Phase 4: User Story 2 - Event Stream with Authentication
