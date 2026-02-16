@@ -125,16 +125,32 @@
   retries: 30
   delay: 10
 
+- name: Debug Grafana instance status
+  ansible.builtin.debug:
+    msg: |
+      Grafana Status:
+      - Stage: {{ grafana_status.resources[0].status.stage | default('unknown') }}
+      - StageStatus: {{ grafana_status.resources[0].status.stageStatus | default('unknown') }}
+      - Message: {{ grafana_status.resources[0].status.message | default('none') }}
+    verbosity: 0
+
 - name: Wait for Grafana route to be created
   kubernetes.core.k8s_info:
     api_version: route.openshift.io/v1
     kind: Route
     namespace: "{{ tenant_config.namespace }}"
-    name: grafana
   register: grafana_route_check
   until: grafana_route_check.resources | length > 0
-  retries: 10
-  delay: 5
+  retries: 30
+  delay: 10
+
+- name: Debug - show all routes found
+  ansible.builtin.debug:
+    msg: "Found routes: {{ grafana_route_check.resources | map(attribute='metadata.name') | list }}"
+
+- name: Set Grafana route name fact
+  ansible.builtin.set_fact:
+    grafana_route_name: "{{ grafana_route_check.resources[0].metadata.name }}"
 
 - name: Configure TLS edge termination on Grafana route
   kubernetes.core.k8s:
@@ -143,7 +159,7 @@
       apiVersion: route.openshift.io/v1
       kind: Route
       metadata:
-        name: grafana
+        name: "{{ grafana_route_name }}"
         namespace: "{{ tenant_config.namespace }}"
       spec:
         tls:
