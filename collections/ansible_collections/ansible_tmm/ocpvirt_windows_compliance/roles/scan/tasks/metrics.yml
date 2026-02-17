@@ -30,6 +30,10 @@
       # TYPE compliance_scans_total counter
       compliance_scans_total{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",result="{{ 'success' if scan_result.status != 'error' else 'failed' }}"} 1
 
+      # HELP compliance_scan_completed Scan completion signal for EDA triggering
+      # TYPE compliance_scan_completed counter
+      compliance_scan_completed{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} 1
+
 - name: Build per-control metrics for failed CAT I controls
   ansible.builtin.set_fact:
     cat1_failed_metrics: |

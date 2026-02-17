@@ -2,6 +2,8 @@ collections:
 - name: kubernetes.core
 - name: community.windows
 - name: ansible.windows
+- name: ansible.controller
+- name: infra.aap_configuration
 - name: infra.windows_ops
   source: https://github.com/redhat-cop/infra.windows_ops.git
   type: git

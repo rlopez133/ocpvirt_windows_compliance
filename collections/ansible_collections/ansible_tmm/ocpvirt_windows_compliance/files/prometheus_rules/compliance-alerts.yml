@@ -15,14 +15,23 @@ spec:
   groups:
     # Evaluation intervals optimized for faster alert detection
     # while maintaining reasonable resource usage
-    - name: compliance.windows.critical
-      interval: 30s  # CAT I - fastest evaluation for critical issues
+    # =========================================================================
+    # Scan-Triggered Alerts
+    # These fire ONCE per scan completion, not continuously
+    # The scan pushes compliance_scan_completed metric after each scan
+    # =========================================================================
+    - name: compliance.windows.scan_triggered
+      interval: 30s
       rules:
-        # CAT I (Critical) violations - immediate alert
+        # CAT I violations detected in new scan
         - alert: ComplianceCAT1Violation
           expr: |
-            compliance_control_status{category="CAT1", status="fail"} == 1
-          for: 1m
+            (
+              compliance_control_status{category="CAT1", status="fail"} == 1
+            ) and on(vm_name, namespace) (
+              increase(compliance_scan_completed[5m]) > 0
+            )
+          for: 0s
           labels:
             severity: critical
             category: CAT1
@@ -35,25 +44,15 @@ spec:
               This requires immediate attention and manual remediation approval.
             runbook_url: "https://stigviewer.com/stig/{{ $labels.control_id }}"
 
-        # Multiple CAT I failures
-        - alert: ComplianceMultipleCAT1Violations
-          expr: |
-            count by (vm_name, namespace) (compliance_control_status{category="CAT1", status="fail"} == 1) > 3
-          for: 1m
-          labels:
-            severity: critical
-          annotations:
-            summary: "CRITICAL: Multiple CAT I violations on {{ $labels.vm_name }}"
-            description: "VM {{ $labels.vm_name }} has {{ $value }} CAT I violations. Immediate action required."
-
-    - name: compliance.windows.warning
-      interval: 30s  # CAT II - reduced from 60s for faster detection
-      rules:
-        # CAT II (Warning) violations
+        # CAT II violations detected in new scan
         - alert: ComplianceCAT2Violation
           expr: |
-            compliance_control_status{category="CAT2", status="fail"} == 1
-          for: 1m
+            (
+              compliance_control_status{category="CAT2", status="fail"} == 1
+            ) and on(vm_name, namespace) (
+              increase(compliance_scan_completed[5m]) > 0
+            )
+          for: 0s
           labels:
             severity: warning
             category: CAT2
@@ -62,6 +61,26 @@ spec:
             description: |
               Medium severity control {{ $labels.control_id }} has failed on VM {{ $labels.vm_name }}.
               This can be auto-remediated if EDA is enabled for this VM.
+
+        # CAT III violations detected in new scan
+        - alert: ComplianceCAT3Violation
+          expr: |
+            (
+              compliance_control_status{category="CAT3", status="fail"} == 1
+            ) and on(vm_name, namespace) (
+              increase(compliance_scan_completed[5m]) > 0
+            )
+          for: 0s
+          labels:
+            severity: info
+            category: CAT3
+          annotations:
+            summary: "Low severity compliance issue on {{ $labels.vm_name }}"
+            description: "CAT III control {{ $labels.control_id }} failed on {{ $labels.vm_name }}."
+
+    - name: compliance.windows.warning
+      interval: 60s
+      rules:
 
         # Compliance score below threshold
         - alert: ComplianceScoreCritical
@@ -83,21 +102,6 @@ spec:
           annotations:
             summary: "Compliance score below target on {{ $labels.vm_name }}"
             description: "VM {{ $labels.vm_name }} has compliance score {{ $value }}%, below the target of 95%."
-
-    - name: compliance.windows.info
-      interval: 60s  # CAT III - reduced from 120s for faster detection
-      rules:
-        # CAT III (Info) violations
-        - alert: ComplianceCAT3Violation
-          expr: |
-            compliance_control_status{category="CAT3", status="fail"} == 1
-          for: 1m
-          labels:
-            severity: info
-            category: CAT3
-          annotations:
-            summary: "Low severity compliance issue on {{ $labels.vm_name }}"
-            description: "CAT III control {{ $labels.control_id }} failed on {{ $labels.vm_name }}."
 
     - name: compliance.windows.operations
       interval: 60s

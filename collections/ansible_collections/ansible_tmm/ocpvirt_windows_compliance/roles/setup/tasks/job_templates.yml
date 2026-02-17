@@ -34,8 +34,6 @@
     inventory: "{{ aap_inventory_windows }}"
     credentials:
       - "{{ aap_credential_windows }}"
-    ask_variables_on_launch: true
-    ask_limit_on_launch: true
     survey_enabled: true
     survey_spec:
       name: "SCC Installation Parameters"
