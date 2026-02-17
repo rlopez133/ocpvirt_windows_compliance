@@ -24,14 +24,17 @@
         labels: "{{ compliance_labels | combine({'openshift.io/prometheus-rule-evaluation-scope': 'leaf-prometheus'}) | combine(prometheus_config.labels | default({})) }}"
       spec:
         groups:
-          - name: compliance.windows.alerts
-            interval: 60s
+          # Scan-triggered alerts - fire ONCE per scan, not continuously
+          - name: compliance.windows.scan_triggered
+            interval: 30s
             rules:
-              # CAT I (Critical) - Any failure is critical
+              # CAT I violations detected in new scan
               - alert: ComplianceCAT1Violation
                 expr: |
-                  compliance_control_status{category="CAT1", status="fail"} == 1
-                for: 1m
+                  (compliance_control_status{category="CAT1", status="fail"} == 1)
+                  and on(vm_name, namespace)
+                  (increase(compliance_scan_completed[5m]) > 0)
+                for: 0s
                 labels:
                   severity: critical
                   category: CAT1
@@ -40,11 +43,13 @@
                   description: "{% raw %}CAT I control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }} in namespace {{ $labels.namespace }}{% endraw %}"
                   runbook_url: "{% raw %}https://wiki/compliance/{{ $labels.control_id }}{% endraw %}"
 
-              # CAT II (Warning) - Significant but not critical
+              # CAT II violations detected in new scan
               - alert: ComplianceCAT2Violation
                 expr: |
-                  compliance_control_status{category="CAT2", status="fail"} == 1
-                for: 1m
+                  (compliance_control_status{category="CAT2", status="fail"} == 1)
+                  and on(vm_name, namespace)
+                  (increase(compliance_scan_completed[5m]) > 0)
+                for: 0s
                 labels:
                   severity: warning
                   category: CAT2
@@ -52,11 +57,13 @@
                   summary: "{% raw %}Compliance warning on {{ $labels.vm_name }}{% endraw %}"
                   description: "{% raw %}CAT II control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }}{% endraw %}"
 
-              # CAT III (Info) - Low severity
+              # CAT III violations detected in new scan
               - alert: ComplianceCAT3Violation
                 expr: |
-                  compliance_control_status{category="CAT3", status="fail"} == 1
-                for: 15m
+                  (compliance_control_status{category="CAT3", status="fail"} == 1)
+                  and on(vm_name, namespace)
+                  (increase(compliance_scan_completed[5m]) > 0)
+                for: 0s
                 labels:
                   severity: info
                   category: CAT3
@@ -64,6 +71,9 @@
                   summary: "{% raw %}Low severity compliance issue on {{ $labels.vm_name }}{% endraw %}"
                   description: "{% raw %}CAT III control {{ $labels.control_id }} failed on VM {{ $labels.vm_name }}{% endraw %}"
 
+          - name: compliance.windows.operations
+            interval: 60s
+            rules:
               # Overall compliance score below threshold
               - alert: ComplianceScoreBelowThreshold
                 expr: |
