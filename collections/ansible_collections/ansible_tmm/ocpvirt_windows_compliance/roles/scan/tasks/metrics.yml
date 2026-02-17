@@ -20,7 +20,7 @@
 
       # HELP compliance_last_scan_timestamp Timestamp of last scan
       # TYPE compliance_last_scan_timestamp gauge
-      compliance_last_scan_timestamp{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} {{ now(utc=true) | int }}
+      compliance_last_scan_timestamp{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} {{ now(utc=true).strftime('%s') }}
 
       # HELP compliance_scan_duration_seconds Duration of last scan
       # TYPE compliance_scan_duration_seconds gauge
