@@ -3,24 +3,13 @@ collections:
 - name: community.windows
 - name: ansible.windows
 - name: ansible.controller
-  source: https://github.com/ansible/awx.git
-  type: git
-  version: devel
+  version: ">=4.6.0"
 - name: ansible.platform
-  source: https://github.com/ansible/ansible.platform.git
-  type: git
-  version: devel
 - name: infra.aap_configuration
 - name: infra.windows_ops
   source: https://github.com/redhat-cop/infra.windows_ops.git
   type: git
   version: main
 - name: ansible.eda
-  source: https://github.com/ansible/event-driven-ansible.git
-  type: git
-  version: devel
 - name: ansible.hub
-  source: https://github.com/ansible-collections/ansible_hub.git
-  type: git
-  version: devel 
   #version: 001-fix-stig-rule-filter
