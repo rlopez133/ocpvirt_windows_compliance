@@ -1,0 +1,197 @@
+---
+# Bootstrap AAP Playbook
+# Creates initial credentials and project in AAP for the Windows Compliance Collection
+# Uses infra.aap_configuration collection for AAP 2.5+
+#
+# Usage:
+#   ansible-playbook bootstrap_aap.yml \
+#     -e aap_hostname=https://aap-gateway.example.com \
+#     -e aap_username=admin \
+#     -e aap_password=secret \
+#     -e ocp_api_url=https://api.cluster.example.com:6443 \
+#     -e ocp_token=sha256~xxxx \
+#     -e win_username=Administrator \
+#     -e win_password=secret
+#
+# Optional parameters:
+#   -e aap_validate_certs=true          # Validate AAP SSL certs (default: false)
+#   -e ocp_validate_certs=true          # Validate OCP SSL certs (default: false)
+#   -e project_branch=main              # Git branch for project (default: main)
+#   -e organization=Default             # AAP organization (default: Default)
+#
+# Prerequisites:
+#   ansible-galaxy collection install infra.aap_configuration
+
+- name: Bootstrap AAP with Windows Compliance Collection
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  vars:
+    # AAP Connection (required via -e)
+    aap_hostname: ""
+    aap_username: ""
+    aap_password: ""
+    aap_validate_certs: false
+
+    # OpenShift Credential (required via -e)
+    ocp_api_url: ""
+    ocp_token: ""
+    ocp_validate_certs: false
+
+    # Windows Credential (required via -e)
+    win_username: "Administrator"
+    win_password: ""
+
+    # Project settings
+    project_repo: "https://github.com/rlopez133/ocpvirt_windows_compliance.git"
+    project_branch: "main"
+    organization: "Default"
+
+    # Resource names
+    aap_credential_name: "AAP Controller Credential"
+    ocp_credential_name: "OpenShift Credential"
+    win_credential_name: "Win VM"
+    project_name: "Windows Compliance Collection"
+
+    # infra.aap_configuration data structures
+    controller_credentials:
+      # AAP Controller Credential - for setup role to create job templates
+      - name: "{{ aap_credential_name }}"
+        description: "Credential for AAP API access - used by setup role to create job templates"
+        organization: "{{ organization }}"
+        credential_type: "Red Hat Ansible Automation Platform"
+        inputs:
+          host: "{{ aap_hostname }}"
+          username: "{{ aap_username }}"
+          password: "{{ aap_password }}"
+          verify_ssl: "{{ aap_validate_certs }}"
+
+      # OpenShift Credential - for Kubernetes API access
+      - name: "{{ ocp_credential_name }}"
+        description: "OpenShift API access for compliance namespace operations"
+        organization: "{{ organization }}"
+        credential_type: "OpenShift or Kubernetes API Bearer Token"
+        inputs:
+          host: "{{ ocp_api_url }}"
+          bearer_token: "{{ ocp_token }}"
+          verify_ssl: "{{ ocp_validate_certs }}"
+
+      # Windows VM Credential - for Windows host access
+      - name: "{{ win_credential_name }}"
+        description: "Windows VM administrator access for compliance scanning and remediation"
+        organization: "{{ organization }}"
+        credential_type: "Machine"
+        inputs:
+          username: "{{ win_username }}"
+          password: "{{ win_password }}"
+
+    controller_projects:
+      - name: "{{ project_name }}"
+        description: "Windows VM STIG compliance scanning and remediation collection"
+        organization: "{{ organization }}"
+        scm_type: git
+        scm_url: "{{ project_repo }}"
+        scm_branch: "{{ project_branch }}"
+        scm_clean: true
+        scm_delete_on_update: false
+        scm_update_on_launch: false
+
+  pre_tasks:
+    - name: Validate required AAP connection parameters
+      ansible.builtin.assert:
+        that:
+          - aap_hostname | length > 0
+          - aap_username | length > 0
+          - aap_password | length > 0
+        fail_msg: |
+          Missing required AAP connection parameters.
+          Required: aap_hostname, aap_username, aap_password
+
+          Example:
+            ansible-playbook bootstrap_aap.yml \
+              -e aap_hostname=https://aap.example.com \
+              -e aap_username=admin \
+              -e aap_password=secret \
+              ...
+
+    - name: Validate required credential parameters
+      ansible.builtin.assert:
+        that:
+          - ocp_api_url | length > 0
+          - ocp_token | length > 0
+          - win_password | length > 0
+        fail_msg: |
+          Missing required credential parameters.
+          Required: ocp_api_url, ocp_token, win_password
+
+          Example:
+            ansible-playbook bootstrap_aap.yml \
+              ...
+              -e ocp_api_url=https://api.cluster.example.com:6443 \
+              -e ocp_token=sha256~xxxx \
+              -e win_username=Administrator \
+              -e win_password=secret
+
+    - name: Display bootstrap configuration
+      ansible.builtin.debug:
+        msg: |
+          Bootstrapping AAP with Windows Compliance Collection
+          =====================================================
+          AAP Host: {{ aap_hostname }}
+          Organization: {{ organization }}
+
+          Credentials to create:
+            - {{ aap_credential_name }} (Red Hat Ansible Automation Platform)
+            - {{ ocp_credential_name }} (OpenShift/Kubernetes API Bearer Token)
+            - {{ win_credential_name }} (Machine)
+
+          Project to create:
+            - {{ project_name }}
+            - Repository: {{ project_repo }}
+            - Branch: {{ project_branch }}
+
+  roles:
+    - role: infra.aap_configuration.controller_credentials
+      when: controller_credentials is defined
+
+    - role: infra.aap_configuration.controller_projects
+      when: controller_projects is defined
+
+  post_tasks:
+    - name: Sync project to fetch latest content
+      ansible.controller.project_update:
+        project: "{{ project_name }}"
+        wait: true
+        timeout: 300
+        controller_host: "{{ aap_hostname }}"
+        controller_username: "{{ aap_username }}"
+        controller_password: "{{ aap_password }}"
+        validate_certs: "{{ aap_validate_certs }}"
+      register: project_sync_result
+
+    - name: Display bootstrap summary
+      ansible.builtin.debug:
+        msg: |
+          =====================================================
+          AAP Bootstrap Complete!
+          =====================================================
+
+          Credentials Created:
+            - {{ aap_credential_name }}
+            - {{ ocp_credential_name }}
+            - {{ win_credential_name }}
+
+          Project Created:
+            - {{ project_name }} ({{ project_branch }})
+            - Sync Status: {{ 'Completed' if project_sync_result is defined else 'Pending' }}
+
+          Next Steps:
+          -----------
+          1. Create 'Win VMs' inventory with your Windows hosts
+          2. Create 'Compliance-Setup' job template:
+             - Inventory: Demo Inventory
+             - Project: {{ project_name }}
+             - Playbook: collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks/setup.yml
+             - Credentials: {{ ocp_credential_name }}, {{ aap_credential_name }}
+          3. Run Compliance-Setup to create remaining job templates
