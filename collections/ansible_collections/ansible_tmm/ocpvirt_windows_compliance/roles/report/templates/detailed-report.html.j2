@@ -553,11 +553,11 @@
                 <div class="label">Average Compliance</div>
             </div>
             <div class="summary-card success">
-                <div class="value success">{{ compliance_data.current_scores | selectattr('value.1', 'ge', 95) | list | length }}</div>
+                <div class="value success">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('ge', 95) | list | length }}</div>
                 <div class="label">Compliant VMs</div>
             </div>
             <div class="summary-card danger">
-                <div class="value danger">{{ compliance_data.current_scores | selectattr('value.1', 'lt', 95) | list | length }}</div>
+                <div class="value danger">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('lt', 95) | list | length }}</div>
                 <div class="label">Non-Compliant</div>
             </div>
         </div>
@@ -567,17 +567,17 @@
             <div class="section-body">
                 <div class="findings-grid">
                     <div class="finding-card cat1">
-                        <div class="count">{{ findings_summary.cat1 | default(0) }}</div>
+                        <div class="count">{{ report_summary.cat1_failed | default(0) }}</div>
                         <div class="category">CAT I - Critical</div>
                         <div class="description">Immediate action required</div>
                     </div>
                     <div class="finding-card cat2">
-                        <div class="count">{{ findings_summary.cat2 | default(0) }}</div>
+                        <div class="count">{{ report_summary.cat2_failed | default(0) }}</div>
                         <div class="category">CAT II - High</div>
                         <div class="description">Remediate within 30 days</div>
                     </div>
                     <div class="finding-card cat3">
-                        <div class="count">{{ findings_summary.cat3 | default(0) }}</div>
+                        <div class="count">{{ report_summary.cat3_failed | default(0) }}</div>
                         <div class="category">CAT III - Medium</div>
                         <div class="description">Remediate within 90 days</div>
                     </div>
@@ -603,27 +603,27 @@
                     <tr>
                         <td>
                             <div class="vm-name">
-                                {{ vm.metric.vm_name | default('Unknown') }}
+                                {{ vm.vm_name | default('Unknown') }}
                                 <span class="namespace">{{ tenant_namespace }}</span>
                             </div>
                         </td>
-                        <td><span class="profile-tag">{{ vm.metric.profile | default('STIG') }}</span></td>
+                        <td><span class="profile-tag">STIG</span></td>
                         <td>
-                            <span class="score-badge {% if vm.value[1] | float >= 95 %}compliant{% elif vm.value[1] | float >= 80 %}warning{% else %}critical{% endif %}">
-                                {{ vm.value[1] | default(0) }}%
+                            <span class="score-badge {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
+                                {{ vm.score | default(0) }}%
                             </span>
                         </td>
                         <td>
                             <div class="progress-bar">
-                                <div class="progress-fill {% if vm.value[1] | float >= 95 %}compliant{% elif vm.value[1] | float >= 80 %}warning{% else %}critical{% endif %}" style="width: {{ vm.value[1] | default(0) }}%"></div>
+                                <div class="progress-fill {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}" style="width: {{ vm.score | default(0) }}%"></div>
                             </div>
                         </td>
                         <td>
-                            <span class="status-indicator {% if vm.value[1] | float >= 95 %}compliant{% elif vm.value[1] | float >= 80 %}warning{% else %}critical{% endif %}">
-                                {% if vm.value[1] | float >= 95 %}Compliant{% elif vm.value[1] | float >= 80 %}Warning{% else %}Critical{% endif %}
+                            <span class="status-indicator {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
+                                {% if vm.score | float >= 95 %}Compliant{% elif vm.score | float >= 80 %}Warning{% else %}Critical{% endif %}
                             </span>
                         </td>
-                        <td>{{ vm.value[0] | default('N/A') }}</td>
+                        <td>{{ vm.timestamp | default('N/A') }}</td>
                     </tr>
 {% endfor %}
                 </tbody>
@@ -636,27 +636,27 @@
 {% for vm in compliance_data.current_scores %}
                 <div class="vm-detail-card">
                     <div class="vm-detail-header">
-                        <h3>{{ vm.metric.vm_name | default('Unknown VM') }}</h3>
-                        <span class="score-badge {% if vm.value[1] | float >= 95 %}compliant{% elif vm.value[1] | float >= 80 %}warning{% else %}critical{% endif %}">
-                            {{ vm.value[1] | default(0) }}%
+                        <h3>{{ vm.vm_name | default('Unknown VM') }}</h3>
+                        <span class="score-badge {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
+                            {{ vm.score | default(0) }}%
                         </span>
                     </div>
                     <div class="vm-detail-grid">
                         <div class="vm-detail-item">
                             <label>Compliance Score</label>
-                            <span>{{ vm.value[1] | default(0) }}%</span>
+                            <span>{{ vm.score | default(0) }}%</span>
                         </div>
                         <div class="vm-detail-item">
-                            <label>Profile</label>
-                            <span>{{ vm.metric.profile | default('STIG') }}</span>
+                            <label>Passed / Failed</label>
+                            <span>{{ vm.passed | default(0) }} / {{ vm.failed | default(0) }}</span>
                         </div>
                         <div class="vm-detail-item">
-                            <label>Framework</label>
-                            <span>{{ vm.metric.framework | default('DISA STIG') }}</span>
+                            <label>CAT I / II / III Failed</label>
+                            <span>{{ vm.cat1_failed | default(0) }} / {{ vm.cat2_failed | default(0) }} / {{ vm.cat3_failed | default(0) }}</span>
                         </div>
                         <div class="vm-detail-item">
                             <label>Last Scan</label>
-                            <span>{{ vm.value[0] | default('N/A') }}</span>
+                            <span>{{ vm.timestamp | default('N/A') }}</span>
                         </div>
                     </div>
                 </div>

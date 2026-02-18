@@ -41,11 +41,11 @@
                 <div class="label">Average Compliance</div>
             </div>
             <div class="summary-card">
-                <div class="value status-compliant">{{ compliance_data.current_scores | selectattr('value.1', 'ge', '95') | list | length }}</div>
+                <div class="value status-compliant">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('ge', 95) | list | length }}</div>
                 <div class="label">Compliant VMs</div>
             </div>
             <div class="summary-card">
-                <div class="value status-critical">{{ compliance_data.current_scores | selectattr('value.1', 'lt', '95') | list | length }}</div>
+                <div class="value status-critical">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('lt', 95) | list | length }}</div>
                 <div class="label">Non-Compliant VMs</div>
             </div>
         </div>
@@ -63,11 +63,11 @@
             <tbody>
 {% for vm in compliance_data.current_scores %}
                 <tr>
-                    <td>{{ vm.metric.vm_name | default('Unknown') }}</td>
-                    <td>{{ vm.metric.profile | default('STIG') }}</td>
-                    <td>{{ vm.value[1] | default(0) }}%</td>
-                    <td class="{% if vm.value[1] | float >= 95 %}status-compliant{% elif vm.value[1] | float >= 80 %}status-warning{% else %}status-critical{% endif %}">
-                        {% if vm.value[1] | float >= 95 %}Compliant{% elif vm.value[1] | float >= 80 %}Warning{% else %}Critical{% endif %}
+                    <td>{{ vm.vm_name | default('Unknown') }}</td>
+                    <td>STIG</td>
+                    <td>{{ vm.score | default(0) }}%</td>
+                    <td class="{% if vm.score | float >= 95 %}status-compliant{% elif vm.score | float >= 80 %}status-warning{% else %}status-critical{% endif %}">
+                        {% if vm.score | float >= 95 %}Compliant{% elif vm.score | float >= 80 %}Warning{% else %}Critical{% endif %}
                     </td>
                 </tr>
 {% endfor %}
