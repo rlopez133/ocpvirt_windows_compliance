@@ -24,6 +24,10 @@
 - name: Generate report
   ansible.builtin.include_tasks: generate.yml
 
+- name: Setup reports infrastructure
+  when: push_to_storage
+  ansible.builtin.include_tasks: infrastructure.yml
+
 - name: Store report
   when: push_to_storage
   ansible.builtin.include_tasks: store.yml
@@ -33,7 +37,7 @@
     msg: |
       Report Generated
       ================
-      Path: {{ report_path }}
+      URL: {{ reports_base_url | default('N/A') }}/{{ report_filename }}
       Format: {{ report_format }}
       VMs Covered: {{ report_summary.vms_covered | default(0) }}
       Average Score: {{ report_summary.average_score | default('N/A') }}%
