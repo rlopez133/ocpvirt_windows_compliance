@@ -7,7 +7,7 @@
     namespace: "{{ tenant_namespace }}"
     pod: "{{ reports_pod_name }}"
     local_path: "{{ report_path }}"
-    remote_path: "/opt/app-root/src/{{ report_filename }}"
+    remote_path: "/opt/bitnami/nginx/html/{{ report_filename }}"
     no_preserve: true
 
 - name: Create index.html with report links
@@ -15,11 +15,11 @@
     namespace: "{{ tenant_namespace }}"
     pod: "{{ reports_pod_name }}"
     command: >
-      sh -c "ls -1 /opt/app-root/src/*.html 2>/dev/null |
+      sh -c "ls -1 /opt/bitnami/nginx/html/*.html 2>/dev/null |
       while read f; do
         echo \"<li><a href='$(basename $f)'>$(basename $f)</a></li>\";
       done |
-      (echo '<html><head><title>Compliance Reports</title></head><body><h1>Compliance Reports</h1><ul>'; cat; echo '</ul></body></html>') > /opt/app-root/src/index.html"
+      (echo '<html><head><title>Compliance Reports</title></head><body><h1>Compliance Reports</h1><ul>'; cat; echo '</ul></body></html>') > /opt/bitnami/nginx/html/index.html"
   ignore_errors: true
 
 - name: Display report URL
