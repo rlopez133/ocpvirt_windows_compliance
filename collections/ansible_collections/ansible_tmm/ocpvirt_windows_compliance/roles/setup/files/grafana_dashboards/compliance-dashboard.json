@@ -61,7 +61,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "avg(compliance_score{namespace=~\"$namespace\"})",
+          "expr": "avg(compliance_score{namespace=~\"$namespace\", vm_name=~\"$vm_name\"})",
           "refId": "A"
         }
       ],
@@ -112,7 +112,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(count by (vm_name) (compliance_score{namespace=~\"$namespace\"}))",
+          "expr": "count(count by (vm_name) (compliance_score{namespace=~\"$namespace\", vm_name=~\"$vm_name\"}))",
           "refId": "A"
         }
       ],
@@ -167,7 +167,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(count by (vm_name, control_id) (compliance_control_status{namespace=~\"$namespace\", category=\"CAT1\", status=\"fail\"} == 1)) or vector(0)",
+          "expr": "count(count by (vm_name, control_id) (compliance_control_status{namespace=~\"$namespace\", vm_name=~\"$vm_name\", category=\"CAT1\", status=\"fail\"} == 1)) or vector(0)",
           "refId": "A"
         }
       ],
@@ -226,7 +226,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(count by (vm_name, control_id) (compliance_control_status{namespace=~\"$namespace\", category=\"CAT2\", status=\"fail\"} == 1)) or vector(0)",
+          "expr": "count(count by (vm_name, control_id) (compliance_control_status{namespace=~\"$namespace\", vm_name=~\"$vm_name\", category=\"CAT2\", status=\"fail\"} == 1)) or vector(0)",
           "refId": "A"
         }
       ],
@@ -281,7 +281,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(count by (vm_name, control_id) (compliance_control_status{namespace=~\"$namespace\", category=\"CAT3\", status=\"fail\"} == 1)) or vector(0)",
+          "expr": "count(count by (vm_name, control_id) (compliance_control_status{namespace=~\"$namespace\", vm_name=~\"$vm_name\", category=\"CAT3\", status=\"fail\"} == 1)) or vector(0)",
           "refId": "A"
         }
       ],
@@ -332,7 +332,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(count by (vm_name) (compliance_score{namespace=~\"$namespace\"} >= 70)) or vector(0)",
+          "expr": "count(count by (vm_name) (compliance_score{namespace=~\"$namespace\", vm_name=~\"$vm_name\"} >= 70)) or vector(0)",
           "refId": "A"
         }
       ],
@@ -424,7 +424,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "compliance_score{namespace=~\"$namespace\"}",
+          "expr": "compliance_score{namespace=~\"$namespace\", vm_name=~\"$vm_name\"}",
           "legendFormat": "{{ vm_name }}",
           "refId": "A"
         }
@@ -597,28 +597,28 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "compliance_score{namespace=~\"$namespace\"}",
+          "expr": "compliance_score{namespace=~\"$namespace\", vm_name=~\"$vm_name\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
           "refId": "Score"
         },
         {
-          "expr": "compliance_controls_passed{namespace=~\"$namespace\"}",
+          "expr": "compliance_controls_passed{namespace=~\"$namespace\", vm_name=~\"$vm_name\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
           "refId": "Passed"
         },
         {
-          "expr": "compliance_controls_failed{namespace=~\"$namespace\"}",
+          "expr": "compliance_controls_failed{namespace=~\"$namespace\", vm_name=~\"$vm_name\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
           "refId": "Failed"
         },
         {
-          "expr": "compliance_last_scan_timestamp{namespace=~\"$namespace\"} * 1000",
+          "expr": "compliance_last_scan_timestamp{namespace=~\"$namespace\", vm_name=~\"$vm_name\"} * 1000",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -820,12 +820,12 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "increase(compliance_scans_total{namespace=~\"$namespace\", result=\"success\"}[$__rate_interval])",
+          "expr": "increase(compliance_scans_total{namespace=~\"$namespace\", vm_name=~\"$vm_name\", result=\"success\"}[$__rate_interval])",
           "legendFormat": "{{ vm_name }} (success)",
           "refId": "A"
         },
         {
-          "expr": "increase(compliance_scans_total{namespace=~\"$namespace\", result=\"failed\"}[$__rate_interval])",
+          "expr": "increase(compliance_scans_total{namespace=~\"$namespace\", vm_name=~\"$vm_name\", result=\"failed\"}[$__rate_interval])",
           "legendFormat": "{{ vm_name }} (failed)",
           "refId": "B"
         }
@@ -939,12 +939,12 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "increase(compliance_remediations_total{namespace=~\"$namespace\", result=\"success\"}[$__rate_interval])",
+          "expr": "increase(compliance_remediations_total{namespace=~\"$namespace\", vm_name=~\"$vm_name\", result=\"success\"}[$__rate_interval])",
           "legendFormat": "{{ vm_name }} (success)",
           "refId": "A"
         },
         {
-          "expr": "increase(compliance_remediations_total{namespace=~\"$namespace\", result=\"failed\"}[$__rate_interval])",
+          "expr": "increase(compliance_remediations_total{namespace=~\"$namespace\", vm_name=~\"$vm_name\", result=\"failed\"}[$__rate_interval])",
           "legendFormat": "{{ vm_name }} (failed)",
           "refId": "B"
         }
@@ -996,7 +996,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(increase(compliance_scans_total{namespace=~\"$namespace\"}[$__range]))",
+          "expr": "sum(increase(compliance_scans_total{namespace=~\"$namespace\", vm_name=~\"$vm_name\"}[$__range]))",
           "refId": "A"
         }
       ],
@@ -1047,7 +1047,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(increase(compliance_remediations_total{namespace=~\"$namespace\", result=\"success\"}[$__range]))",
+          "expr": "sum(increase(compliance_remediations_total{namespace=~\"$namespace\", vm_name=~\"$vm_name\", result=\"success\"}[$__range]))",
           "refId": "A"
         }
       ],
@@ -1102,7 +1102,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(increase(compliance_remediations_total{namespace=~\"$namespace\", result=\"failed\"}[$__range]))",
+          "expr": "sum(increase(compliance_remediations_total{namespace=~\"$namespace\", vm_name=~\"$vm_name\", result=\"failed\"}[$__range]))",
           "refId": "A"
         }
       ],
@@ -1162,7 +1162,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(increase(compliance_remediations_total{namespace=~\"$namespace\", result=\"success\"}[$__range])) / (sum(increase(compliance_remediations_total{namespace=~\"$namespace\"}[$__range])) > 0) or vector(1)",
+          "expr": "sum(increase(compliance_remediations_total{namespace=~\"$namespace\", vm_name=~\"$vm_name\", result=\"success\"}[$__range])) / (sum(increase(compliance_remediations_total{namespace=~\"$namespace\", vm_name=~\"$vm_name\"}[$__range])) > 0) or vector(1)",
           "refId": "A"
         }
       ],
