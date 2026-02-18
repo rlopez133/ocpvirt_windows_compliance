@@ -29,6 +29,11 @@
 
   vars:
     # AAP Connection (required via -e)
+    # infra.aap_configuration uses controller_* variable names
+    controller_hostname: "{{ aap_hostname | default('') }}"
+    controller_username: "{{ aap_username | default('') }}"
+    controller_password: "{{ aap_password | default('') }}"
+    controller_validate_certs: "{{ aap_validate_certs | default(false) }}"
     aap_hostname: ""
     aap_username: ""
     aap_password: ""
@@ -164,10 +169,10 @@
         project: "{{ project_name }}"
         wait: true
         timeout: 300
-        controller_host: "{{ aap_hostname }}"
-        controller_username: "{{ aap_username }}"
-        controller_password: "{{ aap_password }}"
-        validate_certs: "{{ aap_validate_certs }}"
+        controller_host: "{{ controller_hostname }}"
+        controller_username: "{{ controller_username }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ controller_validate_certs }}"
       register: project_sync_result
 
     - name: Display bootstrap summary

@@ -3,7 +3,7 @@
 # Generate compliance audit reports
 
 # Required variables (override in job template)
-tenant_namespace: ""
+tenant_namespace: "compliance"
 report_period_start: ""  # ISO date: 2026-01-01
 report_period_end: ""    # ISO date: 2026-03-31
 

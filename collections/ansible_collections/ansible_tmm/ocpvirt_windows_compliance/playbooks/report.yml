@@ -9,12 +9,6 @@
   connection: local
   gather_facts: true
 
-  vars:
-    tenant_namespace: ""
-    report_format: "html"
-    report_template: "standard"
-    include_evidence: true
-
   pre_tasks:
     - name: Validate required variables
       ansible.builtin.assert:
