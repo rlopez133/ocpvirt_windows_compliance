@@ -23,6 +23,7 @@ report_filename_prefix: "compliance-report"
 # Storage
 push_to_storage: true
 storage_backend: "pvc"  # pvc | s3
+reports_storage_class: ""  # Leave empty for cluster default, or specify e.g. "ocs-external-storagecluster-cephfs"
 
 # Notification
 send_notification: false
