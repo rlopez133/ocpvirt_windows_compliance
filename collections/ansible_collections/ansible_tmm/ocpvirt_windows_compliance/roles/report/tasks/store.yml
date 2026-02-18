@@ -16,7 +16,13 @@
       delegate_to: localhost
       ignore_errors: true
 
-    - name: Fallback - store report as ConfigMap
+    - name: Read generated HTML report
+      ansible.builtin.slurp:
+        src: "{{ report_path }}"
+      register: report_content
+      delegate_to: localhost
+
+    - name: Store full report in ConfigMap
       kubernetes.core.k8s:
         state: present
         definition:
@@ -29,7 +35,7 @@
               compliance.ocpvirt/type: "report"
               compliance.ocpvirt/date: "{{ ansible_date_time.date }}"
           data:
-            report_path: "{{ report_path }}"
+            report.html: "{{ report_content.content | b64decode }}"
             report_summary: "{{ report_summary | to_json }}"
       delegate_to: localhost
 
