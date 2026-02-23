@@ -1,6 +1,6 @@
 ---
 # Bootstrap AAP Playbook
-# Creates initial credentials and project in AAP for the Windows Compliance Collection
+# Creates credentials, project, inventory, and Compliance-Setup job template
 # Uses infra.aap_configuration collection for AAP 2.5+
 #
 # Usage:
@@ -18,22 +18,23 @@
 #   -e ocp_validate_certs=true          # Validate OCP SSL certs (default: false)
 #   -e project_branch=main              # Git branch for project (default: main)
 #   -e organization=Default             # AAP organization (default: Default)
+#   -e vm_namespaces='["namespace1"]'   # OpenShift namespaces with Windows VMs (default: ["vmimported-user1"])
+#   -e tenant_namespace=compliance      # Namespace for compliance resources (default: compliance)
 #
 # Prerequisites:
 #   ansible-galaxy collection install infra.aap_configuration
+#   ansible-galaxy collection install ansible.controller
+#   ansible-galaxy collection install ansible.platform
+#   ansible-galaxy collection install ansible.eda
+#   ansible-galaxy collection install ansible.hub
 
 - name: Bootstrap AAP with Windows Compliance Collection
   hosts: localhost
   gather_facts: false
-  connection: local
 
   vars:
     # AAP Connection (required via -e)
-    # infra.aap_configuration uses controller_* variable names
-    controller_hostname: "{{ aap_hostname | default('') }}"
-    controller_username: "{{ aap_username | default('') }}"
-    controller_password: "{{ aap_password | default('') }}"
-    controller_validate_certs: "{{ aap_validate_certs | default(false) }}"
+    # infra.aap_configuration uses aap_* variable names
     aap_hostname: ""
     aap_username: ""
     aap_password: ""
@@ -53,11 +54,20 @@
     project_branch: "main"
     organization: "Default"
 
+    # Inventory settings
+    vm_namespaces:
+      - "vmimported-user1"
+    tenant_namespace: "compliance"
+
     # Resource names
     aap_credential_name: "AAP Controller Credential"
     ocp_credential_name: "OpenShift Credential"
     win_credential_name: "Win VM"
     project_name: "Windows Compliance Collection"
+    inventory_name: "Win VMs"
+    inventory_source_name: "Windows VMs"
+    job_template_name: "Compliance-Setup"
+    localhost_inventory_name: "Demo Inventory"
 
     # infra.aap_configuration data structures
     controller_credentials:
@@ -102,7 +112,61 @@
         scm_delete_on_update: false
         scm_update_on_launch: false
 
-  pre_tasks:
+    controller_inventories:
+      - name: "{{ inventory_name }}"
+        description: "Windows VMs from OpenShift Virtualization"
+        organization: "{{ organization }}"
+        variables:
+          ansible_connection: winrm
+          ansible_winrm_transport: basic
+          ansible_winrm_server_cert_validation: ignore
+          ansible_port: 5985
+
+    controller_inventory_sources:
+      - name: "{{ inventory_source_name }}"
+        description: "Discover Windows VMs from OpenShift Virtualization"
+        inventory: "{{ inventory_name }}"
+        source: openshift_virtualization
+        credential: "{{ ocp_credential_name }}"
+        source_vars:
+          namespaces: "{{ vm_namespaces }}"
+        overwrite: false
+        overwrite_vars: false
+        update_on_launch: true
+
+    controller_templates:
+      - name: "{{ job_template_name }}"
+        description: "Setup compliance infrastructure and create job templates"
+        organization: "{{ organization }}"
+        inventory: "{{ localhost_inventory_name }}"
+        project: "{{ project_name }}"
+        playbook: "collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks/setup.yml"
+        credentials:
+          - "{{ aap_credential_name }}"
+          - "{{ ocp_credential_name }}"
+        extra_vars:
+          tenant_config:
+            name: "default"
+            namespace: "{{ tenant_namespace }}"
+            storage:
+              backend: "pvc"
+              pvc_name: "compliance-reports"
+              pvc_size: "50Gi"
+          aap_create_job_templates: true
+          aap_job_template_organization: "{{ organization }}"
+          aap_job_template_project: "{{ project_name }}"
+          aap_credential_openshift: "{{ ocp_credential_name }}"
+          aap_credential_windows: "{{ win_credential_name }}"
+          aap_inventory_windows: "{{ inventory_name }}"
+          aap_inventory_localhost: "{{ localhost_inventory_name }}"
+          aap_playbook_path_prefix: "collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks"
+          eda_enabled: true
+          eda_project_url: "{{ project_repo }}"
+          eda_organization: "{{ organization }}"
+          ocpvirt_compliance_enable_user_workload_monitoring: true
+          ocpvirt_compliance_grafana_dashboards: true
+
+  tasks:
     - name: Validate required AAP connection parameters
       ansible.builtin.assert:
         that:
@@ -138,42 +202,54 @@
               -e win_username=Administrator \
               -e win_password=secret
 
-    - name: Display bootstrap configuration
-      ansible.builtin.debug:
-        msg: |
-          Bootstrapping AAP with Windows Compliance Collection
-          =====================================================
-          AAP Host: {{ aap_hostname }}
-          Organization: {{ organization }}
-
-          Credentials to create:
-            - {{ aap_credential_name }} (Red Hat Ansible Automation Platform)
-            - {{ ocp_credential_name }} (OpenShift/Kubernetes API Bearer Token)
-            - {{ win_credential_name }} (Machine)
-
-          Project to create:
-            - {{ project_name }}
-            - Repository: {{ project_repo }}
-            - Branch: {{ project_branch }}
-
-  roles:
-    - role: infra.aap_configuration.controller_credentials
+    - name: Create credentials
+      ansible.builtin.include_role:
+        name: infra.aap_configuration.controller_credentials
       when: controller_credentials is defined
 
-    - role: infra.aap_configuration.controller_projects
+    - name: Create project
+      ansible.builtin.include_role:
+        name: infra.aap_configuration.controller_projects
       when: controller_projects is defined
 
-  post_tasks:
-    - name: Sync project to fetch latest content
+    - name: Sync project to fetch playbooks
       ansible.controller.project_update:
         project: "{{ project_name }}"
         wait: true
         timeout: 300
-        controller_host: "{{ controller_hostname }}"
-        controller_username: "{{ controller_username }}"
-        controller_password: "{{ controller_password }}"
-        validate_certs: "{{ controller_validate_certs }}"
+        controller_host: "{{ aap_hostname }}"
+        controller_username: "{{ aap_username }}"
+        controller_password: "{{ aap_password }}"
+        validate_certs: "{{ aap_validate_certs }}"
+      when: controller_projects is defined
       register: project_sync_result
+
+    - name: Create inventory
+      ansible.builtin.include_role:
+        name: infra.aap_configuration.controller_inventories
+      when: controller_inventories is defined
+
+    - name: Create inventory source
+      ansible.builtin.include_role:
+        name: infra.aap_configuration.controller_inventory_sources
+      when: controller_inventory_sources is defined
+
+    - name: Create job template
+      ansible.builtin.include_role:
+        name: infra.aap_configuration.controller_job_templates
+      when: controller_templates is defined
+
+#    - name: Sync inventory source
+#      ansible.controller.inventory_source_update:
+#        inventory_source: "{{ inventory_source_name }}"
+#        inventory: "{{ inventory_name }}"
+#        wait: true
+#        timeout: 300
+#        controller_host: "{{ aap_hostname }}"
+#        controller_username: "{{ aap_username }}"
+#        controller_password: "{{ aap_password }}"
+#        validate_certs: "{{ aap_validate_certs }}"
+#      register: inventory_sync_result
 
     - name: Display bootstrap summary
       ansible.builtin.debug:
@@ -191,12 +267,18 @@
             - {{ project_name }} ({{ project_branch }})
             - Sync Status: {{ 'Completed' if project_sync_result is defined else 'Pending' }}
 
+          Inventory Created:
+            - {{ inventory_name }}
+            - Source: {{ inventory_source_name }} (openshift_virtualization)
+            - Namespaces: {{ vm_namespaces | join(', ') }}
+            - Sync Status: {{ 'Completed' if inventory_sync_result is defined else 'Pending' }}
+
+          Job Template Created:
+            - {{ job_template_name }}
+
           Next Steps:
           -----------
-          1. Create 'Win VMs' inventory with your Windows hosts
-          2. Create 'Compliance-Setup' job template:
-             - Inventory: Demo Inventory
-             - Project: {{ project_name }}
-             - Playbook: collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks/setup.yml
-             - Credentials: {{ ocp_credential_name }}, {{ aap_credential_name }}
-          3. Run Compliance-Setup to create remaining job templates
+          1. Run the '{{ job_template_name }}' job template to:
+             - Deploy compliance infrastructure (Prometheus, Grafana, Pushgateway)
+             - Create remaining job templates (Scan, Remediate, Report)
+             - Configure EDA for automated remediation
