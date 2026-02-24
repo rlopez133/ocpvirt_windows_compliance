@@ -4,7 +4,7 @@
 
 Target VM:          {{ scan_result.vm_name }}
 Namespace:          {{ scan_result.namespace | default('N/A') }}
-Profile:            {{ scan_result.profile }}
+Benchmark:          {{ scan_result.benchmark }}
 OS Version:         Windows Server {{ scan_result.os_version }}
 Scan ID:            {{ scan_result.scan_id }}
 Timestamp:          {{ scan_result.timestamp }}
@@ -72,7 +72,7 @@ Example AAP workflow:
 {% elif scan_result.score.score < 100 %}
 INFO: No CAT I failures. Review CAT II/III findings for additional hardening.
 {% else %}
-SUCCESS: System is fully compliant with {{ scan_result.profile | upper }} profile.
+SUCCESS: System is fully compliant with {{ scan_result.benchmark }} benchmark.
 {% endif %}
 
 ================================================================================

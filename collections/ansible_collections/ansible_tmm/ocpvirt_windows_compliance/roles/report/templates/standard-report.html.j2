@@ -367,11 +367,11 @@
                 <div class="label">Average Score</div>
             </div>
             <div class="summary-card success">
-                <div class="value success">{{ compliance_data.current_scores | selectattr('value.1', 'ge', 95) | list | length }}</div>
+                <div class="value success">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('ge', 95) | list | length }}</div>
                 <div class="label">Compliant VMs</div>
             </div>
             <div class="summary-card danger">
-                <div class="value danger">{{ compliance_data.current_scores | selectattr('value.1', 'lt', 95) | list | length }}</div>
+                <div class="value danger">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('lt', 95) | list | length }}</div>
                 <div class="label">Non-Compliant</div>
             </div>
         </div>
@@ -391,21 +391,21 @@
                 <tbody>
 {% for vm in compliance_data.current_scores %}
                     <tr>
-                        <td><span class="vm-name">{{ vm.metric.vm_name | default('Unknown') }}</span></td>
-                        <td><span class="profile-tag">{{ vm.metric.profile | default('STIG') }}</span></td>
+                        <td><span class="vm-name">{{ vm.vm_name | default('Unknown') }}</span></td>
+                        <td><span class="profile-tag">STIG</span></td>
                         <td>
-                            <span class="score-badge {% if vm.value[1] | float >= 95 %}compliant{% elif vm.value[1] | float >= 80 %}warning{% else %}critical{% endif %}">
-                                {{ vm.value[1] | default(0) }}%
+                            <span class="score-badge {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
+                                {{ vm.score | default(0) }}%
                             </span>
                         </td>
                         <td>
                             <div class="progress-bar">
-                                <div class="progress-fill {% if vm.value[1] | float >= 95 %}compliant{% elif vm.value[1] | float >= 80 %}warning{% else %}critical{% endif %}" style="width: {{ vm.value[1] | default(0) }}%"></div>
+                                <div class="progress-fill {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}" style="width: {{ vm.score | default(0) }}%"></div>
                             </div>
                         </td>
                         <td>
-                            <span class="status-indicator {% if vm.value[1] | float >= 95 %}compliant{% elif vm.value[1] | float >= 80 %}warning{% else %}critical{% endif %}">
-                                {% if vm.value[1] | float >= 95 %}Compliant{% elif vm.value[1] | float >= 80 %}Warning{% else %}Critical{% endif %}
+                            <span class="status-indicator {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
+                                {% if vm.score | float >= 95 %}Compliant{% elif vm.score | float >= 80 %}Warning{% else %}Critical{% endif %}
                             </span>
                         </td>
                     </tr>

@@ -76,7 +76,13 @@ _scc_version_to_name:
   win2016: "Windows_Server_2016_STIG"
 
 # =============================================================================
+# STIG Update Options
+# =============================================================================
+# Force re-download of STIG content even if already present
+# Use this to update to a newer STIG version
+scc_force_stig_update: false
+
+# =============================================================================
 # Verification
 # =============================================================================
 scc_verify_install: true
-scc_test_scan: false  # Run a test scan after installation

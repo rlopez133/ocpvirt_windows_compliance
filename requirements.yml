@@ -2,8 +2,14 @@ collections:
 - name: kubernetes.core
 - name: community.windows
 - name: ansible.windows
+- name: ansible.controller
+  version: ">=4.6.0"
+- name: ansible.platform
+- name: infra.aap_configuration
 - name: infra.windows_ops
   source: https://github.com/redhat-cop/infra.windows_ops.git
   type: git
   version: main
+- name: ansible.eda
+- name: ansible.hub
   #version: 001-fix-stig-rule-filter

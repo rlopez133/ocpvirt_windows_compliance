@@ -1,0 +1,84 @@
+---
+# Setup Role - Grafana Operator Installation
+# Installs the Grafana Operator from OperatorHub if not already present
+#
+# The Grafana Operator (by grafana-operator) provides CRDs for:
+# - Grafana: Grafana instance
+# - GrafanaDatasource: Prometheus/other datasources
+# - GrafanaDashboard: Dashboard definitions
+
+- name: Check if Grafana Operator CRD exists
+  kubernetes.core.k8s_info:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: grafanas.grafana.integreatly.org
+  register: grafana_crd_check
+
+- name: Install Grafana Operator if not present
+  when: grafana_crd_check.resources | length == 0
+  block:
+    - name: Display Grafana Operator installation notice
+      ansible.builtin.debug:
+        msg: |
+          Grafana Operator not found. Installing from OperatorHub...
+          - Operator: grafana-operator
+          - Namespace: openshift-operators (all namespaces mode)
+          - Channel: {{ grafana_operator_channel }}
+          - Source: community-operators
+
+    # Create the Subscription to install the operator
+    # Configuration matches existing OpenShift cluster installation
+    - name: Create Grafana Operator Subscription
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: operators.coreos.com/v1alpha1
+          kind: Subscription
+          metadata:
+            name: grafana-operator
+            namespace: openshift-operators
+            labels:
+              operators.coreos.com/grafana-operator.openshift-operators: ""
+          spec:
+            channel: "{{ grafana_operator_channel }}"
+            installPlanApproval: Automatic
+            name: grafana-operator
+            source: community-operators
+            sourceNamespace: openshift-marketplace
+
+    - name: Wait for Grafana Operator CRD to be created
+      kubernetes.core.k8s_info:
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        name: grafanas.grafana.integreatly.org
+      register: grafana_crd_wait
+      until: grafana_crd_wait.resources | length > 0
+      retries: 30
+      delay: 10
+
+    - name: Wait for Grafana Operator deployment to be ready
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        namespace: openshift-operators
+        label_selectors:
+          - "app.kubernetes.io/name=grafana-operator"
+      register: grafana_operator_deployment
+      until: >
+        grafana_operator_deployment.resources | length > 0 and
+        grafana_operator_deployment.resources[0].status.readyReplicas | default(0) | int > 0
+      retries: 30
+      delay: 10
+
+    - name: Display Grafana Operator installation success
+      ansible.builtin.debug:
+        msg: |
+          Grafana Operator installed successfully!
+          - Subscription: grafana-operator (openshift-operators)
+          - CRD: grafanas.grafana.integreatly.org
+          - Status: Ready
+
+- name: Display Grafana Operator status (already installed)
+  when: grafana_crd_check.resources | length > 0
+  ansible.builtin.debug:
+    msg: "Grafana Operator already installed - CRD grafanas.grafana.integreatly.org found"

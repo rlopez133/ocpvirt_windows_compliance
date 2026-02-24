@@ -8,7 +8,7 @@
     aggregate_metrics: |
       # HELP compliance_score Current compliance score percentage
       # TYPE compliance_score gauge
-      compliance_score{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",profile="{{ scan_result.profile }}",framework="stig"} {{ scan_result.score.score | default(0) }}
+      compliance_score{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",framework="stig"} {{ scan_result.score.score | default(0) }}
 
       # HELP compliance_controls_passed Number of passing controls
       # TYPE compliance_controls_passed gauge
@@ -20,7 +20,7 @@
 
       # HELP compliance_last_scan_timestamp Timestamp of last scan
       # TYPE compliance_last_scan_timestamp gauge
-      compliance_last_scan_timestamp{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} {{ ansible_date_time.epoch }}
+      compliance_last_scan_timestamp{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} {{ now(utc=true).strftime('%s') }}
 
       # HELP compliance_scan_duration_seconds Duration of last scan
       # TYPE compliance_scan_duration_seconds gauge
@@ -30,25 +30,29 @@
       # TYPE compliance_scans_total counter
       compliance_scans_total{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",result="{{ 'success' if scan_result.status != 'error' else 'failed' }}"} 1
 
+      # HELP compliance_scan_completed Scan completion signal for EDA triggering
+      # TYPE compliance_scan_completed counter
+      compliance_scan_completed{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}"} 1
+
 - name: Build per-control metrics for failed CAT I controls
   ansible.builtin.set_fact:
     cat1_failed_metrics: |
       {% for control_id in scan_result.failed_controls.cat1 | default([]) %}
-      compliance_control_status{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",control_id="{{ control_id }}",category="CAT1",status="fail",profile="{{ scan_result.profile }}"} 1
+      compliance_control_status{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",control_id="{{ control_id }}",category="CAT1",status="fail"} 1
       {% endfor %}
 
 - name: Build per-control metrics for failed CAT II controls
   ansible.builtin.set_fact:
     cat2_failed_metrics: |
       {% for control_id in scan_result.failed_controls.cat2 | default([]) %}
-      compliance_control_status{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",control_id="{{ control_id }}",category="CAT2",status="fail",profile="{{ scan_result.profile }}"} 1
+      compliance_control_status{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",control_id="{{ control_id }}",category="CAT2",status="fail"} 1
       {% endfor %}
 
 - name: Build per-control metrics for failed CAT III controls
   ansible.builtin.set_fact:
     cat3_failed_metrics: |
       {% for control_id in scan_result.failed_controls.cat3 | default([]) %}
-      compliance_control_status{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",control_id="{{ control_id }}",category="CAT3",status="fail",profile="{{ scan_result.profile }}"} 1
+      compliance_control_status{vm_name="{{ scan_result.vm_name }}",namespace="{{ scan_result.namespace }}",control_id="{{ control_id }}",category="CAT3",status="fail"} 1
       {% endfor %}
 
 - name: Combine all metrics into payload

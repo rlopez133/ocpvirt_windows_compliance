@@ -1,152 +1,131 @@
 # Ansible Collection - ansible_tmm.ocpvirt_windows_compliance
 
-Windows VM Compliance Lifecycle Management for OpenShift Virtualization.
+**Windows VM Compliance Lifecycle Management for OpenShift Virtualization**
 
-## Description
+Automate STIG compliance scanning, remediation, and monitoring for Windows VMs running on OpenShift Virtualization with Red Hat Ansible Automation Platform.
 
-This collection automates compliance lifecycle management for Windows VMs running on OpenShift Virtualization. It provides:
+## Overview
 
-- **Scanning**: DISA SCAP Compliance Checker (SCC) integration for compliance assessment
-- **Remediation**: Automated hardening for Windows Server 2019/2022 using DISA STIG controls
-- **Monitoring**: Prometheus metrics, Grafana dashboards, and OpenShift alerts
-- **Automation**: Event Driven Ansible (EDA) for automatic drift remediation
-- **Reporting**: Audit-ready compliance reports with evidence collection
+This collection provides end-to-end compliance lifecycle management for Windows Server VMs in OpenShift Virtualization environments. It integrates DISA SCAP Compliance Checker (SCC) for scanning, map-driven remediation for automated hardening, Prometheus/Grafana for monitoring, and Event-Driven Ansible (EDA) for automatic drift detection and remediation.
 
-## Supported Compliance Frameworks
+### Key Capabilities
 
-| Framework | Profile | Description |
-|-----------|---------|-------------|
-| DISA STIG | stig, stig-minimal | DoD Security Technical Implementation Guides |
-| CIS | cis | Center for Internet Security Benchmarks |
-| HIPAA | hipaa | Health Insurance Portability and Accountability Act |
-| PCI-DSS | pci-dss | Payment Card Industry Data Security Standard |
+| Capability | Description |
+|------------|-------------|
+| **Compliance Scanning** | DISA SCC integration with XCCDF result parsing and scoring by severity category |
+| **Automated Remediation** | Map-driven remediation supporting CAT I, CAT II, and CAT III controls |
+| **Real-Time Monitoring** | Prometheus metrics, AlertManager integration, and Grafana dashboards |
+| **Event-Driven Automation** | EDA rulebooks that trigger remediation when compliance scores drop |
+| **Audit Reporting** | Generate compliance reports with evidence collection for auditors |
+| **Golden Images** | Create pre-hardened VM templates for consistent deployments |
+
+## Target Audience
+
+This collection is designed for:
+
+- **Platform Engineers** managing OpenShift Virtualization clusters with Windows workloads
+- **Security Teams** responsible for compliance enforcement across Windows infrastructure
+- **DevOps/SRE Teams** automating compliance workflows in hybrid environments
+- **Government/Defense Contractors** requiring DISA STIG compliance for Windows systems
+- **Healthcare/Financial Organizations** needing HIPAA or PCI-DSS compliance automation
+
+## Architecture
+
+```
+                                    ┌─────────────────────────────────────────────┐
+                                    │           Ansible Automation Platform       │
+                                    │  ┌─────────────┐  ┌────────────────────┐   │
+                                    │  │ Job         │  │ Event-Driven       │   │
+                                    │  │ Templates   │  │ Ansible (EDA)      │   │
+                                    │  └──────┬──────┘  └─────────┬──────────┘   │
+                                    └─────────┼───────────────────┼──────────────┘
+                                              │                   │
+                            ┌─────────────────┼───────────────────┼─────────────────┐
+                            │                 ▼                   ▼                 │
+                            │  ┌──────────────────────────────────────────────────┐│
+                            │  │              OpenShift Cluster                   ││
+                            │  │  ┌─────────────────────────────────────────────┐ ││
+                            │  │  │           Compliance Namespace              │ ││
+                            │  │  │  ┌────────────┐ ┌────────────┐ ┌──────────┐ │ ││
+                            │  │  │  │Pushgateway │ │AlertManager│ │ Grafana  │ │ ││
+                            │  │  │  └─────┬──────┘ └─────┬──────┘ └────┬─────┘ │ ││
+                            │  │  │        │              │              │       │ ││
+                            │  │  │        └──────────────┼──────────────┘       │ ││
+                            │  │  │                       ▼                      │ ││
+                            │  │  │              ┌────────────────┐              │ ││
+                            │  │  │              │   Prometheus   │              │ ││
+                            │  │  │              │     Rules      │              │ ││
+                            │  │  │              └────────────────┘              │ ││
+                            │  │  └─────────────────────────────────────────────┘ ││
+                            │  │                                                  ││
+                            │  │  ┌─────────────────────────────────────────────┐ ││
+                            │  │  │        OpenShift Virtualization             │ ││
+                            │  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐   │ ││
+                            │  │  │  │Win 2022  │  │Win 2022  │  │Win 2019  │   │ ││
+                            │  │  │  │   VM     │  │   VM     │  │   VM     │   │ ││
+                            │  │  │  │(SCC+STIG)│  │(SCC+STIG)│  │(SCC+STIG)│   │ ││
+                            │  │  │  └──────────┘  └──────────┘  └──────────┘   │ ││
+                            │  │  └─────────────────────────────────────────────┘ ││
+                            │  └──────────────────────────────────────────────────┘│
+                            └───────────────────────────────────────────────────────┘
+```
+
 
 ## Requirements
 
-### Platform
+### Platform Requirements
 
-- OpenShift Container Platform 4.14+
-- OpenShift Virtualization (latest)
-- Ansible Automation Platform 2.5+
-- Event Driven Ansible Controller
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| OpenShift Container Platform | 4.14+ | Container orchestration |
+| OpenShift Virtualization | Latest | Windows VM hosting (KubeVirt) |
+| Ansible Automation Platform | 2.5+ | Automation controller |
+| Event-Driven Ansible | 2.5+ | Alert-driven automation |
 
-### Windows VMs
+### Windows VM Requirements
 
-- Windows Server 2019 or 2022
-- WinRM enabled (AAP manages connectivity)
+- Windows Server 2019 or Windows Server 2022
+- WinRM enabled (HTTP/5985 or HTTPS/5986)
 - PowerShell 5.1+
+- Administrator access for remediation
 
-### Ansible Dependencies
-
-```yaml
-collections:
-  - ansible.windows >= 2.1.0
-  - community.windows >= 2.0.0
-  - kubernetes.core >= 3.0.0
-  - ansible.eda >= 1.0.0
-  - ansible.platform >= 2.0.0
-```
-
-## Installation
-
-### From Ansible Galaxy
-
-```bash
-ansible-galaxy collection install ansible_tmm.ocpvirt_windows_compliance
-```
-
-### From Source
-
-```bash
-git clone https://github.com/ansible-tmm/ocpvirt_windows_compliance.git
-cd ocpvirt_windows_compliance
-ansible-galaxy collection build
-ansible-galaxy collection install ansible_tmm-ocpvirt_windows_compliance-*.tar.gz
-```
-
-## Quick Start
-
-### 1. Configure AAP Credentials (Manual Step)
-
-Create the following credentials in AAP before proceeding:
-
-| Credential | Type | Purpose |
-|------------|------|---------|
-| windows-winrm | Machine (Windows) | WinRM access to Windows VMs |
-| openshift-api | OpenShift API | OpenShift API access |
-| s3-reports | AWS | S3 storage for reports (optional) |
-
-### 2. Run Setup
+### Collection Dependencies
 
 ```yaml
-# Configure AAP resources
-ansible-playbook ansible_tmm.ocpvirt_windows_compliance.playbooks.aap.configure_aap \
-  -e controller_host=aap.example.com \
-  -e aap_organization=Default
+dependencies:
+  ansible.windows: ">=2.1.0"
+  community.windows: ">=2.0.0"
+  kubernetes.core: ">=3.0.0"
+  ansible.eda: ">=1.0.0"
+  ansible.platform: ">=2.0.0"
 ```
 
-### 3. Install SCC on Windows VMs
+## Workflow
 
-Use the **Install-SCC** job template in AAP to install DISA SCC on target VMs.
+### Scan-Driven Remediation
 
-### 4. Run Compliance Scan
+```
+┌──────────────┐    ┌───────────────┐    ┌────────────────┐    ┌──────────────┐
+│   Run Scan   │───▶│ Parse Results │───▶│ Push Metrics   │───▶│ Fire Alerts  │
+│   Job        │    │ (XCCDF)       │    │ (Pushgateway)  │    │ (Prometheus) │
+└──────────────┘    └───────────────┘    └────────────────┘    └──────┬───────┘
+                                                                       │
+                                                                       ▼
+┌──────────────┐    ┌───────────────┐    ┌────────────────┐    ┌──────────────┐
+│   Verify     │◀───│ Apply Fixes   │◀───│ EDA Receives   │◀───│ AlertManager │
+│   Compliance │    │ (Remediate)   │    │ Webhook        │    │ Webhook      │
+└──────────────┘    └───────────────┘    └────────────────┘    └──────────────┘
+```
 
-Use the **Compliance-Scan** job template in AAP with your desired profile.
+### Remediation Categories
 
-### 5. View Results
+The collection uses map-driven remediation that categorizes controls:
 
-- **Dashboard**: OpenShift Console → Observe → Dashboards → Windows Compliance
-- **Alerts**: OpenShift Console → Observe → Alerting
-
-## Roles
-
-| Role | Description |
-|------|-------------|
-| setup | Environment setup (monitoring, EDA, dashboards) |
-| scc_install | Download and install DISA SCC on Windows VMs |
-| scan | Run compliance scans using DISA SCC |
-| remediate | Dispatch remediation to OS-specific roles |
-| win2022_stig | Windows Server 2022 STIG remediation |
-| win2019_stig | Windows Server 2019 STIG remediation |
-| report | Generate compliance reports |
-| golden_image | Create pre-hardened golden images |
-
-## Playbooks
-
-| Playbook | Description |
-|----------|-------------|
-| setup.yml | Configure OpenShift monitoring and EDA |
-| install_scc.yml | Install DISA SCC on Windows VMs |
-| scan.yml | Run compliance scan |
-| remediate.yml | Apply remediation |
-| report.yml | Generate audit reports |
-| provision_vm.yml | Provision VM from golden image |
-| create_golden_image.yml | Create hardened golden image |
-
-## Custom Modules
-
-| Module | Description |
-|--------|-------------|
-| compliance_score | Calculate compliance score from scan results |
-| scc_scan | Execute DISA SCC scan on Windows target |
-| compliance_report | Generate formatted compliance reports |
-| golden_image_capture | Capture VM as golden image DataVolume |
-
-## Filter Plugins
-
-| Filter | Description |
-|--------|-------------|
-| parse_xccdf | Parse XCCDF result XML |
-| calculate_score | Calculate compliance score from findings |
-
-## Multi-Tenancy
-
-The collection supports multi-tenant deployments with namespace isolation:
-
-- All resources scoped to tenant namespace
-- Separate PrometheusRules per tenant
-- Tenant-specific dashboards and alerts
-- Storage isolation (PVC or S3 per tenant)
+| Category | Severity | Auto-Remediation | Description |
+|----------|----------|------------------|-------------|
+| **CAT I** | High/Critical | Configurable | Security vulnerabilities that could result in system compromise |
+| **CAT II** | Medium | Configurable | Settings that could lead to security degradation |
+| **CAT III** | Low | Configurable | Best practices and minor hardening |
 
 ## License
 

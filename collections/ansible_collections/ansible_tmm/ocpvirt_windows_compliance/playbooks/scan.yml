@@ -10,7 +10,6 @@
   gather_facts: true
 
   vars:
-    compliance_profile: "stig"
     store_results: true
     push_metrics: true
 
@@ -27,7 +26,6 @@
           Compliance Scan
           ===============
           Target: {{ inventory_hostname }}
-          Profile: {{ compliance_profile }}
 
   roles:
     - role: ../roles/scan

@@ -19,11 +19,9 @@
     - ansible_tmm.ocpvirt_windows_compliance
 
   vars:
-    compliance_profile: "stig"
     # Pass failed control V-IDs from scan results
     # Example: ["V-205711", "V-205713", "V-205919"]
     failed_cat1_controls: []
-    allow_reboot: false
     dry_run: false
     trigger_source: "manual"
 

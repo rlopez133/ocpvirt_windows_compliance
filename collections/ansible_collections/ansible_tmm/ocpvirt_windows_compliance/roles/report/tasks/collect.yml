@@ -1,45 +1,52 @@
 ---
 # Report Role - Collect Data
-# Gathers scan results and remediation history
+# Gathers scan results from ConfigMaps stored by scan role
+# Requires OpenShift credential attached to job template
 
-- name: Query Prometheus for compliance metrics
-  ansible.builtin.uri:
-    url: "{{ prometheus_url | default('http://prometheus-k8s.openshift-monitoring.svc:9090') }}/api/v1/query"
-    method: GET
-    body_format: form-urlencoded
-    body:
-      query: 'compliance_score{namespace="{{ tenant_namespace }}"}'
-    return_content: true
-  register: prometheus_scores
+- name: Get scan result ConfigMaps
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: ConfigMap
+    namespace: "{{ tenant_namespace }}"
+    label_selectors:
+      - compliance.ocpvirt/type=scan-result
+  register: scan_configmaps
   delegate_to: localhost
-  ignore_errors: true
 
-- name: Query scan history
-  ansible.builtin.uri:
-    url: "{{ prometheus_url | default('http://prometheus-k8s.openshift-monitoring.svc:9090') }}/api/v1/query_range"
-    method: GET
-    body_format: form-urlencoded
-    body:
-      query: 'compliance_score{namespace="{{ tenant_namespace }}"}'
-      start: "{{ report_period_start | default((ansible_date_time.epoch | int - 2592000) | string) }}"
-      end: "{{ report_period_end | default(ansible_date_time.epoch) }}"
-      step: "1h"
-    return_content: true
-  register: prometheus_history
-  delegate_to: localhost
-  ignore_errors: true
+- name: Parse scan results from ConfigMaps
+  ansible.builtin.set_fact:
+    scan_results: "{{ scan_configmaps.resources | map(attribute='data') | list }}"
 
-- name: Parse compliance data
+- name: Build compliance data structure
   ansible.builtin.set_fact:
     compliance_data:
-      current_scores: "{{ prometheus_scores.json.data.result | default([]) }}"
-      history: "{{ prometheus_history.json.data.result | default([]) }}"
+      current_scores: "{{ scan_results }}"
+      vms: "{{ scan_results | map(attribute='vm_name') | list }}"
+
+- name: Extract score values for averaging
+  ansible.builtin.set_fact:
+    score_values: "{{ scan_results | map(attribute='score') | map('float') | list }}"
 
 - name: Calculate summary statistics
   ansible.builtin.set_fact:
     report_summary:
-      vms_covered: "{{ compliance_data.current_scores | length }}"
-      average_score: "{{ compliance_data.current_scores | map(attribute='value') | map('last') | map('float') | list | average | default(0) | round(1) }}"
-      period_start: "{{ report_period_start | default('30 days ago') }}"
+      vms_covered: "{{ scan_results | length }}"
+      average_score: "{{ ((score_values | sum) / (score_values | length)) | round(1) if score_values | length > 0 else 0 }}"
+      total_passed: "{{ scan_results | map(attribute='passed') | map('int') | sum }}"
+      total_failed: "{{ scan_results | map(attribute='failed') | map('int') | sum }}"
+      cat1_failed: "{{ scan_results | map(attribute='cat1_failed') | map('int') | sum }}"
+      cat2_failed: "{{ scan_results | map(attribute='cat2_failed') | map('int') | sum }}"
+      cat3_failed: "{{ scan_results | map(attribute='cat3_failed') | map('int') | sum }}"
+      period_start: "{{ report_period_start | default('N/A') }}"
       period_end: "{{ report_period_end | default('now') }}"
       generated: "{{ ansible_date_time.iso8601 }}"
+
+- name: Display collected data summary
+  ansible.builtin.debug:
+    msg: |
+      Collected Scan Data
+      ===================
+      VMs found: {{ scan_results | length }}
+      {% for result in scan_results %}
+      - {{ result.vm_name }}: {{ result.score }}% ({{ result.passed }} passed, {{ result.failed }} failed)
+      {% endfor %}

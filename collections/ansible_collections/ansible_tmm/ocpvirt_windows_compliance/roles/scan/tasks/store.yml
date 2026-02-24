@@ -57,3 +57,32 @@
 - name: Display scan summary
   ansible.builtin.debug:
     msg: "{{ lookup('template', 'scan-summary.j2') }}"
+
+- name: Store scan results in ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: "compliance-scan-{{ scan_result.vm_name | regex_replace('[^a-z0-9-]', '-') }}"
+        namespace: "{{ tenant_config.namespace | default('compliance') }}"
+        labels:
+          compliance.ocpvirt/type: "scan-result"
+          compliance.ocpvirt/vm-name: "{{ scan_result.vm_name }}"
+          compliance.ocpvirt/scan-id: "{{ scan_result.scan_id }}"
+        annotations:
+          compliance.ocpvirt/scan-timestamp: "{{ scan_result.timestamp }}"
+      data:
+        summary.json: "{{ scan_result | to_nice_json }}"
+        vm_name: "{{ scan_result.vm_name }}"
+        namespace: "{{ scan_result.namespace }}"
+        score: "{{ scan_result.score.score | default(0) | string }}"
+        passed: "{{ scan_result.score.passed | default(0) | string }}"
+        failed: "{{ scan_result.score.failed | default(0) | string }}"
+        cat1_failed: "{{ scan_result.failed_controls.cat1 | default([]) | length | string }}"
+        cat2_failed: "{{ scan_result.failed_controls.cat2 | default([]) | length | string }}"
+        cat3_failed: "{{ scan_result.failed_controls.cat3 | default([]) | length | string }}"
+        status: "{{ scan_result.status }}"
+        timestamp: "{{ scan_result.timestamp }}"
+  delegate_to: localhost

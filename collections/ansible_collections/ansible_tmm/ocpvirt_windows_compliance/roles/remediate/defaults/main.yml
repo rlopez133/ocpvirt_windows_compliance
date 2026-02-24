@@ -4,12 +4,10 @@
 # Only remediates controls that failed in the scan results
 
 # Target VMs - override with job template variables
-target_vms: []
+# NOTE: Not currently used - inventory is set via job template
+# target_vms: []
 #   - name: vm-name
 #     namespace: vm-namespace
-
-# Compliance profile
-compliance_profile: "stig"
 
 # For scan-driven mode: List of failed control V-IDs from scan results
 # This is populated by the scan role and passed to remediation
@@ -32,8 +30,9 @@ auto_remediate_cat3: false
 skip_controls: []
 
 # Safety settings
-allow_reboot: false
-backup_before_change: true
+# NOTE: allow_reboot and backup_before_change not currently used
+# allow_reboot: false
+# backup_before_change: true
 dry_run: false
 
 # Trigger source (for auditing)
@@ -41,12 +40,13 @@ trigger_source: "manual"  # manual | eda | scheduled
 
 # External STIG role integration (Windows 2022 only)
 # When true, uses infra.windows_ops.windows_manage_stig via win_stig_wrapper
-# When false (default), uses existing win2022_stig role
-use_external_stig_role: false
+# When false, uses existing win2022_stig role (legacy, limited controls)
+use_external_stig_role: true
 
 # Remediation behavior
 remediation:
-  max_retries: 3
-  retry_delay: 30
-  continue_on_error: true
+  # NOTE: max_retries, retry_delay, continue_on_error not currently used
+  # max_retries: 3
+  # retry_delay: 30
+  # continue_on_error: true
   create_restore_point: true

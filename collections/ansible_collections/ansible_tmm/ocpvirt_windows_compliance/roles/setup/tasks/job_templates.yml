@@ -34,8 +34,26 @@
     inventory: "{{ aap_inventory_windows }}"
     credentials:
       - "{{ aap_credential_windows }}"
-    ask_variables_on_launch: true
-    ask_limit_on_launch: true
+    survey_enabled: true
+    survey_spec:
+      name: "SCC Installation Parameters"
+      description: "Configure SCC installer and STIG content URLs (use S3 presigned URLs or web server)"
+      spec:
+        - question_name: "SCC Installer URL"
+          question_description: "Full URL to the SCC installer bundle (e.g., scc-5.13_Windows_bundle.zip)"
+          variable: "scc_installer_url"
+          type: "text"
+          required: true
+        - question_name: "Windows Server 2022 STIG URL"
+          question_description: "URL to Windows Server 2022 STIG content (optional - only if you have Win2022 VMs)"
+          variable: "scc_stig_url_win2022"
+          type: "text"
+          required: false
+        - question_name: "Windows Server 2019 STIG URL"
+          question_description: "URL to Windows Server 2019 STIG content (optional - only if you have Win2019 VMs)"
+          variable: "scc_stig_url_win2019"
+          type: "text"
+          required: false
     state: present
 
 # =============================================================================
@@ -53,22 +71,6 @@
       - "{{ aap_credential_windows }}"
     ask_variables_on_launch: true
     ask_limit_on_launch: true
-    extra_vars:
-      compliance_profile: "stig"
-    survey_enabled: true
-    survey_spec:
-      name: "Scan Parameters"
-      description: "Configure compliance scan options"
-      spec:
-        - question_name: "Compliance Profile"
-          question_description: "Select the compliance profile to use for scanning"
-          variable: "compliance_profile"
-          type: "multiplechoice"
-          choices:
-            - "stig"
-            - "stig-minimal"
-          default: "stig"
-          required: true
     state: present
 
 # =============================================================================
@@ -89,8 +91,8 @@
     # Allow concurrent jobs so EDA can trigger CAT1, CAT2, CAT3 remediations simultaneously
     allow_simultaneous: true
     extra_vars:
-      compliance_profile: "stig"
       dry_run: false
+      use_external_stig_role: true
       # EDA passes: trigger_source, category, failed_control_ids, auto_remediate_cat*
       # Scan-driven passes: failed_cat1_controls
       # Example for scan-driven mode:

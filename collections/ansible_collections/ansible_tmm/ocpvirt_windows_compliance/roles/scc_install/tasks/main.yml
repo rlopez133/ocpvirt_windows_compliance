@@ -211,6 +211,15 @@
         path: "{{ scc_install_path }}\\Resources\\Content"
         state: directory
 
+    - name: Remove existing STIG content for force update
+      ansible.windows.win_file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}.zip"
+        - "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}"
+      when: scc_force_stig_update | default(false)
+
     - name: Check if STIG content already downloaded
       ansible.windows.win_stat:
         path: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}.zip"
@@ -220,18 +229,18 @@
       ansible.windows.win_get_url:
         url: "{{ detected_stig_url }}"
         dest: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}.zip"
-        force: false
-      when: not stig_content_exists.stat.exists
+        force: "{{ scc_force_stig_update | default(false) }}"
+      when: not stig_content_exists.stat.exists or scc_force_stig_update | default(false)
 
     - name: Extract STIG content
       community.windows.win_unzip:
         src: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}.zip"
         dest: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}"
-        creates: "{{ scc_install_path }}\\Resources\\Content\\{{ detected_stig_name }}"
+      register: stig_extract_result
 
     - name: Display STIG content installed
       ansible.builtin.debug:
-        msg: "Installed STIG content: {{ detected_stig_name }} for Windows build {{ detected_windows_build }}"
+        msg: "Installed STIG content: {{ detected_stig_name }} for Windows build {{ detected_windows_build }}{{ ' (force updated)' if scc_force_stig_update | default(false) else '' }}"
 
 - name: Verify SCC installation
   when: scc_verify_install
@@ -251,18 +260,6 @@
     - name: Display SCC version
       ansible.builtin.debug:
         msg: "SCC installed: {{ scc_version_output.stdout | default('Version check failed') }}"
-
-- name: Run test scan
-  when: scc_test_scan
-  block:
-    - name: Execute test scan
-      ansible.windows.win_shell: |
-        & "{{ scc_install_path }}\cscc.exe" --help
-      register: scc_test_result
-
-    - name: Display test result
-      ansible.builtin.debug:
-        msg: "SCC test completed successfully"
 
 - name: Cleanup temp files
   ansible.windows.win_file:

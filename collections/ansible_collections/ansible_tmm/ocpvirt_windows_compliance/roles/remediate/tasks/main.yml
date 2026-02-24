@@ -238,7 +238,6 @@
       started: "{{ remediation_start_time }}"
       completed: "{{ ansible_date_time.iso8601 }}"
       os_version: "{{ windows_version }}"
-      profile: "{{ compliance_profile }}"
       trigger: "{{ trigger_source | default('manual') }}"
       category: "{{ remediation_category }}"
       mode: "{{ remediation_mode }}"

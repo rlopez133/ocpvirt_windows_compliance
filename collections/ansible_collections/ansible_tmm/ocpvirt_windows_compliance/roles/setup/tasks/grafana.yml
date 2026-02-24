@@ -1,7 +1,7 @@
 ---
 # Setup Role - Grafana Deployment
 # Deploys Grafana instance, datasource, and compliance dashboard
-# Requires: Grafana Operator installed in openshift-operators namespace
+# Note: Grafana Operator is installed by grafana_operator.yml before this task
 #
 # Components deployed:
 # 1. ServiceAccount with cluster-monitoring-view role for Prometheus access
@@ -9,22 +9,6 @@
 # 3. ConfigMap - Dashboard JSON content
 # 4. GrafanaDatasource CR - Prometheus datasource with bearer token auth
 # 5. GrafanaDashboard CR - References the ConfigMap
-
-- name: Check if Grafana Operator is installed
-  kubernetes.core.k8s_info:
-    api_version: apiextensions.k8s.io/v1
-    kind: CustomResourceDefinition
-    name: grafanas.grafana.integreatly.org
-  register: grafana_crd_check
-
-- name: Fail if Grafana Operator not installed
-  ansible.builtin.fail:
-    msg: |
-      Grafana Operator is not installed. Please install it from OperatorHub:
-      - Navigate to Operators > OperatorHub
-      - Search for "Grafana Operator" (by grafana-operator)
-      - Install with default settings (All namespaces)
-  when: grafana_crd_check.resources | length == 0
 
 # =============================================================================
 # ServiceAccount for Prometheus Access
@@ -122,7 +106,9 @@
             admin_user: "{{ grafana_admin_user | default('admin') }}"
             admin_password: "{{ grafana_admin_password | default('admin') }}"
         route:
-          enabled: true
+          spec:
+            tls:
+              termination: edge
   register: grafana_instance
 
 - name: Wait for Grafana to be ready
@@ -139,16 +125,32 @@
   retries: 30
   delay: 10
 
+- name: Debug Grafana instance status
+  ansible.builtin.debug:
+    msg: |
+      Grafana Status:
+      - Stage: {{ grafana_status.resources[0].status.stage | default('unknown') }}
+      - StageStatus: {{ grafana_status.resources[0].status.stageStatus | default('unknown') }}
+      - Message: {{ grafana_status.resources[0].status.message | default('none') }}
+    verbosity: 0
+
 - name: Wait for Grafana route to be created
   kubernetes.core.k8s_info:
     api_version: route.openshift.io/v1
     kind: Route
     namespace: "{{ tenant_config.namespace }}"
-    name: grafana
   register: grafana_route_check
   until: grafana_route_check.resources | length > 0
-  retries: 10
-  delay: 5
+  retries: 30
+  delay: 10
+
+- name: Debug - show all routes found
+  ansible.builtin.debug:
+    msg: "Found routes: {{ grafana_route_check.resources | map(attribute='metadata.name') | list }}"
+
+- name: Set Grafana route name fact
+  ansible.builtin.set_fact:
+    grafana_route_name: "{{ grafana_route_check.resources[0].metadata.name }}"
 
 - name: Configure TLS edge termination on Grafana route
   kubernetes.core.k8s:
@@ -157,7 +159,7 @@
       apiVersion: route.openshift.io/v1
       kind: Route
       metadata:
-        name: grafana
+        name: "{{ grafana_route_name }}"
         namespace: "{{ tenant_config.namespace }}"
       spec:
         tls:
@@ -237,7 +239,7 @@
           matchLabels:
             dashboards: grafana
         configMapRef:
-          name: compliance-dashboard
+          name: grafana-dashboard-compliance
           key: compliance-dashboard.json
 
 # =============================================================================
