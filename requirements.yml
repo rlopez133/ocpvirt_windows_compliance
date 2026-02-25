@@ -7,7 +7,7 @@ collections:
 - name: ansible.platform
 - name: infra.aap_configuration
 - name: infra.windows_ops
-  source: https://github.com/redhat-cop/infra.windows_ops.git
+  source: https://github.com/rlopez133/infra.windows_ops.git
   type: git
   version: main
 - name: ansible.eda
