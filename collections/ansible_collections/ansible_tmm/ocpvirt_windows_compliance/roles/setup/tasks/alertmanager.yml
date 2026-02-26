@@ -53,9 +53,10 @@
         # groupInterval: time between notifications for same group
         # repeatInterval: time before re-sending same alert (for missed notifications)
         route:
+          # Group by category only - one alert per category triggers one remediation job
+          # This aggregates all VMs with same category violation into single webhook
           groupBy:
             - alertname
-            - vm_name
             - namespace
             - category
           groupWait: 30s
