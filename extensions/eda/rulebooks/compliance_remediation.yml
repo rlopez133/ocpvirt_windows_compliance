@@ -36,7 +36,7 @@
           organization: "{{ eda_organization | default('Default') }}"
           job_args:
             extra_vars:
-              target_vm: "{{ event['payload']['commonLabels']['vm_name'] | default('unknown') }}"
+              # No target_vm - job runs on all VMs in inventory
               target_namespace: "{{ event['payload']['commonLabels']['namespace'] | default('compliance') }}"
               category: "CAT1"
               alertname: "{{ event['payload']['commonLabels']['alertname'] | default('ComplianceCAT1Violation') }}"
@@ -59,7 +59,7 @@
           organization: "{{ eda_organization | default('Default') }}"
           job_args:
             extra_vars:
-              target_vm: "{{ event['payload']['commonLabels']['vm_name'] | default('unknown') }}"
+              # No target_vm - job runs on all VMs in inventory
               target_namespace: "{{ event['payload']['commonLabels']['namespace'] | default('compliance') }}"
               category: "CAT2"
               alertname: "{{ event['payload']['commonLabels']['alertname'] | default('ComplianceCAT2Violation') }}"
@@ -82,7 +82,7 @@
           organization: "{{ eda_organization | default('Default') }}"
           job_args:
             extra_vars:
-              target_vm: "{{ event['payload']['commonLabels']['vm_name'] | default('unknown') }}"
+              # No target_vm - job runs on all VMs in inventory
               target_namespace: "{{ event['payload']['commonLabels']['namespace'] | default('compliance') }}"
               category: "CAT3"
               alertname: "{{ event['payload']['commonLabels']['alertname'] | default('ComplianceCAT3Violation') }}"
