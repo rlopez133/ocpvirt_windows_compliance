@@ -13,9 +13,41 @@
   register: scan_configmaps
   delegate_to: localhost
 
+- name: Get current VirtualMachines to filter stale results
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    label_selectors:
+      - "{{ vm_label_selector | default('') }}"
+  register: current_vms
+  delegate_to: localhost
+  when: filter_stale_results | default(true)
+
+- name: Build list of current VM names
+  ansible.builtin.set_fact:
+    current_vm_names: "{{ current_vms.resources | default([]) | map(attribute='metadata.name') | list }}"
+  when: filter_stale_results | default(true)
+
+- name: Filter scan results to only include current VMs
+  ansible.builtin.set_fact:
+    scan_configmaps_filtered:
+      resources: >-
+        {{
+          scan_configmaps.resources | selectattr('data.vm_name', 'defined') |
+          selectattr('data.vm_name', 'in', current_vm_names) | list
+        }}
+  when:
+    - filter_stale_results | default(true)
+    - current_vm_names is defined
+
+- name: Use all scan results if filtering disabled
+  ansible.builtin.set_fact:
+    scan_configmaps_filtered: "{{ scan_configmaps }}"
+  when: not (filter_stale_results | default(true)) or current_vm_names is not defined
+
 - name: Parse scan results from ConfigMaps
   ansible.builtin.set_fact:
-    scan_results: "{{ scan_configmaps.resources | map(attribute='data') | list }}"
+    scan_results: "{{ scan_configmaps_filtered.resources | map(attribute='data') | list }}"
 
 - name: Initialize enhanced scan results
   ansible.builtin.set_fact:
