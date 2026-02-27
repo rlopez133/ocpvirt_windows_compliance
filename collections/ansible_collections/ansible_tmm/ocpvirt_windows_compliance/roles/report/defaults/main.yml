@@ -11,6 +11,11 @@ report_period_end: ""    # ISO date: 2026-03-31
 report_format: "html"  # html | json | csv
 report_template: "standard"  # standard | executive | detailed
 
+# Compliance thresholds (match your Grafana/alerting thresholds)
+compliance_threshold_compliant: 70  # Score >= this is "Compliant" (green)
+compliance_threshold_warning: 50    # Score >= this but < compliant is "Warning" (yellow)
+# Score < warning threshold is "Critical" (red)
+
 # Include sections
 include_evidence: true
 include_remediation_history: true

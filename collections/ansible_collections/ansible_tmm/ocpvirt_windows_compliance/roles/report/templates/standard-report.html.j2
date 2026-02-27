@@ -362,16 +362,16 @@
                 <div class="value primary">{{ report_summary.vms_covered }}</div>
                 <div class="label">VMs Monitored</div>
             </div>
-            <div class="summary-card {% if report_summary.average_score | float >= 95 %}success{% elif report_summary.average_score | float >= 80 %}warning{% else %}danger{% endif %}">
-                <div class="value {% if report_summary.average_score | float >= 95 %}success{% elif report_summary.average_score | float >= 80 %}warning{% else %}danger{% endif %}">{{ report_summary.average_score }}%</div>
+            <div class="summary-card {% if report_summary.average_score | float >= compliance_threshold_compliant %}success{% elif report_summary.average_score | float >= compliance_threshold_warning %}warning{% else %}danger{% endif %}">
+                <div class="value {% if report_summary.average_score | float >= compliance_threshold_compliant %}success{% elif report_summary.average_score | float >= compliance_threshold_warning %}warning{% else %}danger{% endif %}">{{ report_summary.average_score }}%</div>
                 <div class="label">Average Score</div>
             </div>
             <div class="summary-card success">
-                <div class="value success">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('ge', 95) | list | length }}</div>
+                <div class="value success">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('ge', compliance_threshold_compliant) | list | length }}</div>
                 <div class="label">Compliant VMs</div>
             </div>
             <div class="summary-card danger">
-                <div class="value danger">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('lt', 95) | list | length }}</div>
+                <div class="value danger">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('lt', compliance_threshold_compliant) | list | length }}</div>
                 <div class="label">Non-Compliant</div>
             </div>
         </div>
@@ -418,21 +418,21 @@
                     <tr>
                         <td><span class="vm-name">{{ vm.vm_name | default('Unknown') }}</span></td>
                         <td>
-                            <span class="score-badge {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
+                            <span class="score-badge {% if vm.score | float >= compliance_threshold_compliant %}compliant{% elif vm.score | float >= compliance_threshold_warning %}warning{% else %}critical{% endif %}">
                                 {{ vm.score | default(0) }}%
                             </span>
                         </td>
                         <td>
                             <div class="progress-bar">
-                                <div class="progress-fill {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}" style="width: {{ vm.score | default(0) }}%"></div>
+                                <div class="progress-fill {% if vm.score | float >= compliance_threshold_compliant %}compliant{% elif vm.score | float >= compliance_threshold_warning %}warning{% else %}critical{% endif %}" style="width: {{ vm.score | default(0) }}%"></div>
                             </div>
                         </td>
                         <td style="text-align: center; {% if vm.cat1_failed | default(0) | int > 0 %}color: var(--rh-red-dark); font-weight: 600;{% endif %}">{{ vm.cat1_failed | default(0) }}</td>
                         <td style="text-align: center; {% if vm.cat2_failed | default(0) | int > 0 %}color: #996900;{% endif %}">{{ vm.cat2_failed | default(0) }}</td>
                         <td style="text-align: center; {% if vm.cat3_failed | default(0) | int > 0 %}color: var(--rh-cyan);{% endif %}">{{ vm.cat3_failed | default(0) }}</td>
                         <td>
-                            <span class="status-indicator {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
-                                {% if vm.score | float >= 95 %}Compliant{% elif vm.score | float >= 80 %}Warning{% else %}Critical{% endif %}
+                            <span class="status-indicator {% if vm.score | float >= compliance_threshold_compliant %}compliant{% elif vm.score | float >= compliance_threshold_warning %}warning{% else %}critical{% endif %}">
+                                {% if vm.score | float >= compliance_threshold_compliant %}Compliant{% elif vm.score | float >= compliance_threshold_warning %}Warning{% else %}Critical{% endif %}
                             </span>
                         </td>
                     </tr>

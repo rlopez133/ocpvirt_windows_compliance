@@ -481,49 +481,85 @@
 
         .footer a:hover { text-decoration: underline; }
 
-        .control-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
+        .findings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
         }
 
-        .control-tag {
-            display: inline-flex;
-            flex-direction: column;
-            padding: 10px 14px;
-            border-radius: 6px;
-            font-size: 13px;
-            min-width: 110px;
-        }
-
-        .control-tag.cat1 {
-            background: rgba(163, 0, 0, 0.08);
-            border: 1px solid rgba(163, 0, 0, 0.25);
-        }
-
-        .control-tag.cat2 {
-            background: rgba(240, 171, 0, 0.08);
-            border: 1px solid rgba(240, 171, 0, 0.25);
-        }
-
-        .control-tag.cat3 {
-            background: rgba(0, 149, 150, 0.08);
-            border: 1px solid rgba(0, 149, 150, 0.25);
-        }
-
-        .control-tag .control-id {
-            font-weight: 600;
-            font-family: 'SF Mono', 'Consolas', monospace;
-        }
-
-        .control-tag.cat1 .control-id { color: var(--rh-red-dark); }
-        .control-tag.cat2 .control-id { color: #996900; }
-        .control-tag.cat3 .control-id { color: var(--rh-cyan); }
-
-        .control-tag .control-vms {
+        .findings-table th {
+            background: var(--rh-gray-lighter);
+            padding: 12px 16px;
+            text-align: left;
             font-size: 11px;
-            color: var(--rh-gray);
-            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--rh-gray-dark);
+            font-weight: 600;
+            border-bottom: 2px solid var(--rh-gray-light);
+        }
+
+        .findings-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--rh-gray-light);
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
+        .findings-table tr:hover {
+            background: var(--rh-gray-lighter);
+        }
+
+        .control-link {
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-weight: 600;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .control-link:hover {
+            text-decoration: underline;
+        }
+
+        .control-link.cat1 {
+            color: var(--rh-red-dark);
+            background: rgba(163, 0, 0, 0.08);
+        }
+
+        .control-link.cat2 {
+            color: #996900;
+            background: rgba(240, 171, 0, 0.08);
+        }
+
+        .control-link.cat3 {
+            color: var(--rh-cyan);
+            background: rgba(0, 149, 150, 0.08);
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .severity-badge.cat1 {
+            background: var(--rh-red-dark);
+            color: white;
+        }
+
+        .severity-badge.cat2 {
+            background: var(--rh-orange);
+            color: var(--rh-black);
+        }
+
+        .severity-badge.cat3 {
+            background: var(--rh-cyan);
+            color: white;
         }
 
         .control-category {
@@ -604,16 +640,16 @@
                 <div class="value primary">{{ report_summary.vms_covered }}</div>
                 <div class="label">VMs Monitored</div>
             </div>
-            <div class="summary-card {% if report_summary.average_score | float >= 95 %}success{% elif report_summary.average_score | float >= 80 %}warning{% else %}danger{% endif %}">
-                <div class="value {% if report_summary.average_score | float >= 95 %}success{% elif report_summary.average_score | float >= 80 %}warning{% else %}danger{% endif %}">{{ report_summary.average_score }}%</div>
+            <div class="summary-card {% if report_summary.average_score | float >= compliance_threshold_compliant %}success{% elif report_summary.average_score | float >= compliance_threshold_warning %}warning{% else %}danger{% endif %}">
+                <div class="value {% if report_summary.average_score | float >= compliance_threshold_compliant %}success{% elif report_summary.average_score | float >= compliance_threshold_warning %}warning{% else %}danger{% endif %}">{{ report_summary.average_score }}%</div>
                 <div class="label">Average Compliance</div>
             </div>
             <div class="summary-card success">
-                <div class="value success">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('ge', 95) | list | length }}</div>
+                <div class="value success">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('ge', compliance_threshold_compliant) | list | length }}</div>
                 <div class="label">Compliant VMs</div>
             </div>
             <div class="summary-card danger">
-                <div class="value danger">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('lt', 95) | list | length }}</div>
+                <div class="value danger">{{ compliance_data.current_scores | selectattr('score', 'defined') | map(attribute='score') | map('float') | select('lt', compliance_threshold_compliant) | list | length }}</div>
                 <div class="label">Non-Compliant</div>
             </div>
         </div>
@@ -645,7 +681,7 @@
             <div class="section-header">Failed Controls Detail</div>
             <div class="section-body">
                 <p style="color: var(--rh-gray); margin-bottom: 20px;">
-                    The following STIG controls are currently failing across monitored VMs. Use these control IDs to prioritize remediation efforts.
+                    The following STIG controls are currently failing across monitored VMs. Click any control ID to view details on STIG Viewer.
                 </p>
 
 {% if report_summary.failed_controls.cat1 | default([]) | length > 0 %}
@@ -654,22 +690,34 @@
                         <span class="priority-badge high">CAT I</span>
                         Critical Findings ({{ report_summary.failed_controls.cat1 | length }})
                     </h4>
-                    <div class="control-grid">
+                    <table class="findings-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 120px;">Control ID</th>
+                                <th style="width: 100px;">Severity</th>
+                                <th>Affected VMs</th>
+                            </tr>
+                        </thead>
+                        <tbody>
 {% for control_id in report_summary.failed_controls.cat1 %}
-                        <div class="control-tag cat1">
-                            <span class="control-id">{{ control_id }}</span>
-                            <span class="control-vms">
+                            <tr>
+                                <td>
+                                    <a href="https://www.stigviewer.com/stigs/microsoft-windows-server-2022-security-technical-implementation-guide" target="_blank" class="control-link cat1">{{ control_id }}</a>
+                                </td>
+                                <td><span class="severity-badge cat1">CAT I</span></td>
+                                <td>
 {% set affected_vms = [] %}
 {% for vm in compliance_data.current_scores %}
 {% if control_id in (vm.failed_controls.cat1 | default([])) %}
 {% set _ = affected_vms.append(vm.vm_name) %}
 {% endif %}
 {% endfor %}
-                                {{ affected_vms | length }} VM{{ 's' if affected_vms | length != 1 else '' }}
-                            </span>
-                        </div>
+                                    {{ affected_vms | join(', ') if affected_vms else 'Unknown' }}
+                                </td>
+                            </tr>
 {% endfor %}
-                    </div>
+                        </tbody>
+                    </table>
                 </div>
 {% endif %}
 
@@ -679,22 +727,34 @@
                         <span class="priority-badge medium">CAT II</span>
                         High Findings ({{ report_summary.failed_controls.cat2 | length }})
                     </h4>
-                    <div class="control-grid">
+                    <table class="findings-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 120px;">Control ID</th>
+                                <th style="width: 100px;">Severity</th>
+                                <th>Affected VMs</th>
+                            </tr>
+                        </thead>
+                        <tbody>
 {% for control_id in report_summary.failed_controls.cat2 %}
-                        <div class="control-tag cat2">
-                            <span class="control-id">{{ control_id }}</span>
-                            <span class="control-vms">
+                            <tr>
+                                <td>
+                                    <a href="https://www.stigviewer.com/stigs/microsoft-windows-server-2022-security-technical-implementation-guide" target="_blank" class="control-link cat2">{{ control_id }}</a>
+                                </td>
+                                <td><span class="severity-badge cat2">CAT II</span></td>
+                                <td>
 {% set affected_vms = [] %}
 {% for vm in compliance_data.current_scores %}
 {% if control_id in (vm.failed_controls.cat2 | default([])) %}
 {% set _ = affected_vms.append(vm.vm_name) %}
 {% endif %}
 {% endfor %}
-                                {{ affected_vms | length }} VM{{ 's' if affected_vms | length != 1 else '' }}
-                            </span>
-                        </div>
+                                    {{ affected_vms | join(', ') if affected_vms else 'Unknown' }}
+                                </td>
+                            </tr>
 {% endfor %}
-                    </div>
+                        </tbody>
+                    </table>
                 </div>
 {% endif %}
 
@@ -704,22 +764,34 @@
                         <span class="priority-badge low">CAT III</span>
                         Medium Findings ({{ report_summary.failed_controls.cat3 | length }})
                     </h4>
-                    <div class="control-grid">
+                    <table class="findings-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 120px;">Control ID</th>
+                                <th style="width: 100px;">Severity</th>
+                                <th>Affected VMs</th>
+                            </tr>
+                        </thead>
+                        <tbody>
 {% for control_id in report_summary.failed_controls.cat3 %}
-                        <div class="control-tag cat3">
-                            <span class="control-id">{{ control_id }}</span>
-                            <span class="control-vms">
+                            <tr>
+                                <td>
+                                    <a href="https://www.stigviewer.com/stigs/microsoft-windows-server-2022-security-technical-implementation-guide" target="_blank" class="control-link cat3">{{ control_id }}</a>
+                                </td>
+                                <td><span class="severity-badge cat3">CAT III</span></td>
+                                <td>
 {% set affected_vms = [] %}
 {% for vm in compliance_data.current_scores %}
 {% if control_id in (vm.failed_controls.cat3 | default([])) %}
 {% set _ = affected_vms.append(vm.vm_name) %}
 {% endif %}
 {% endfor %}
-                                {{ affected_vms | length }} VM{{ 's' if affected_vms | length != 1 else '' }}
-                            </span>
-                        </div>
+                                    {{ affected_vms | join(', ') if affected_vms else 'Unknown' }}
+                                </td>
+                            </tr>
 {% endfor %}
-                    </div>
+                        </tbody>
+                    </table>
                 </div>
 {% endif %}
 
@@ -760,18 +832,18 @@
                         </td>
                         <td><span class="profile-tag">STIG</span></td>
                         <td>
-                            <span class="score-badge {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
+                            <span class="score-badge {% if vm.score | float >= compliance_threshold_compliant %}compliant{% elif vm.score | float >= compliance_threshold_warning %}warning{% else %}critical{% endif %}">
                                 {{ vm.score | default(0) }}%
                             </span>
                         </td>
                         <td>
                             <div class="progress-bar">
-                                <div class="progress-fill {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}" style="width: {{ vm.score | default(0) }}%"></div>
+                                <div class="progress-fill {% if vm.score | float >= compliance_threshold_compliant %}compliant{% elif vm.score | float >= compliance_threshold_warning %}warning{% else %}critical{% endif %}" style="width: {{ vm.score | default(0) }}%"></div>
                             </div>
                         </td>
                         <td>
-                            <span class="status-indicator {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
-                                {% if vm.score | float >= 95 %}Compliant{% elif vm.score | float >= 80 %}Warning{% else %}Critical{% endif %}
+                            <span class="status-indicator {% if vm.score | float >= compliance_threshold_compliant %}compliant{% elif vm.score | float >= compliance_threshold_warning %}warning{% else %}critical{% endif %}">
+                                {% if vm.score | float >= compliance_threshold_compliant %}Compliant{% elif vm.score | float >= compliance_threshold_warning %}Warning{% else %}Critical{% endif %}
                             </span>
                         </td>
                         <td>{{ vm.timestamp | default('N/A') }}</td>
@@ -788,7 +860,7 @@
                 <div class="vm-detail-card">
                     <div class="vm-detail-header">
                         <h3>{{ vm.vm_name | default('Unknown VM') }}</h3>
-                        <span class="score-badge {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
+                        <span class="score-badge {% if vm.score | float >= compliance_threshold_compliant %}compliant{% elif vm.score | float >= compliance_threshold_warning %}warning{% else %}critical{% endif %}">
                             {{ vm.score | default(0) }}%
                         </span>
                     </div>
