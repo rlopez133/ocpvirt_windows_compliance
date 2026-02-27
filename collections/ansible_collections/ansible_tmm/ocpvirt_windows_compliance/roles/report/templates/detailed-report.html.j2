@@ -481,11 +481,67 @@
 
         .footer a:hover { text-decoration: underline; }
 
+        .control-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .control-tag {
+            display: inline-flex;
+            flex-direction: column;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            min-width: 110px;
+        }
+
+        .control-tag.cat1 {
+            background: rgba(163, 0, 0, 0.08);
+            border: 1px solid rgba(163, 0, 0, 0.25);
+        }
+
+        .control-tag.cat2 {
+            background: rgba(240, 171, 0, 0.08);
+            border: 1px solid rgba(240, 171, 0, 0.25);
+        }
+
+        .control-tag.cat3 {
+            background: rgba(0, 149, 150, 0.08);
+            border: 1px solid rgba(0, 149, 150, 0.25);
+        }
+
+        .control-tag .control-id {
+            font-weight: 600;
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+
+        .control-tag.cat1 .control-id { color: var(--rh-red-dark); }
+        .control-tag.cat2 .control-id { color: #996900; }
+        .control-tag.cat3 .control-id { color: var(--rh-cyan); }
+
+        .control-tag .control-vms {
+            font-size: 11px;
+            color: var(--rh-gray);
+            margin-top: 4px;
+        }
+
+        .control-category {
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--rh-gray-light);
+        }
+
+        .control-category:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
         @media print {
             body { background: white; }
             .header, .section-header, .finding-card { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
             .section { break-inside: avoid; }
             .vm-detail-card { break-inside: avoid; }
+            .control-tag { break-inside: avoid; }
         }
     </style>
 </head>
@@ -586,6 +642,101 @@
         </div>
 
         <div class="section">
+            <div class="section-header">Failed Controls Detail</div>
+            <div class="section-body">
+                <p style="color: var(--rh-gray); margin-bottom: 20px;">
+                    The following STIG controls are currently failing across monitored VMs. Use these control IDs to prioritize remediation efforts.
+                </p>
+
+{% if report_summary.failed_controls.cat1 | default([]) | length > 0 %}
+                <div class="control-category">
+                    <h4 style="color: var(--rh-red-dark); margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span class="priority-badge high">CAT I</span>
+                        Critical Findings ({{ report_summary.failed_controls.cat1 | length }})
+                    </h4>
+                    <div class="control-grid">
+{% for control_id in report_summary.failed_controls.cat1 %}
+                        <div class="control-tag cat1">
+                            <span class="control-id">{{ control_id }}</span>
+                            <span class="control-vms">
+{% set affected_vms = [] %}
+{% for vm in compliance_data.current_scores %}
+{% if control_id in (vm.failed_controls.cat1 | default([])) %}
+{% set _ = affected_vms.append(vm.vm_name) %}
+{% endif %}
+{% endfor %}
+                                {{ affected_vms | length }} VM{{ 's' if affected_vms | length != 1 else '' }}
+                            </span>
+                        </div>
+{% endfor %}
+                    </div>
+                </div>
+{% endif %}
+
+{% if report_summary.failed_controls.cat2 | default([]) | length > 0 %}
+                <div class="control-category" style="margin-top: 25px;">
+                    <h4 style="color: #996900; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span class="priority-badge medium">CAT II</span>
+                        High Findings ({{ report_summary.failed_controls.cat2 | length }})
+                    </h4>
+                    <div class="control-grid">
+{% for control_id in report_summary.failed_controls.cat2 %}
+                        <div class="control-tag cat2">
+                            <span class="control-id">{{ control_id }}</span>
+                            <span class="control-vms">
+{% set affected_vms = [] %}
+{% for vm in compliance_data.current_scores %}
+{% if control_id in (vm.failed_controls.cat2 | default([])) %}
+{% set _ = affected_vms.append(vm.vm_name) %}
+{% endif %}
+{% endfor %}
+                                {{ affected_vms | length }} VM{{ 's' if affected_vms | length != 1 else '' }}
+                            </span>
+                        </div>
+{% endfor %}
+                    </div>
+                </div>
+{% endif %}
+
+{% if report_summary.failed_controls.cat3 | default([]) | length > 0 %}
+                <div class="control-category" style="margin-top: 25px;">
+                    <h4 style="color: var(--rh-cyan); margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span class="priority-badge low">CAT III</span>
+                        Medium Findings ({{ report_summary.failed_controls.cat3 | length }})
+                    </h4>
+                    <div class="control-grid">
+{% for control_id in report_summary.failed_controls.cat3 %}
+                        <div class="control-tag cat3">
+                            <span class="control-id">{{ control_id }}</span>
+                            <span class="control-vms">
+{% set affected_vms = [] %}
+{% for vm in compliance_data.current_scores %}
+{% if control_id in (vm.failed_controls.cat3 | default([])) %}
+{% set _ = affected_vms.append(vm.vm_name) %}
+{% endif %}
+{% endfor %}
+                                {{ affected_vms | length }} VM{{ 's' if affected_vms | length != 1 else '' }}
+                            </span>
+                        </div>
+{% endfor %}
+                    </div>
+                </div>
+{% endif %}
+
+{% if (report_summary.failed_controls.cat1 | default([]) | length == 0) and (report_summary.failed_controls.cat2 | default([]) | length == 0) and (report_summary.failed_controls.cat3 | default([]) | length == 0) %}
+                <div style="text-align: center; padding: 40px; color: var(--rh-green);">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <h3 style="margin-top: 15px;">All Controls Passing</h3>
+                    <p style="color: var(--rh-gray);">No failed controls detected across monitored VMs.</p>
+                </div>
+{% endif %}
+            </div>
+        </div>
+
+        <div class="section">
             <div class="section-header">VM Compliance Status</div>
             <table>
                 <thead>
@@ -659,6 +810,43 @@
                             <span>{{ vm.timestamp | default('N/A') }}</span>
                         </div>
                     </div>
+
+{% if vm.failed_controls is defined and (vm.failed_controls.cat1 | default([]) | length > 0 or vm.failed_controls.cat2 | default([]) | length > 0 or vm.failed_controls.cat3 | default([]) | length > 0) %}
+                    <div class="vm-failed-controls" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--rh-gray-light);">
+                        <label style="display: block; font-size: 12px; color: var(--rh-gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Failed Controls</label>
+
+{% if vm.failed_controls.cat1 | default([]) | length > 0 %}
+                        <div style="margin-bottom: 12px;">
+                            <span class="priority-badge high" style="font-size: 10px; padding: 3px 8px;">CAT I</span>
+                            <span style="font-family: 'SF Mono', 'Consolas', monospace; font-size: 12px; color: var(--rh-red-dark); margin-left: 8px;">
+                                {{ vm.failed_controls.cat1 | join(', ') }}
+                            </span>
+                        </div>
+{% endif %}
+
+{% if vm.failed_controls.cat2 | default([]) | length > 0 %}
+                        <div style="margin-bottom: 12px;">
+                            <span class="priority-badge medium" style="font-size: 10px; padding: 3px 8px;">CAT II</span>
+                            <span style="font-family: 'SF Mono', 'Consolas', monospace; font-size: 12px; color: #996900; margin-left: 8px;">
+                                {{ vm.failed_controls.cat2 | join(', ') }}
+                            </span>
+                        </div>
+{% endif %}
+
+{% if vm.failed_controls.cat3 | default([]) | length > 0 %}
+                        <div>
+                            <span class="priority-badge low" style="font-size: 10px; padding: 3px 8px;">CAT III</span>
+                            <span style="font-family: 'SF Mono', 'Consolas', monospace; font-size: 12px; color: var(--rh-cyan); margin-left: 8px;">
+                                {{ vm.failed_controls.cat3 | join(', ') }}
+                            </span>
+                        </div>
+{% endif %}
+                    </div>
+{% else %}
+                    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--rh-gray-light); text-align: center; color: var(--rh-green);">
+                        <span style="font-size: 13px;">✓ All controls passing</span>
+                    </div>
+{% endif %}
                 </div>
 {% endfor %}
             </div>
