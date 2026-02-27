@@ -17,26 +17,59 @@
   ansible.builtin.set_fact:
     scan_results: "{{ scan_configmaps.resources | map(attribute='data') | list }}"
 
+- name: Initialize enhanced scan results
+  ansible.builtin.set_fact:
+    scan_results_enhanced: []
+
+- name: Extract failed controls for each VM
+  ansible.builtin.set_fact:
+    scan_results_enhanced: >-
+      {{
+        scan_results_enhanced + [{
+          'vm_name': item.vm_name | default('unknown'),
+          'namespace': item.namespace | default('unknown'),
+          'score': item.score | default('0'),
+          'passed': item.passed | default('0'),
+          'failed': item.failed | default('0'),
+          'cat1_failed': item.cat1_failed | default('0'),
+          'cat2_failed': item.cat2_failed | default('0'),
+          'cat3_failed': item.cat3_failed | default('0'),
+          'timestamp': item.timestamp | default('N/A'),
+          'failed_controls': (item['summary.json'] | default('{}') | from_json).failed_controls | default({'cat1': [], 'cat2': [], 'cat3': []})
+        }]
+      }}
+  loop: "{{ scan_results }}"
+  loop_control:
+    label: "{{ item.vm_name | default('unknown') }}"
+
 - name: Build compliance data structure
   ansible.builtin.set_fact:
     compliance_data:
-      current_scores: "{{ scan_results }}"
-      vms: "{{ scan_results | map(attribute='vm_name') | list }}"
+      current_scores: "{{ scan_results_enhanced }}"
+      vms: "{{ scan_results_enhanced | map(attribute='vm_name') | list }}"
 
 - name: Extract score values for averaging
   ansible.builtin.set_fact:
     score_values: "{{ scan_results | map(attribute='score') | map('float') | list }}"
 
+- name: Aggregate unique failed controls across all VMs
+  ansible.builtin.set_fact:
+    all_failed_controls:
+      cat1: "{{ scan_results_enhanced | map(attribute='failed_controls.cat1') | flatten | unique | sort | list }}"
+      cat2: "{{ scan_results_enhanced | map(attribute='failed_controls.cat2') | flatten | unique | sort | list }}"
+      cat3: "{{ scan_results_enhanced | map(attribute='failed_controls.cat3') | flatten | unique | sort | list }}"
+
 - name: Calculate summary statistics
   ansible.builtin.set_fact:
     report_summary:
-      vms_covered: "{{ scan_results | length }}"
+      vms_covered: "{{ scan_results_enhanced | length }}"
       average_score: "{{ ((score_values | sum) / (score_values | length)) | round(1) if score_values | length > 0 else 0 }}"
-      total_passed: "{{ scan_results | map(attribute='passed') | map('int') | sum }}"
-      total_failed: "{{ scan_results | map(attribute='failed') | map('int') | sum }}"
-      cat1_failed: "{{ scan_results | map(attribute='cat1_failed') | map('int') | sum }}"
-      cat2_failed: "{{ scan_results | map(attribute='cat2_failed') | map('int') | sum }}"
-      cat3_failed: "{{ scan_results | map(attribute='cat3_failed') | map('int') | sum }}"
+      total_passed: "{{ scan_results_enhanced | map(attribute='passed') | map('int') | sum }}"
+      total_failed: "{{ scan_results_enhanced | map(attribute='failed') | map('int') | sum }}"
+      cat1_failed: "{{ all_failed_controls.cat1 | length }}"
+      cat2_failed: "{{ all_failed_controls.cat2 | length }}"
+      cat3_failed: "{{ all_failed_controls.cat3 | length }}"
+      failed_controls: "{{ all_failed_controls }}"
       period_start: "{{ report_period_start | default('N/A') }}"
       period_end: "{{ report_period_end | default('now') }}"
       generated: "{{ ansible_date_time.iso8601 }}"
