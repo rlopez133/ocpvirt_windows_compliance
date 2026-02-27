@@ -377,14 +377,39 @@
         </div>
 
         <div class="section">
+            <div class="section-header">Open Findings by Severity</div>
+            <div style="padding: 25px;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                    <div style="background: rgba(163, 0, 0, 0.08); border: 1px solid rgba(163, 0, 0, 0.2); border-radius: 8px; padding: 25px; text-align: center;">
+                        <div style="font-size: 36px; font-weight: 700; color: var(--rh-red-dark);">{{ report_summary.cat1_failed | default(0) }}</div>
+                        <div style="font-size: 14px; font-weight: 600; color: var(--rh-red-dark); margin-top: 8px;">CAT I - Critical</div>
+                        <div style="font-size: 12px; color: var(--rh-gray); margin-top: 4px;">Immediate action required</div>
+                    </div>
+                    <div style="background: rgba(240, 171, 0, 0.08); border: 1px solid rgba(240, 171, 0, 0.2); border-radius: 8px; padding: 25px; text-align: center;">
+                        <div style="font-size: 36px; font-weight: 700; color: #996900;">{{ report_summary.cat2_failed | default(0) }}</div>
+                        <div style="font-size: 14px; font-weight: 600; color: #996900; margin-top: 8px;">CAT II - High</div>
+                        <div style="font-size: 12px; color: var(--rh-gray); margin-top: 4px;">Remediate within 30 days</div>
+                    </div>
+                    <div style="background: rgba(0, 149, 150, 0.08); border: 1px solid rgba(0, 149, 150, 0.2); border-radius: 8px; padding: 25px; text-align: center;">
+                        <div style="font-size: 36px; font-weight: 700; color: var(--rh-cyan);">{{ report_summary.cat3_failed | default(0) }}</div>
+                        <div style="font-size: 14px; font-weight: 600; color: var(--rh-cyan); margin-top: 8px;">CAT III - Medium</div>
+                        <div style="font-size: 12px; color: var(--rh-gray); margin-top: 4px;">Remediate within 90 days</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
             <div class="section-header">VM Compliance Status</div>
             <table>
                 <thead>
                     <tr>
                         <th>Virtual Machine</th>
-                        <th>Profile</th>
                         <th>Score</th>
                         <th>Progress</th>
+                        <th>CAT I</th>
+                        <th>CAT II</th>
+                        <th>CAT III</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -392,7 +417,6 @@
 {% for vm in compliance_data.current_scores %}
                     <tr>
                         <td><span class="vm-name">{{ vm.vm_name | default('Unknown') }}</span></td>
-                        <td><span class="profile-tag">STIG</span></td>
                         <td>
                             <span class="score-badge {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
                                 {{ vm.score | default(0) }}%
@@ -403,6 +427,9 @@
                                 <div class="progress-fill {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}" style="width: {{ vm.score | default(0) }}%"></div>
                             </div>
                         </td>
+                        <td style="text-align: center; {% if vm.cat1_failed | default(0) | int > 0 %}color: var(--rh-red-dark); font-weight: 600;{% endif %}">{{ vm.cat1_failed | default(0) }}</td>
+                        <td style="text-align: center; {% if vm.cat2_failed | default(0) | int > 0 %}color: #996900;{% endif %}">{{ vm.cat2_failed | default(0) }}</td>
+                        <td style="text-align: center; {% if vm.cat3_failed | default(0) | int > 0 %}color: var(--rh-cyan);{% endif %}">{{ vm.cat3_failed | default(0) }}</td>
                         <td>
                             <span class="status-indicator {% if vm.score | float >= 95 %}compliant{% elif vm.score | float >= 80 %}warning{% else %}critical{% endif %}">
                                 {% if vm.score | float >= 95 %}Compliant{% elif vm.score | float >= 80 %}Warning{% else %}Critical{% endif %}

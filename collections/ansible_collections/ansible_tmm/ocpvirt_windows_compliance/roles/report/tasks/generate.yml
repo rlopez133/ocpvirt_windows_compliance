@@ -4,8 +4,8 @@
 
 - name: Set report filename
   ansible.builtin.set_fact:
-    report_filename: "{{ report_filename_prefix }}-{{ tenant_namespace }}-{{ ansible_date_time.date }}.{{ report_format }}"
-    report_path: "{{ report_output_dir }}/{{ report_filename_prefix }}-{{ tenant_namespace }}-{{ ansible_date_time.date }}.{{ report_format }}"
+    report_filename: "{{ report_filename_prefix }}-{{ report_template }}-{{ tenant_namespace }}-{{ ansible_date_time.date }}.{{ report_format }}"
+    report_path: "{{ report_output_dir }}/{{ report_filename_prefix }}-{{ report_template }}-{{ tenant_namespace }}-{{ ansible_date_time.date }}.{{ report_format }}"
 
 - name: Ensure output directory exists
   ansible.builtin.file:
