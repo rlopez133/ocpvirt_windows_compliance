@@ -37,6 +37,28 @@
       ansible.builtin.set_fact:
         _combined_skip_controls: "{{ _combined_skip_controls + (winrm_transport_sensitive_controls | default([])) }}"
 
+    - name: Exclude user_rights category to prevent WinRM session loss on Basic auth
+      ansible.builtin.debug:
+        msg: |
+          WARNING: Removing 'user_rights' from STIG categories.
+
+          User rights assignments (e.g., SeCreateTokenPrivilege, SeNetworkLogonRight)
+          can invalidate WinRM Basic auth sessions mid-task, causing connection resets.
+
+          To include user_rights remediation:
+          1. Switch to NTLM/Kerberos transport first
+          2. Re-run remediation
+
+- name: Build safe categories list (exclude user_rights on Basic transport)
+  ansible.builtin.set_fact:
+    _safe_categories: "{{ external_stig_role.categories | default(['account_policies', 'audit_policies', 'user_rights', 'security_options', 'registry_settings', 'system_services']) | reject('equalto', 'user_rights') | list }}"
+  when: not _using_secure_transport
+
+- name: Use full categories list on secure transport
+  ansible.builtin.set_fact:
+    _safe_categories: "{{ external_stig_role.categories | default(['account_policies', 'audit_policies', 'user_rights', 'security_options', 'registry_settings', 'system_services']) }}"
+  when: _using_secure_transport
+
 - name: Filter out protected controls from remediation list
   ansible.builtin.set_fact:
     _safe_controls_to_remediate: "{{ controls_to_remediate | reject('in', _combined_skip_controls) | list }}"
@@ -60,6 +82,7 @@
       - Role: infra.windows_ops.windows_manage_stig
       - WinRM Transport: {{ _current_winrm_transport }} ({{ 'secure' if _using_secure_transport else 'BASIC - some controls skipped' }})
       - Controls to remediate: {{ _safe_controls_to_remediate | length }} ({{ _skipped_protected_controls | length }} skipped for safety)
+      - STIG categories: {{ _safe_categories | join(', ') }}
       - Category: {{ remediation_category }}
       - Report path: {{ external_stig_role.report_path | default('C:\\temp\\stig_compliance_report.json') }}
 
@@ -115,7 +138,7 @@
     windows_manage_stig_report_path: "{{ external_stig_role.report_path | default('C:\\temp\\stig_compliance_report.json') }}"
     windows_manage_stig_compliance_threshold: "{{ external_stig_role.compliance_threshold | default(95) }}"
     windows_manage_stig_fail_on_non_compliance: "{{ external_stig_role.fail_on_non_compliance | default(false) }}"
-    windows_manage_stig_categories: "{{ external_stig_role.categories | default(['account_policies', 'audit_policies', 'user_rights', 'security_options', 'registry_settings', 'system_services']) }}"
+    windows_manage_stig_categories: "{{ _safe_categories }}"
   register: external_role_result
   ignore_errors: true
 
