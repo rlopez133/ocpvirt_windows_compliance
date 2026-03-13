@@ -3,12 +3,6 @@
 # Applies scan-driven CAT I remediation to Windows VMs
 # Only remediates controls that failed in the scan results
 
-# Target VMs - override with job template variables
-# NOTE: Not currently used - inventory is set via job template
-# target_vms: []
-#   - name: vm-name
-#     namespace: vm-namespace
-
 # For scan-driven mode: List of failed control V-IDs from scan results
 # This is populated by the scan role and passed to remediation
 # Example: ["V-205711", "V-205713", "V-205919"]
@@ -30,9 +24,6 @@ auto_remediate_cat3: false
 skip_controls: []
 
 # Safety settings
-# NOTE: allow_reboot and backup_before_change not currently used
-# allow_reboot: false
-# backup_before_change: true
 dry_run: false
 
 # Trigger source (for auditing)
@@ -45,8 +36,4 @@ use_external_stig_role: true
 
 # Remediation behavior
 remediation:
-  # NOTE: max_retries, retry_delay, continue_on_error not currently used
-  # max_retries: 3
-  # retry_delay: 30
-  # continue_on_error: true
   create_restore_point: true
