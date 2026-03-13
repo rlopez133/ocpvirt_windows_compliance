@@ -11,13 +11,13 @@ This guide walks you through testing the `ansible_tmm.ocpvirt_windows_compliance
 | Component | Version | Notes |
 |-----------|---------|-------|
 | OpenShift Container Platform | 4.12+ | With OpenShift Virtualization operator |
-| Ansible Automation Platform | 2.4+ | Controller + Event Driven Ansible |
+| Ansible Automation Platform | 2.5+ | Controller + Event Driven Ansible (unified gateway) |
 | Windows VMs | Server 2019/2022 | Running on OCP Virtualization with WinRM enabled |
-| Prometheus | - | OpenShift built-in or external (optional for EDA) |
+| Prometheus | - | OpenShift built-in user workload monitoring |
 
 ### Required Access
 
-- [ ] AAP Controller admin access
+- [ ] AAP Gateway admin access (AAP 2.5+ uses unified gateway)
 - [ ] OpenShift cluster access (for inventory sync)
 - [ ] Windows VM administrator credentials
 - [ ] Network connectivity from AAP Execution Environment to Windows VMs (port 5985/5986)
@@ -25,135 +25,178 @@ This guide walks you through testing the `ansible_tmm.ocpvirt_windows_compliance
 ### Required Files
 
 - [ ] DISA SCC installer ZIP (download from [DISA](https://public.cyber.mil/stigs/scap/))
-- [ ] Collection tarball or Git repository URL
+- [ ] Windows Server STIG content ZIPs (from DISA)
+- [ ] Collection Git repository URL
 
 ---
 
-## Step 1: Build the Collection
+## Step 1: Create Credentials in AAP
 
-On your development machine:
+### 1.1 Windows Machine Credential
 
-```bash
-cd /path/to/ocpvirt_windows_compliance
-
-# Build the collection tarball
-ansible-galaxy collection build
-
-# Output: ansible_tmm-ocpvirt_windows_compliance-1.0.0.tar.gz
-```
-
-You'll upload this to AAP or use a Git repository.
-
----
-
-## Step 2: Create Credentials in AAP
-
-### 2.1 Windows Machine Credential
-
-1. Navigate to **Resources** → **Credentials**
-2. Click **Add**
+1. Navigate to **Automation Execution** → **Infrastructure** → **Credentials**
+2. Click **Create credential**
 3. Fill in the form:
 
 | Field | Value |
 |-------|-------|
-| **Name** | `Windows Compliance Credential` |
-| **Organization** | Your organization |
+| **Name** | `Win VM` |
+| **Organization** | Default |
 | **Credential Type** | `Machine` |
 | **Username** | `Administrator` |
 | **Password** | Your Windows admin password |
 
-4. Click **Save**
+4. Click **Create credential**
 
-### 2.2 OpenShift API Credential
+### 1.2 OpenShift API Credential
 
-1. Navigate to **Resources** → **Credentials**
-2. Click **Add**
+1. Navigate to **Automation Execution** → **Infrastructure** → **Credentials**
+2. Click **Create credential**
 3. Fill in the form:
 
 | Field | Value |
 |-------|-------|
-| **Name** | `OpenShift API Credential` |
-| **Organization** | Your organization |
+| **Name** | `OpenShift Credential` |
+| **Organization** | Default |
 | **Credential Type** | `OpenShift or Kubernetes API Bearer Token` |
 | **OpenShift or Kubernetes API Endpoint** | `https://api.<your-cluster>:6443` |
 | **API authentication bearer token** | Your service account token* |
 | **Verify SSL** | Checked (provide CA cert if needed) |
 
-4. Click **Save**
+4. Click **Create credential**
 
 *To get a service account token:
 ```bash
-oc create sa compliance-automation -n compliance-test
-oc adm policy add-cluster-role-to-user cluster-reader -z compliance-automation -n compliance-test
-oc sa get-token compliance-automation -n compliance-test
+oc create sa compliance-automation -n compliance
+oc adm policy add-cluster-role-to-user cluster-reader -z compliance-automation -n compliance
+oc create token compliance-automation -n compliance --duration=8760h
 ```
 
-### 2.3 AAP Controller Credential (for EDA)
+### 1.3 AAP Controller Credential (for Setup Role)
 
-1. Navigate to **Resources** → **Credentials**
-2. Click **Add**
+This credential allows the setup role to create job templates in AAP.
+
+1. Navigate to **Automation Execution** → **Infrastructure** → **Credentials**
+2. Click **Create credential**
 3. Fill in the form:
 
 | Field | Value |
 |-------|-------|
 | **Name** | `AAP Controller Credential` |
-| **Organization** | Your organization |
+| **Organization** | Default |
 | **Credential Type** | `Red Hat Ansible Automation Platform` |
-| **Red Hat Ansible Automation Platform** | `https://aap-controller.example.com` |
+| **Red Hat Ansible Automation Platform** | `https://<your-aap-gateway-url>` |
 | **Username** | Your AAP username |
 | **Password** | Your AAP password |
+| **Verify SSL** | Checked |
 
-4. Click **Save**
+4. Click **Create credential**
+
+### 1.4 Automation Hub Credentials (for Collection Downloads)
+
+Create credentials to access certified and validated collections from Automation Hub.
+
+1. Navigate to **Automation Execution** → **Infrastructure** → **Credentials**
+2. Click **Create credential**
+3. Fill in the form for **Certified** content:
+
+| Field | Value |
+|-------|-------|
+| **Name** | `AHub Credential Certified` |
+| **Organization** | Default |
+| **Credential Type** | `Ansible Galaxy/Automation Hub API Token` |
+| **Galaxy Server URL** | `https://console.redhat.com/api/automation-hub/content/published/` |
+| **API Token** | Your Red Hat Automation Hub token* |
+
+4. Click **Create credential**
+5. Repeat for **Validated** content:
+
+| Field | Value |
+|-------|-------|
+| **Name** | `AHub Credential Validated` |
+| **Organization** | Default |
+| **Credential Type** | `Ansible Galaxy/Automation Hub API Token` |
+| **Galaxy Server URL** | `https://console.redhat.com/api/automation-hub/content/validated/` |
+| **API Token** | Your Red Hat Automation Hub token* |
+
+6. Click **Create credential**
+
+*Get your token from [console.redhat.com](https://console.redhat.com/ansible/automation-hub/token)
+
+### 1.5 Add Automation Hub Credentials to Default Organization
+
+**Important:** The AAP UI does not support adding galaxy credentials to organizations. You must use the API.
+
+1. First, get your AAP API token or use basic auth
+2. Find the credential IDs:
+
+```bash
+curl -sk -H "Authorization: Bearer <your-token>" \
+  "https://<aap-gateway>/api/controller/v2/credentials/?name__icontains=AHub" \
+  | jq '.results[] | {id, name}'
+```
+
+3. Add each credential to the Default organization (ID 1):
+
+```bash
+# Add AHub Credential Certified
+curl -sk -X POST \
+  -H "Authorization: Bearer <your-token>" \
+  -H "Content-Type: application/json" \
+  "https://<aap-gateway>/api/controller/v2/organizations/1/galaxy_credentials/" \
+  -d '{"id": <certified-credential-id>}'
+
+# Add AHub Credential Validated
+curl -sk -X POST \
+  -H "Authorization: Bearer <your-token>" \
+  -H "Content-Type: application/json" \
+  "https://<aap-gateway>/api/controller/v2/organizations/1/galaxy_credentials/" \
+  -d '{"id": <validated-credential-id>}'
+```
+
+4. Verify the credentials were added:
+
+```bash
+curl -sk -H "Authorization: Bearer <your-token>" \
+  "https://<aap-gateway>/api/controller/v2/organizations/1/galaxy_credentials/" \
+  | jq '.results[] | {id, name}'
+```
 
 ---
 
-## Step 3: Create Project in AAP
+## Step 2: Create Project in AAP
 
-### Option A: From Git Repository
-
-1. Navigate to **Resources** → **Projects**
-2. Click **Add**
+1. Navigate to **Automation Execution** → **Projects**
+2. Click **Create project**
 3. Fill in the form:
 
 | Field | Value |
 |-------|-------|
 | **Name** | `Windows Compliance Collection` |
-| **Organization** | Your organization |
-| **Execution Environment** | Default or custom EE with Windows collections |
+| **Organization** | Default |
+| **Execution Environment** | Default execution environment |
 | **Source Control Type** | `Git` |
-| **Source Control URL** | `https://github.com/your-org/ocpvirt_windows_compliance.git` |
-| **Source Control Branch/Tag/Commit** | `main` |
+| **Source Control URL** | `https://github.com/rlopez133/ocpvirt_windows_compliance.git` |
+| **Source Control Branch/Tag/Commit** | `010-e2e-testing-fixes` (or `main` for stable) |
 
-4. Click **Save**
-5. Wait for the project to sync (check the status icon)
-
-### Option B: Upload Collection Manually
-
-1. In AAP, go to **Administration** → **Execution Environments**
-2. Create a custom EE that includes your collection, OR
-3. Upload the collection to a private Automation Hub and reference it in your project's `collections/requirements.yml`
+4. Click **Create project**
+5. Wait for the project to sync (check the status icon turns green)
 
 ---
 
-## Step 4: Create Inventory in AAP
+## Step 3: Create Inventories in AAP
 
-### 4.1 Create the Inventory
+### 3.1 Create Windows VMs Inventory
 
-1. Navigate to **Resources** → **Inventories**
-2. Click **Add** → **Add inventory**
-3. Fill in the form:
+1. Navigate to **Automation Execution** → **Infrastructure** → **Inventories**
+2. Click **Create inventory**
+3. Fill in:
 
 | Field | Value |
 |-------|-------|
-| **Name** | `OCP Windows VMs` |
-| **Organization** | Your organization |
-
-4. Click **Save**
-
-### 4.2 Add Inventory Variables
-
-1. In the inventory you just created, click **Variables**
-2. Add the following YAML:
+| **Name** | `Windows VMs` |
+| **Organization** | Default |
+| **Variables** | See below |
 
 ```yaml
 ---
@@ -161,511 +204,403 @@ oc sa get-token compliance-automation -n compliance-test
 ansible_connection: winrm
 ansible_winrm_transport: basic
 ansible_winrm_server_cert_validation: ignore
-ansible_port: 5986
-
-# Collection defaults
-tenant_namespace: compliance-test
-scc_installer_url: "https://your-server/scc-5.12.1_Windows_bundle.zip"
+ansible_port: 5985
 ```
 
-3. Click **Save**
+4. Click **Create inventory**
 
-### 4.3 Add Hosts Manually
+### 3.2 Add Windows Hosts
 
 1. Click the **Hosts** tab
-2. Click **Add**
+2. Click **Create host**
 3. Fill in:
 
 | Field | Value |
 |-------|-------|
-| **Name** | `win-test-01` |
+| **Name** | `win-vm-01` |
 | **Variables** | See below |
 
 ```yaml
 ---
-ansible_host: 10.133.2.41  # Your VM's IP address
+ansible_host: 10.x.x.x  # Your VM's IP address
 ```
 
-4. Click **Save**
+4. Click **Create host**
 5. Repeat for additional Windows VMs
 
-### Alternative: Dynamic Inventory from OpenShift
-
-1. In your inventory, click the **Sources** tab
-2. Click **Add**
-3. Fill in:
-
-| Field | Value |
-|-------|-------|
-| **Name** | `OpenShift Virtualization VMs` |
-| **Source** | `OpenShift Virtualization` |
-| **Credential** | `OpenShift API Credential` |
-| **Update Options** | Check "Update on launch" |
-
-4. Click **Save**
-5. Click **Sync** to pull VMs from OpenShift
-
 ---
 
-## Step 5: Setup Environment (Prometheus, Grafana, EDA)
+## Step 4: Create the Compliance-Setup Job Template
 
-**This is the most important step!** The setup playbook deploys all monitoring infrastructure:
-- Prometheus alerting rules
-- Grafana dashboards
-- Alertmanager configuration
-- EDA rulebook activation
-- Storage PVC for reports
+This is the **only job template you need to create manually**. It will create all other job templates automatically.
 
-### 5.1 Create "Localhost" Inventory
-
-The setup playbook runs against `localhost` to deploy resources to OpenShift.
-
-1. Navigate to **Resources** → **Inventories**
-2. Click **Add** → **Add inventory**
-3. Fill in:
-
-| Field | Value |
-|-------|-------|
-| **Name** | `Localhost` |
-| **Organization** | Your organization |
-
-4. Click **Save**
-5. Click the **Hosts** tab → **Add**
-6. Fill in:
-
-| Field | Value |
-|-------|-------|
-| **Name** | `localhost` |
-| **Variables** | See below |
-
-```yaml
----
-ansible_connection: local
-ansible_python_interpreter: "{{ ansible_playbook_python }}"
-```
-
-7. Click **Save**
-
-### 5.2 Create Setup Environment Job Template
-
-1. Navigate to **Resources** → **Templates**
-2. Click **Add** → **Add job template**
+1. Navigate to **Automation Execution** → **Templates**
+2. Click **Create template** → **Create job template**
 3. Fill in the form:
 
 | Field | Value |
 |-------|-------|
-| **Name** | `Compliance - Setup Environment` |
+| **Name** | `Compliance-Setup` |
 | **Job Type** | `Run` |
-| **Inventory** | `Localhost` |
+| **Inventory** | `Demo Inventory` |
 | **Project** | `Windows Compliance Collection` |
-| **Playbook** | `playbooks/setup.yml` |
-| **Credentials** | `OpenShift API Credential` |
+| **Playbook** | `collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks/setup.yml` |
+| **Credentials** | `OpenShift Credential`, `AAP Controller Credential` |
 | **Variables** | See below |
 
 ```yaml
 ---
 # Tenant Configuration
 tenant_config:
-  name: "production"
-  namespace: "compliance-test"
+  name: "default"
+  namespace: "compliance"
   storage:
     backend: "pvc"
     pvc_name: "compliance-reports"
     pvc_size: "50Gi"
-  alerting:
-    thresholds:
-      critical: 100
-      warning: 95
-      info: 80
 
-# AAP Configuration
-aap_config:
-  controller_url: "https://aap-controller.example.com"
-  organization: "Default"
-  project_name: "Windows Compliance Collection"
-  inventory_name: "OCP Windows VMs"
+# AAP Job Template Configuration
+aap_create_job_templates: true
+aap_job_template_organization: "Default"
+aap_job_template_project: "Windows Compliance Collection"
+aap_credential_openshift: "OpenShift Credential"
+aap_credential_windows: "Win VM"
+aap_inventory_windows: "Windows VMs"
+aap_inventory_localhost: "Demo Inventory"
 
-# EDA Configuration
-eda_config:
-  enabled: true
-  controller_url: "https://eda-controller.example.com"
-  webhook_port: 5001
-  auto_remediate_cat1: false  # CAT I requires manual approval
-  auto_remediate_cat2: true
-  auto_remediate_cat3: true
+# Playbook path (relative to project root)
+aap_playbook_path_prefix: "collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks"
 
-# Enable all monitoring components
+# EDA Configuration (optional - set eda_enabled: false to skip)
+eda_enabled: true
+eda_project_url: "https://github.com/rlopez133/ocpvirt_windows_compliance.git"
+eda_organization: "Default"
+
+# Monitoring
 ocpvirt_compliance_enable_user_workload_monitoring: true
-ocpvirt_compliance_alertmanager_dedicated: true
 ocpvirt_compliance_grafana_dashboards: true
 ```
 
-4. Click **Save**
+4. Click **Create job template**
 
-### 5.3 Run the Setup Job Template
+### 4.1 Run the Compliance-Setup Job Template
 
-1. Navigate to **Resources** → **Templates**
-2. Find `Compliance - Setup Environment`
+1. Navigate to **Automation Execution** → **Templates**
+2. Find `Compliance-Setup`
 3. Click the **rocket icon** (Launch)
-4. Click **Launch**
+4. Click **Next** → **Launch**
 5. Wait for the job to complete
 
-**Expected Result:**
-- PrometheusRules created in namespace
-- Grafana ConfigMap with dashboard deployed
-- Alertmanager configuration applied
-- EDA rulebook activation configured
-- PVC created for storing compliance reports
+**What gets created:**
 
-### 5.4 Verify Setup in OpenShift Console
-
-1. **Prometheus Rules:**
-   - OpenShift Console → **Observe** → **Alerting** → **Alerting rules**
-   - Search for "compliance"
-   - You should see rules like `ComplianceCAT1Violation`, `ComplianceCAT2Violation`, etc.
-
-2. **Grafana Dashboard:**
-   - OpenShift Console → **Observe** → **Dashboards**
-   - Look for "Windows Compliance" dashboard
-
-3. **Storage PVC:**
-   ```bash
-   oc get pvc -n compliance-test
-   # Should show: compliance-reports   Bound   ...
-   ```
+| Resource | Description |
+|----------|-------------|
+| **Job Templates** | Install-SCC, Compliance-Scan, Compliance-Remediate, Compliance-Report, Provision-Compliant-VM, Create-Golden-Image |
+| **PrometheusRules** | Alerting rules for compliance violations |
+| **Pushgateway** | Deployment for metrics collection |
+| **Grafana Operator** | Installed from OperatorHub if not present |
+| **Grafana Dashboard** | Windows Compliance dashboard with Prometheus datasource |
+| **EDA Components** | Project, Event Stream, Rulebook Activation, Credentials (if eda_enabled) |
+| **Storage PVC** | For compliance reports |
 
 ---
 
-## Step 6: Create Job Templates
+## Step 5: Verify Setup in OpenShift
 
-### 6.1 Install SCC Job Template
+### 5.1 Check Prometheus Rules
 
-> **Note:** Steps 6.1-6.4 create job templates for Windows VMs. These use the `OCP Windows VMs` inventory (not Localhost).
-
-1. Navigate to **Resources** → **Templates**
-2. Click **Add** → **Add job template**
-3. Fill in the form:
-
-| Field | Value |
-|-------|-------|
-| **Name** | `Compliance - Install SCC` |
-| **Job Type** | `Run` |
-| **Inventory** | `OCP Windows VMs` |
-| **Project** | `Windows Compliance Collection` |
-| **Playbook** | `playbooks/install_scc.yml` |
-| **Credentials** | `Windows Compliance Credential` |
-| **Variables** | See below |
-
-```yaml
----
-tenant_namespace: compliance-test
-scc_installer_url: "https://your-server/scc-5.12.1_Windows_bundle.zip"
+```bash
+oc get prometheusrules -n compliance
+# Should show: compliance-alerts
 ```
 
-4. Under **Options**, check:
-   - ✅ Enable Privilege Escalation
+### 5.2 Check Pushgateway
 
-5. Click **Save**
-
-### 6.2 Compliance Scan Job Template
-
-1. Navigate to **Resources** → **Templates**
-2. Click **Add** → **Add job template**
-3. Fill in:
-
-| Field | Value |
-|-------|-------|
-| **Name** | `Compliance - Scan` |
-| **Job Type** | `Run` |
-| **Inventory** | `OCP Windows VMs` |
-| **Project** | `Windows Compliance Collection` |
-| **Playbook** | `playbooks/scan.yml` |
-| **Credentials** | `Windows Compliance Credential` |
-| **Variables** | See below |
-
-```yaml
----
-tenant_namespace: compliance-test
-compliance_profile: stig
+```bash
+oc get deployment -n compliance | grep pushgateway
+# Should show: pushgateway   1/1
 ```
 
-4. Click **Save**
+### 5.3 Check Storage PVC
 
-### 6.3 Remediation Job Template
-
-1. Navigate to **Resources** → **Templates**
-2. Click **Add** → **Add job template**
-3. Fill in:
-
-| Field | Value |
-|-------|-------|
-| **Name** | `Compliance - Remediate` |
-| **Job Type** | `Run` |
-| **Inventory** | `OCP Windows VMs` |
-| **Project** | `Windows Compliance Collection` |
-| **Playbook** | `playbooks/remediate.yml` |
-| **Credentials** | `Windows Compliance Credential` |
-| **Variables** | See below |
-
-```yaml
----
-tenant_namespace: compliance-test
-remediate_cat1: true
-remediate_cat2: true
-remediate_cat3: false
+```bash
+oc get pvc -n compliance
+# Should show: compliance-reports   Bound   ...
 ```
 
-4. Under **Options**, check:
-   - ✅ Enable Privilege Escalation
+### 5.4 Check EDA Components (if enabled)
 
-5. Click **Save**
-
-### 6.4 Generate Report Job Template
-
-1. Navigate to **Resources** → **Templates**
-2. Click **Add** → **Add job template**
-3. Fill in:
-
-| Field | Value |
-|-------|-------|
-| **Name** | `Compliance - Generate Report` |
-| **Job Type** | `Run` |
-| **Inventory** | `OCP Windows VMs` |
-| **Project** | `Windows Compliance Collection` |
-| **Playbook** | `playbooks/report.yml` |
-| **Credentials** | `Windows Compliance Credential` |
-| **Variables** | See below |
-
-```yaml
----
-tenant_namespace: compliance-test
-report_format: html
-report_template: detailed
-```
-
-4. Click **Save**
+In AAP Gateway, navigate to **Automation Decisions**:
+- **Projects** → Should have "Windows Compliance" project
+- **Rulebook Activations** → Should have "compliance-alerts-activation"
+- **Event Streams** → Should have "compliance-alerts" with webhook URL
 
 ---
 
-## Step 7: Test Connectivity
+## Step 6: Test Connectivity to Windows VMs
 
-### 7.1 Run Ad-Hoc Command
+### 6.1 Run Ad-Hoc Ping
 
-1. Navigate to **Resources** → **Inventories**
-2. Click on `OCP Windows VMs`
+1. Navigate to **Automation Execution** → **Infrastructure** → **Inventories**
+2. Click on `Windows VMs`
 3. Click the **Hosts** tab
 4. Select your Windows host(s)
-5. Click **Run Command**
+5. Click **Run command**
 6. Fill in:
 
 | Field | Value |
 |-------|-------|
 | **Module** | `ansible.windows.win_ping` |
-| **Machine Credential** | `Windows Compliance Credential` |
+| **Machine Credential** | `Win VM` |
 
 7. Click **Launch**
 
 **Expected Result:**
 ```
-win-test-01 | SUCCESS => {
+win-vm-01 | SUCCESS => {
     "changed": false,
     "ping": "pong"
 }
 ```
 
-### 7.2 Troubleshooting Connection Issues
+### 6.2 Troubleshooting Connection Issues
 
-If the ping fails, verify from the AAP Execution Environment:
+If the ping fails:
 
-1. Navigate to **Administration** → **Execution Environments**
-2. Note which EE your job template uses
-3. SSH into the AAP controller node and test manually:
+1. **Check WinRM is enabled on Windows VM:**
+   ```powershell
+   # On Windows VM
+   winrm quickconfig
+   winrm set winrm/config/service/auth '@{Basic="true"}'
+   winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+   ```
 
-```bash
-# Check if the EE has required Python packages
-podman run --rm <ee-image> pip list | grep pywinrm
+2. **Check firewall allows WinRM:**
+   ```powershell
+   New-NetFirewallRule -Name "WinRM-HTTP" -DisplayName "WinRM HTTP" -Protocol TCP -LocalPort 5985 -Action Allow
+   ```
 
-# Test WinRM connectivity
-podman run --rm <ee-image> python3 -c "
-import winrm
-s = winrm.Session('http://<vm-ip>:5985/wsman',
-    auth=('Administrator', 'password'),
-    transport='basic')
-print(s.run_cmd('hostname').std_out)
-"
-```
+3. **Verify network connectivity from AAP:**
+   - Ensure AAP execution environment can reach Windows VM IP on port 5985/5986
 
 ---
 
-## Step 8: Run the Job Templates
+## Step 7: Run Install-SCC
 
-### 8.1 Install SCC
+The Install-SCC job template has a **survey** that prompts for download URLs.
 
-1. Navigate to **Resources** → **Templates**
-2. Find `Compliance - Install SCC`
+### 7.1 Prepare SCC Files
+
+You need to host the following files on a web server accessible from your Windows VMs:
+- SCC installer bundle (e.g., `scc-5.13_Windows_bundle.zip`)
+- Windows Server 2022 STIG content (optional)
+- Windows Server 2019 STIG content (optional)
+
+Options:
+- S3 bucket with presigned URLs
+- Internal web server
+- Any HTTPS endpoint accessible from VMs
+
+### 7.2 Launch Install-SCC
+
+1. Navigate to **Automation Execution** → **Templates**
+2. Find `Install-SCC`
 3. Click the **rocket icon** (Launch)
-4. Review the variables (modify if needed)
-5. Click **Launch**
-6. Monitor the job output
+4. Fill in the survey:
+
+| Field | Value |
+|-------|-------|
+| **SCC Installer URL** | `https://your-server/scc-5.13_Windows_bundle.zip` |
+| **Windows Server 2022 STIG URL** | (optional) `https://your-server/U_MS_Windows_Server_2022_V2R2_STIG.zip` |
+| **Windows Server 2019 STIG URL** | (optional) `https://your-server/U_MS_Windows_Server_2019_V3R3_STIG.zip` |
+
+5. Click **Next** → **Launch**
 
 **Expected Result:**
 - Job completes successfully (green)
 - SCC installed at `C:\Program Files\SCC` on Windows VM
-
-### 8.2 Run Compliance Scan
-
-1. Navigate to **Resources** → **Templates**
-2. Find `Compliance - Scan`
-3. Click **Launch**
-4. Monitor the job output
-
-**Expected Result:**
-- Scan completes
-- XCCDF results generated on Windows VM
-- Compliance score displayed in output
-
-### 8.3 Apply Remediation
-
-1. Navigate to **Resources** → **Templates**
-2. Find `Compliance - Remediate`
-3. Click **Launch**
-4. **Optional:** Limit to specific hosts in the launch dialog
-
-**Expected Result:**
-- STIG controls applied
-- Some settings may require reboot
-
-### 8.4 Generate Report
-
-1. Navigate to **Resources** → **Templates**
-2. Find `Compliance - Generate Report`
-3. Click **Launch**
-
-**Expected Result:**
-- HTML report generated
-- Check job artifacts for download
+- STIG content extracted to `C:\SCC\Resources\Content`
 
 ---
 
-## Step 9: Create Workflow (Optional)
+## Step 8: Run Compliance-Scan
 
-Combine all steps into a single workflow:
+1. Navigate to **Automation Execution** → **Templates**
+2. Find `Compliance-Scan`
+3. Click the **rocket icon** (Launch)
+4. Click **Next** → **Launch**
 
-### 9.1 Create Workflow Template
+**Expected Result:**
+- Scan completes
+- XCCDF results generated on Windows VM at `C:\SCC\Results\`
+- Compliance score displayed in output:
+  ```
+  Scan Complete
+  =============
+  Target: win-vm-01
+  Score: 45%
+  Status: non_compliant
+  Passed: 112
+  Failed: 138
+  CAT I Failed: 5
+  Failed CAT I V-IDs: V-205711, V-205713, V-205919, ...
+  ```
 
-1. Navigate to **Resources** → **Templates**
-2. Click **Add** → **Add workflow template**
+---
+
+## Step 9: Run Compliance-Remediate
+
+1. Navigate to **Automation Execution** → **Templates**
+2. Find `Compliance-Remediate`
+3. Click the **rocket icon** (Launch)
+4. Optionally set **Limit** to target specific hosts
+5. Click **Next** → **Launch**
+
+**What happens:**
+- For Windows 2022: Uses `infra.windows_ops` collection via `win_stig_wrapper` role
+- For Windows 2019: Uses built-in `win2019_stig` role
+- Applies registry settings, security policies, audit policies, user rights
+
+**Expected Result:**
+```
+================================================================================
+                            REMEDIATION RESULTS
+================================================================================
+
+Target:     win-vm-01
+OS:         Windows Server 2022
+Mode:       scan_driven
+Category:   CAT1
+
+Dry Run:    False
+Started:    2026-02-11T10:30:00
+Completed:  2026-02-11T10:35:00
+
+--------------------------------------------------------------------------------
+                            COMPLIANCE SUMMARY (External Role)
+--------------------------------------------------------------------------------
+
+Baseline:         Windows Server 2022 STIG
+Total Controls:   250
+Controls Passed:  245
+Controls Failed:  5
+Compliance Score: 98%
+Status:           COMPLIANT
+```
+
+### 9.1 Re-run Compliance-Scan
+
+After remediation, run another scan to verify improvements:
+
+1. Run `Compliance-Scan` again
+2. Compare scores - should see improvement
+
+---
+
+## Step 10: Create Workflow (Optional)
+
+Combine scan and remediate into a single workflow:
+
+### 10.1 Create Workflow Template
+
+1. Navigate to **Automation Execution** → **Templates**
+2. Click **Create template** → **Create workflow job template**
 3. Fill in:
 
 | Field | Value |
 |-------|-------|
-| **Name** | `Compliance - Full Lifecycle` |
-| **Organization** | Your organization |
-| **Inventory** | `OCP Windows VMs` |
+| **Name** | `Compliance - Scan and Remediate` |
+| **Organization** | Default |
+| **Inventory** | `Windows VMs` |
 
-4. Click **Save**
+4. Click **Create workflow job template**
 
-### 9.2 Design the Workflow
+### 10.2 Design the Workflow
 
-1. Click **Visualizer**
-2. Click **Start**
-3. Add nodes in this order:
+1. Click **Visualizer** tab
+2. Click **+** (Add step)
+3. Add nodes:
 
 ```
-[Start] → [Install SCC] → [Scan] → [Remediate] → [Scan Again] → [Generate Report]
+[Start] → [Compliance-Scan] → [Compliance-Remediate] → [Compliance-Scan]
+                                                              ↓
+                                                        (Final Score)
 ```
 
-For each node:
-- Click **Add Node**
-- Select the job template
-- Configure convergence: "Any" or "All" based on your needs
-
 4. Click **Save**
-
-### 9.3 Run the Workflow
-
-1. Navigate to **Resources** → **Templates**
-2. Find `Compliance - Full Lifecycle`
-3. Click **Launch**
-4. Watch all jobs execute in sequence
 
 ---
 
-## Step 10: Configure Event Driven Ansible (Optional)
+## Step 11: Event-Driven Ansible (Automatic)
 
-### 10.1 Create Rulebook Activation in EDA Controller
+If you enabled EDA in the setup (`eda_enabled: true`), the following was configured automatically:
 
-1. Navigate to **EDA Controller** (separate URL from AAP Controller)
-2. Go to **Rulebook Activations**
-3. Click **Create rulebook activation**
-4. Fill in:
+### What's Configured
 
-| Field | Value |
-|-------|-------|
-| **Name** | `Compliance Auto-Remediation` |
-| **Project** | `Windows Compliance Collection` |
-| **Rulebook** | `extensions/eda/rulebooks/compliance_remediation.yml` |
-| **Decision Environment** | Your EDA decision environment |
-| **Restart policy** | `On failure` |
-| **Credential** | `AAP Controller Credential` |
+| Component | Description |
+|-----------|-------------|
+| **EDA Project** | Points to your Git repository |
+| **Event Stream** | `compliance-alerts` with webhook URL and bearer token |
+| **Token Credential** | Auto-generated bearer token for webhook auth |
+| **RH AAP Credential** | Allows rulebook to trigger job templates |
+| **Decision Environment** | Container image for running rulebooks |
+| **Rulebook Activation** | `compliance-alerts-activation` listening for alerts |
 
-5. Click **Create rulebook activation**
-6. Enable the activation (toggle switch)
+### How It Works
 
-### 10.2 Configure Alertmanager Webhook
+1. **Scan pushes metrics** to Pushgateway
+2. **Prometheus scrapes** metrics and evaluates rules
+3. **Alertmanager fires** alert to EDA event stream webhook
+4. **EDA rulebook** receives alert and triggers `Compliance-Remediate` job
+5. **Remediation runs** automatically
 
-Add to your Alertmanager configuration:
+### Verify EDA Setup
 
-```yaml
-receivers:
-  - name: 'eda-compliance'
-    webhook_configs:
-      - url: 'http://eda-controller:5000/endpoint'
-        send_resolved: true
+1. Navigate to **Automation Decisions** → **Rulebook Activations**
+2. Find `compliance-alerts-activation`
+3. Status should be `running`
 
-route:
-  routes:
-    - match:
-        alertname: ComplianceViolation
-      receiver: 'eda-compliance'
-```
+### Test EDA Manually
 
-### 10.3 Test EDA Integration
-
-1. Simulate an alert:
+Send a test webhook to the event stream:
 
 ```bash
-curl -X POST http://eda-controller:5000/endpoint \
+# Get the webhook URL from EDA Event Streams
+WEBHOOK_URL="https://<aap-gateway>/api/eda/v1/external_webhook/<uuid>/"
+TOKEN="<your-generated-token>"
+
+curl -X POST "$WEBHOOK_URL" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "alerts": [{
       "status": "firing",
       "labels": {
-        "alertname": "ComplianceCAT2Violation",
-        "severity": "cat2",
-        "vm_name": "win-test-01",
-        "namespace": "compliance-test"
+        "alertname": "ComplianceCAT1Violation",
+        "severity": "cat1",
+        "vm_name": "win-vm-01",
+        "namespace": "compliance"
       },
       "annotations": {
-        "summary": "CAT2 compliance violation detected"
+        "summary": "CAT1 compliance violation detected",
+        "failed_controls": "V-205711,V-205713"
       }
     }]
   }'
 ```
 
-2. Check EDA Controller → **Rule Audit** for triggered rules
-3. Check AAP Controller → **Jobs** for auto-triggered remediation
+Check **Automation Execution** → **Jobs** for auto-triggered remediation.
 
 ---
 
-## Step 11: Schedule Regular Scans
+## Step 12: Schedule Regular Scans (Optional)
 
-### 11.1 Add Schedule to Scan Template
+### 12.1 Add Schedule to Scan Template
 
-1. Navigate to **Resources** → **Templates**
-2. Click on `Compliance - Scan`
+1. Navigate to **Automation Execution** → **Templates**
+2. Click on `Compliance-Scan`
 3. Click the **Schedules** tab
-4. Click **Add**
+4. Click **Create schedule**
 5. Fill in:
 
 | Field | Value |
@@ -676,7 +611,7 @@ curl -X POST http://eda-controller:5000/endpoint \
 | **Every** | `1` week |
 | **On days** | Select day(s) |
 
-6. Click **Save**
+6. Click **Create schedule**
 
 ---
 
@@ -684,30 +619,29 @@ curl -X POST http://eda-controller:5000/endpoint \
 
 ### AAP Controller
 
-- [ ] Credentials created (Windows, OpenShift, AAP)
+- [ ] Credentials created (Windows, OpenShift, AAP Controller)
 - [ ] Project synced successfully
-- [ ] Inventories created (Localhost + OCP Windows VMs)
-- [ ] **Setup Environment job completed successfully**
+- [ ] Inventories created (Demo Inventory + Windows VMs)
+- [ ] **Compliance-Setup job completed successfully**
+- [ ] Job templates created (Install-SCC, Compliance-Scan, Compliance-Remediate, etc.)
 - [ ] Win_ping ad-hoc command succeeds
-- [ ] Install SCC job completes
-- [ ] Scan job completes
-- [ ] Remediate job completes (check mode first!)
-- [ ] Report job generates HTML artifact
-- [ ] Workflow executes all steps
+- [ ] Install-SCC job completes
+- [ ] Compliance-Scan job completes and shows score
+- [ ] Compliance-Remediate job completes
+- [ ] Re-scan shows improved score
 
-### OpenShift (After Setup)
+### OpenShift
 
-- [ ] PrometheusRules deployed (`oc get prometheusrules -n compliance-test`)
-- [ ] Grafana dashboard ConfigMap created
-- [ ] Alertmanager configured
-- [ ] Storage PVC created (`oc get pvc -n compliance-test`)
+- [ ] PrometheusRules deployed (`oc get prometheusrules -n compliance`)
+- [ ] Pushgateway running (`oc get deployment -n compliance`)
+- [ ] Storage PVC created (`oc get pvc -n compliance`)
 
-### EDA Controller (Optional)
+### EDA (if enabled)
 
-- [ ] Rulebook activation running
-- [ ] Webhook receiving alerts
-- [ ] Rules triggering correctly
-- [ ] AAP jobs launching from EDA
+- [ ] EDA Project synced
+- [ ] Event Stream created with webhook URL
+- [ ] Rulebook Activation status is `running`
+- [ ] Test webhook triggers remediation job
 
 ---
 
@@ -717,16 +651,18 @@ curl -X POST http://eda-controller:5000/endpoint \
 
 | Issue | Solution |
 |-------|----------|
-| "No hosts matched" | Check inventory sync, verify host patterns |
-| WinRM connection timeout | Verify firewall rules, check port 5985/5986 |
+| "No hosts matched" | Check inventory, verify host patterns |
+| WinRM connection timeout | Verify firewall, check port 5985/5986 |
 | SSL certificate errors | Set `ansible_winrm_server_cert_validation: ignore` |
-| "Module not found" | Ensure Execution Environment has `pywinrm` installed |
-| Project sync fails | Check Git URL and credentials |
+| Project sync fails | Check Git URL, branch name, and credentials |
 | SCC download fails | Verify URL accessible from Windows VM |
+| EDA rulebook activation "failed" | Check decision environment image, project sync |
+| "Credential not found" error in setup | Ensure credential names match exactly |
+| Grafana Operator install times out | Check openshift-marketplace pods are running |
 
 ### View Job Logs
 
-1. Navigate to **Views** → **Jobs**
+1. Navigate to **Automation Execution** → **Jobs**
 2. Click on the failed job
 3. Review the **Output** tab
 4. Click on specific tasks to see detailed output
@@ -736,64 +672,64 @@ curl -X POST http://eda-controller:5000/endpoint \
 To enable verbose logging, edit the job template:
 
 1. Click on the job template
-2. In the **Variables** section, add:
-
-```yaml
-ansible_verbosity: 3
-```
-
+2. Set **Verbosity** to `3 (Debug)`
 3. Re-run the job
 
 ---
 
 ## Quick Reference: Job Template Variables
 
-### Setup Environment (Run First!)
+### Compliance-Setup (Run First!)
 ```yaml
 tenant_config:
-  name: "production"
-  namespace: "compliance-test"
+  name: "default"
+  namespace: "compliance"
   storage:
     backend: "pvc"
     pvc_name: "compliance-reports"
     pvc_size: "50Gi"
-aap_config:
-  controller_url: "https://aap-controller.example.com"
-eda_config:
-  enabled: true
-  controller_url: "https://eda-controller.example.com"
-ocpvirt_compliance_grafana_dashboards: true
+
+aap_create_job_templates: true
+aap_job_template_organization: "Default"
+aap_job_template_project: "Windows Compliance Collection"
+aap_credential_openshift: "OpenShift Credential"
+aap_credential_windows: "Win VM"
+aap_inventory_windows: "Windows VMs"
+aap_inventory_localhost: "Demo Inventory"
+
+eda_enabled: true
+eda_project_url: "https://github.com/rlopez133/ocpvirt_windows_compliance.git"
 ```
 
-### Install SCC
+### Install-SCC (Survey Prompted)
 ```yaml
-scc_installer_url: "https://server/scc-5.12.1_Windows_bundle.zip"
-tenant_namespace: "compliance-test"
+# These are prompted via survey:
+scc_installer_url: "https://server/scc-5.13_Windows_bundle.zip"
+scc_stig_url_win2022: "https://server/U_MS_Windows_Server_2022_STIG.zip"  # optional
+scc_stig_url_win2019: "https://server/U_MS_Windows_Server_2019_STIG.zip"  # optional
 ```
 
-### Scan
+### Compliance-Scan
 ```yaml
-compliance_profile: "stig"           # stig, cis, or custom
-scan_timeout: 3600                   # seconds
-tenant_namespace: "compliance-test"
+# No required variables - uses defaults
+store_results: true
+push_metrics: true
 ```
 
-### Remediate
+### Compliance-Remediate
 ```yaml
-remediate_cat1: true
-remediate_cat2: true
-remediate_cat3: false
-skip_reboot: false
-tenant_namespace: "compliance-test"
+dry_run: false
+use_external_stig_role: true
+# Controls come from scan results (failed_cat1_controls) or EDA trigger
 ```
 
-### Report
+### Compliance-Report
 ```yaml
-report_format: "html"                # html, json, csv
-report_template: "detailed"          # standard, detailed, executive
-tenant_namespace: "compliance-test"
+tenant_namespace: "compliance"
+report_format: "html"      # html | json | csv
+report_template: "standard"  # standard | executive | detailed
 ```
 
 ---
 
-*Guide for ansible_tmm.ocpvirt_windows_compliance collection on Ansible Automation Platform*
+*Guide for ansible_tmm.ocpvirt_windows_compliance collection on Ansible Automation Platform 2.5+*

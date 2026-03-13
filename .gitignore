@@ -219,3 +219,13 @@ log/
 # -----------------------------------------------------------------------------
 docs/_build/
 site/
+
+# Vars
+collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks/vars.yml
+collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks/ansible.cfg
+
+# Playwright MCP
+.playwright-mcp/
+
+#local files
+local_files/
