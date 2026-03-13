@@ -239,18 +239,6 @@
         name: infra.aap_configuration.controller_job_templates
       when: controller_templates is defined
 
-#    - name: Sync inventory source
-#      ansible.controller.inventory_source_update:
-#        inventory_source: "{{ inventory_source_name }}"
-#        inventory: "{{ inventory_name }}"
-#        wait: true
-#        timeout: 300
-#        controller_host: "{{ aap_hostname }}"
-#        controller_username: "{{ aap_username }}"
-#        controller_password: "{{ aap_password }}"
-#        validate_certs: "{{ aap_validate_certs }}"
-#      register: inventory_sync_result
-
     - name: Display bootstrap summary
       ansible.builtin.debug:
         msg: |
@@ -271,7 +259,8 @@
             - {{ inventory_name }}
             - Source: {{ inventory_source_name }} (openshift_virtualization)
             - Namespaces: {{ vm_namespaces | join(', ') }}
-            - Sync Status: {{ 'Completed' if inventory_sync_result is defined else 'Pending' }}
+            {# TODO: Remove after AAP validation - inventory sync variable no longer set #}
+            - Sync Status: Skipped (run manually)
 
           Job Template Created:
             - {{ job_template_name }}
