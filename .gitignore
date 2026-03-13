@@ -229,3 +229,4 @@ collections/ansible_collections/ansible_tmm/ocpvirt_windows_compliance/playbooks
 
 #local files
 local_files/
+.planning/
